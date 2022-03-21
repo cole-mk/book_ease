@@ -3,7 +3,6 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk
 import playlist
 
-# TODO: move all of the updating logic to bookview and or book
 class Edit_Row_Dialog:
 
     def __init__(self, row, g_col, book_view, track_edit_list, model):
@@ -123,7 +122,7 @@ class Edit_Row_Dialog:
         if len(val_list) > 0:
             # remove old entry
             for i in self.track_edit_list_tmp:
-                if i.col_num == self.selected_col:
+                if i.col_info == self.selected_col:
                     self.track_edit_list_tmp.remove(i)
                     break
             # add new entry
@@ -182,7 +181,7 @@ class Edit_Row_Dialog:
         # look for unsaved changes from this dialog first
         unsaved_changes = False
         for i in self.track_edit_list_tmp:
-            if i.col_num == self.selected_col:
+            if i.col_info == self.selected_col:
                 unsaved_changes = True
                 for x in i.val_list:
                     self.col_tv_model.append([x])
@@ -190,7 +189,7 @@ class Edit_Row_Dialog:
         # look for unsaved changes from previous dialog
         if not unsaved_changes:
             for i in self.track_edit_list:
-                if i.pl_row_id == row_id and i.col_num == self.selected_col:
+                if i.pl_row_id == row_id and i.col_info == self.selected_col:
                     unsaved_changes = True
                     for x in i.val_list:
                         self.col_tv_model.append([x])
@@ -366,7 +365,7 @@ class Book_View(Gtk.Box):
         # check first for pending changes to add
         pending_changes = False
         for entry in self.track_edit_list:
-            if entry.pl_row_id == pl_row_id and entry.col_num == col:
+            if entry.pl_row_id == pl_row_id and entry.col_info == col:
                 
                 for val in entry.val_list:
                     titles.append(val)
@@ -408,7 +407,7 @@ class Book_View(Gtk.Box):
     #    for i in track_edit_list_tmp:
     #        # remove old entry
     #        for j in self.pending_entry_list:
-    #            if j.col_num == i.col_num:
+    #            if j.col_info == i.col_info:
     #                self.pending_entry_list.remove(j)
     #        # add new entry
     #        self.pending_entry_list.append(i)
@@ -416,7 +415,7 @@ class Book_View(Gtk.Box):
     #        for j, row in enumerate(self.playlist):
     #            if i.pl_row_id == row[self.book.pl_row_id['col']]:
     #                itr = self.playlist.get_iter((j,))
-    #                self.playlist.set_value(itr, i.col_num['col'], i.val_list[0])
+    #                self.playlist.set_value(itr, i.col_info['col'], i.val_list[0])
     #                break
 
         
@@ -441,7 +440,7 @@ class Book_View(Gtk.Box):
                                 for j, row in enumerate(self.playlist):
                                     if i.pl_row_id == row[self.book.pl_row_id['col']]:
                                         itr = self.playlist.get_iter((j,))
-                                        self.playlist.set_value(itr, i.col_num['col'], i.val_list[0])
+                                        self.playlist.set_value(itr, i.col_info['col'], i.val_list[0])
                                         break
                                 
                             print('response', response)
