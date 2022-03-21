@@ -3,10 +3,10 @@ import mutagen
 
 class Track_Edit:
     
-    def __init__(self, col_num, pl_row_id=None, val_list=None):
-        #TODO: refactor self.col_num to a more fitting name
+    def __init__(self, col_info, pl_row_id=None, val_list=None):
+        #TODO: refactor self.col_info to a more fitting name
         # The description column(python map obj) created in the book obj
-        self.col_num = col_num
+        self.col_info = col_info
         # unique id for a track
         self.pl_row_id = pl_row_id
         # list of maps containing track data
@@ -78,7 +78,7 @@ class Playlist():
     def track_edit_list_append(self, track_edit):
         # remove old entry
         for j in self.track_edit_list:
-            if j.col_num == track_edit.col_num:
+            if j.col_info == track_edit.col_info:
                 self.track_edit_list.remove(j)
                 break
         # add new entry

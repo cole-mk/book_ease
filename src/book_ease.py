@@ -535,7 +535,7 @@ class Book(playlist.Playlist):
                         break
             # set new track entries
             if track is not None:
-                track.set_entry(entry.col_num['key'], entry.val_list)
+                track.set_entry(entry.col_info['key'], entry.val_list)
         self.track_edit_list.clear()
    
     def on_playlist_save(self, title):
