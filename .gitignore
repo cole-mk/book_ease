@@ -5,3 +5,4 @@ __pycache__/
 *.glade~
 /test/
 *.bak
+*.geany
