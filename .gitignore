@@ -1,0 +1,7 @@
+*.geanyprj
+*.db
+__pycache__/
+*.glade#
+*.glade~
+/test/
+*.bak
