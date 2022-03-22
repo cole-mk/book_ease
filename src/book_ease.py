@@ -749,8 +749,10 @@ class BookReader_View:
 class BookReader_DB:
     def __init__(self, book=None):
         self.book = book
-        self.db = '/home/mark/projects/gtk_test/src/example.db'
-        self.db_path = Path(self.db)
+        config_dir = Path.home() / '.config' / 'book_ease'
+        db_dir = config_dir / 'data'
+        db_dir.mkdir(mode=511, parents=True, exist_ok=True)
+        self.db = db_dir / 'book_ease.db'
         
         # playlists saved in cur dir
         self.cur_pl_id = {'col':0, 'g_typ':int, 'col_name':'id', 'g_col':0}    
@@ -764,8 +766,6 @@ class BookReader_DB:
         #                                 self.cur_pl_path['g_typ'])
         self.cur_pl_list = []
         
-        #if not self.db_path.is_file():
-        #   print('database dows not exist')
         self.init_tables()
         con = self.create_connection()
         if con is None:
