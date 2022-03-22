@@ -4,7 +4,6 @@ import mutagen
 class Track_Edit:
     
     def __init__(self, col_info, pl_row_id=None, val_list=None):
-        #TODO: refactor self.col_info to a more fitting name
         # The description column(python map obj) created in the book obj
         self.col_info = col_info
         # unique id for a track
