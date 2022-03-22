@@ -3,6 +3,7 @@
 __pycache__/
 *.glade#
 *.glade~
-/test/
+/testing/
 *.bak
 *.geany
+gitignore_local
