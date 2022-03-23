@@ -357,6 +357,7 @@ class Book(playlist.Playlist):
         super().__init__()
         self.title = 'New Book'                 #####
         self.playlist_id = None                 #####
+        self.saved_playlist = False
         self.config = config
         self.files = files
         self.book_section = 'books'
@@ -487,7 +488,9 @@ class Book(playlist.Playlist):
                 tr_entries_list = []
                 for entry in entries:
                     tr_entries_list.append(entry['entry'])
-                track.set_entry(col['key'], tr_entries_list)                            
+                track.set_entry(col['key'], tr_entries_list)
+        # playlist is now a saved playlist
+        self.saved_playlist = True
         # notify the book view that book data is ready
         GLib.idle_add(self.book_view.on_book_data_ready, priority=GLib.PRIORITY_DEFAULT)
         
@@ -582,6 +585,7 @@ class Book(playlist.Playlist):
                                 #                                   col['key'],
                                 #                                   pl_track_id,
                                 #                                   cur)
+            self.saved_playlist = True
 
         except sqlite3.Error as e:
             print('save playlist tracks and their metedata\n', e)
