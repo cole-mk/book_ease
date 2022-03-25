@@ -544,7 +544,6 @@ class Book(playlist.Playlist):
 
     
     def track_list_update(self):
-        print('track_list_update')
         for entry in self.track_edit_list:
             # get the track with matching row id
             track = None
@@ -577,21 +576,14 @@ class Book(playlist.Playlist):
                 if pl_id is None:
                     pl_id = self.db.playlist_update(title, self.path, self.playlist_id, cur)
             if pl_id is not None:
-                print('3')
                 self.title = title
                 # save playlist tracks,tracks and their metadata
-                print('self.playlist', self.playlist)
                 for row_num, track in enumerate(self.track_list):
-                    print('4')
                     track_id = self.db.track_add(path=track.get_file_path(), filename=track.get_file_name(), cur=cur)
-                    print('5')
                     if track_id is not None:
-                        print('6')
                         pl_track_id = self.db.playlist_track_add(pl_id, row_num, track_id, cur)
-                        print('7')
                         if pl_track_id is not None:
                             for col in self.metadata_col_list:
-                                print(col['key'])
                                 
                                 self.db.track_metadata_add(track_id, 
                                                            track.get_entries(col['key']),
@@ -607,9 +599,7 @@ class Book(playlist.Playlist):
             self.saved_playlist = True
 
         except sqlite3.Error as e:
-            print('save playlist tracks and their metedata\n', e)
         # reload the list of playlist names saved relative to this books directory
-        print("\n\nFinished\n\n")
         self.db.set_playlists_by_path(self.book_reader.cur_path, con)
         con.commit()
         con.close()
@@ -722,7 +712,6 @@ class BookReader_View:
                     itr = model.get_iter((sel,))
                     cols = map(lambda x: x['col'], self.book_reader.db.cur_pl_helper_l)
                     pl_row = model.get(itr, *cols)
-                    print('row = model.get(itr)', pl_row)
                     self.book_reader.open_existing_book(pl_row)
     
     def on_has_new_media(self, has_new_media, user_data=None):
@@ -734,14 +723,12 @@ class BookReader_View:
             self.has_new_media_box.hide()
     
     def on_has_book(self, has_book, playlists_in_path=None):
-        print('on_has_book')
         # model holds list of existing playlist titles
         model = self.has_book_combo.get_model()
         model.clear()
         if  has_book:
             for row in playlists_in_path:
                 col = self.book_reader.db.cur_pl_title['col']
-                print('on_has_book row', tuple(row))
                 model.append(tuple(row))
             # display option to open existing playlist
             self.has_book_box.set_no_show_all(False)
@@ -784,33 +771,15 @@ class BookReader_DB:
         self.cur_pl_helper_l = [self.cur_pl_id, self.cur_pl_title, self.cur_pl_path]
         self.cur_pl_helper_l.sort(key=lambda col: col['col'])
         
-        #self.cur_pl_list = Gtk.ListStore(self.cur_pl_id['g_typ'], 
-        #                                 self.cur_pl_title['g_typ'],
-        #                                 self.cur_pl_path['g_typ'])
         self.cur_pl_list = []
         
         self.init_tables()
         con = self.create_connection()
         if con is None:
             return None
-        #try:
-        #    with con:
-        #        sql = """
-        #                SELECT *
-        #                FROM primary_number
-        #                WHERE pl_track_id = (?)                    
-        #            """
-        #        cur = con.execute(sql, (11,))
-        #        row = cur.fetchone()
-        #        if row is not None:
-        #            print('row at init', row['primary_id'])
-        #except sqlite3.Error as e:
-        #    print('row at init', e)
-                
     
     def playlist_exists(self, path):
         if self.playlist_get_by_path(path) is not None:
-            print('playlist_exists')
             return True
         return False
 
@@ -917,7 +886,6 @@ class BookReader_DB:
                     print('track_metadata_add()primary_metadata error', e)
     
                 if primary_id is None:
-                    print('primary_id is None')
                     sql = """
                         UPDATE  primary_metadata
                         SET     pl_track_metadata_id = (?) 
@@ -1017,7 +985,6 @@ class BookReader_DB:
         return track_id
 
     def playlist_get_tracks(self, playlist_id):
-        print('playlist_get_tracks')
         con = self.create_connection()
         cur = con.cursor()
         sql = """
@@ -1100,7 +1067,6 @@ class BookReader_DB:
             lastrowid = cur.lastrowid
         except sqlite3.IntegrityError as e:
             pass
-            #print("playlist_track_add() error", e)
 
         if lastrowid is None:
             success = False
@@ -1146,7 +1112,6 @@ class BookReader_DB:
         except sqlite3.Error:
             #cur.execute("ROLLBACK TO a")
             print("couldn't add", (title, path),"twice")
-        print('playlist_insert complete')
         #con.execute("RELEASE a")
         return lastrowid
 
@@ -1174,7 +1139,6 @@ class BookReader_DB:
                 con.execute(sql)
         except sqlite3.OperationalError as e:
             pass
-                #print("CREATE TABLE playlist exists", e)
         
         # Table: track
         sql = """
@@ -1268,196 +1232,7 @@ class BookReader_DB:
         except sqlite3.OperationalError:
             pass
 
-            
-       # # Table: track_author
-       # sql = """
-       #         CREATE TABLE track_author (
-       #             id          INTEGER PRIMARY KEY ON CONFLICT ROLLBACK AUTOINCREMENT
-       #                             UNIQUE
-       #                             NOT NULL,
-       #             pl_track_id    INTEGER REFERENCES playlist_track (id) 
-       #                             NOT NULL,
-       #             author      TEXT NOT NULL,
-       #             UNIQUE (
-       #                 pl_track_id,
-       #                 author
-       #             )
-       #         )
-       #         """
-       # try:
-       #     with con:
-       #         con.execute(sql)
-       # except sqlite3.OperationalError as e:
-       #     print("CREATE TABLE track_author exists", e)
-       # 
-       # # primary author selection
-       # sql = """
-       #         CREATE TABLE primary_author (
-       #             id          INTEGER PRIMARY KEY ON CONFLICT ROLLBACK AUTOINCREMENT
-       #                             UNIQUE
-       #                             NOT NULL,
-       #             pl_track_id INTEGER UNIQUE ON CONFLICT ROLLBACK
-       #                                 NOT NULL ON CONFLICT ROLLBACK
-       #                                 REFERENCES playlist_track (id),
-       #             primary_id   INTEGER REFERENCES track_author (id) 
-       #                                 NOT NULL
-       #         )       
-       #         """
-       # try:
-       #     with con:
-       #         con.execute(sql)
-       # except sqlite3.OperationalError:
-       #     pass
-       # 
-       # 
-       #     
-       # # track_length  
-       # try:
-       #     with con:
-       #         con.execute('''CREATE TABLE track_length (
-       #                 pl_track_id INTEGER REFERENCES playlist_track (id) 
-       #                                 NOT NULL,
-       #                 length   TEXT    NOT NULL,
-       #                 UNIQUE (
-       #                     pl_track_id,
-       #                     length
-       #                 )
-       #             )''')
-       # except sqlite3.OperationalError:
-       #     pass
-       #     #print("CREATE TABLE track_length exists")
-       #
-       # # primary length selection
-       # sql = """
-       #         CREATE TABLE primary_length (
-       #             pl_track_id INTEGER UNIQUE ON CONFLICT ROLLBACK
-       #                                 NOT NULL ON CONFLICT ROLLBACK
-       #                                 REFERENCES playlist_track (id),
-       #             primary_id   INTEGER REFERENCES track_length (id) 
-       #                                 NOT NULL
-       #         )       
-       #         """
-       # try:
-       #     with con:
-       #         con.execute(sql)
-       # except sqlite3.OperationalError:
-       #     pass
-       #
-       # # track_number
-       # sql = """
-       #         CREATE TABLE track_number (
-       #             id          INTEGER PRIMARY KEY ON CONFLICT ROLLBACK AUTOINCREMENT
-       #                             UNIQUE
-       #                             NOT NULL,
-       #             pl_track_id INTEGER REFERENCES playlist_track (id) 
-       #                             NOT NULL,
-       #             number   INTEGER NOT NULL,
-       #             UNIQUE (
-       #                 pl_track_id,
-       #                 number
-       #             )
-       #         )
-       #         
-       #         """
-       # try:
-       #     with con:
-       #         con.execute(sql)
-       # except sqlite3.OperationalError:
-       #     pass
-       #     #print("CREATE TABLE track_number exists")
-       #     
-       # # primary number selection
-       # sql = """
-       #         CREATE TABLE primary_number (
-       #             pl_track_id INTEGER UNIQUE ON CONFLICT ROLLBACK
-       #                                 NOT NULL ON CONFLICT ROLLBACK
-       #                                 REFERENCES playlist_track (id),
-       #             primary_id   INTEGER REFERENCES track_number (id) 
-       #                                 NOT NULL
-       #         )       
-       #         """
-       # try:
-       #     with con:
-       #         con.execute(sql)
-       # except sqlite3.OperationalError:
-       #     pass
-       # 
-       # # track_read_by
-       # sql = """
-       #         CREATE TABLE track_read_by (
-       #             id          INTEGER PRIMARY KEY ON CONFLICT ROLLBACK AUTOINCREMENT
-       #                             UNIQUE
-       #                             NOT NULL,
-       #             pl_track_id INTEGER REFERENCES playlist_track (id) 
-       #                             NOT NULL,
-       #             read_by  TEXT    NOT NULL,
-       #             UNIQUE (
-       #                 pl_track_id,
-       #                 read_by
-       #             )
-       #         )
-       #         """
-       # try:
-       #     with con:
-       #         con.execute(sql)
-       # except sqlite3.OperationalError:
-       #     pass
-       #     #print("CREATE TABLE track_read_by exists")
-       #
-       # # primary read_by selection
-       # sql = """
-       #         CREATE TABLE primary_read_by (
-       #             pl_track_id INTEGER UNIQUE ON CONFLICT ROLLBACK
-       #                                 NOT NULL ON CONFLICT ROLLBACK
-       #                                 REFERENCES playlist_track (id),
-       #             primary_id   INTEGER REFERENCES track_read_by (id) 
-       #                                 NOT NULL
-       #         )       
-       #         """
-       # try:
-       #     with con:
-       #         con.execute(sql)
-       # except sqlite3.OperationalError:
-       #     pass
-       #
-       # # track_title
-       # sql = """
-       #         CREATE TABLE track_title (
-       #             id          INTEGER PRIMARY KEY ON CONFLICT ROLLBACK AUTOINCREMENT
-       #                             UNIQUE
-       #                             NOT NULL,
-       #             pl_track_id INTEGER REFERENCES playlist_track (id) 
-       #                             NOT NULL,
-       #             title     TEXT    NOT NULL,
-       #             UNIQUE (
-       #                 pl_track_id,
-       #                 title
-       #             )
-       #         )
-       #         """
-       # try:
-       #     with con:
-       #         con.execute(sql)
-       # except sqlite3.OperationalError:
-       #     pass
-       #
-       # # title primary selection
-       # sql = """
-       #         CREATE TABLE primary_title (
-       #             pl_track_id INTEGER UNIQUE ON CONFLICT ROLLBACK
-       #                                 NOT NULL ON CONFLICT ROLLBACK
-       #                                 REFERENCES playlist_track (id),
-       #             primary_id   INTEGER REFERENCES track_title (id) 
-       #                                 NOT NULL
-       #         )       
-       #         """
-       # try:
-       #     with con:
-       #         con.execute(sql)
-       # except sqlite3.OperationalError:
-       #     pass
 
-    
 class BookReader_:
     def __init__(self, files, config, builder):
         self.book_reader_section = 'book_reader'
@@ -1468,13 +1243,6 @@ class BookReader_:
         self.book_reader_dir = self.config['book_reader']['book_reader_dir']
         # playlists database helper
         self.db = BookReader_DB()
-        # playlists saved in cur dir
-        #self.cur_pl_id= {'col':0, 'g_typ':int, 'name': }   
-        #self.cur_pl_title  = {'col':1, 'g_typ':str}
-        #self.cur_pl_path  = {'col':2, 'g_typ':str}
-        #self.cur_pl_list = Gtk.ListStore(self.cur_pl_id['g_typ'], 
-        #                                self.cur_pl_title['g_typ'],
-        #                                self.cur_pl_path['g_typ'])
 
         # pinned playlists
         self.pinned_title = {'col':0, 'g_typ':str}  
@@ -1567,7 +1335,6 @@ class BookReader_:
         ##elif self.has_book(cur_path):
         #else:
         if len(playlists_in_path) > 0:
-            print('db_playlists is not None')
             self.book_reader_view.on_has_book(has_book=True, playlists_in_path=playlists_in_path)
         else:
             self.book_reader_view.on_has_book(has_book=False)
@@ -1630,7 +1397,6 @@ class BookReader_:
                 signal[1](book_view, title)
                 
     def signal_has_new_media(self, has_new_media=True):
-        print('signal_has_new_media')
         if len(self.signal_l_has_new_media) > 0:
             for signal in self.signal_l_has_new_media:
                 signal[1](has_new_media, signal[2])
