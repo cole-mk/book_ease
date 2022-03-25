@@ -120,13 +120,21 @@ class Edit_Row_Dialog:
         for i in self.col_tv_model:
             val_list.append(i[0])
         if len(val_list) > 0:
-            # remove old entry
-            for i in self.track_edit_list_tmp:
-                if i.col_info == self.selected_col:
-                    self.track_edit_list_tmp.remove(i)
+            # get existing entry or create now one and 
+            # add it to the track_edit_list_tmp
+            existing_edit = False
+            for edt in self.track_edit_list_tmp:
+                if self.pl_row_id in edt.get_entries(self.book_view.book.pl_row_id['key']):
+                    edit = edt
+                    existing_edit = True
                     break
-            # add new entry
-            self.track_edit_list_tmp.append(playlist.Track_Edit(self.selected_col, self.pl_row_id, val_list))
+
+            if not existing_edit:
+                edit = playlist.Track_Edit(self.selected_col)
+                self.track_edit_list_tmp.append(edit)
+
+            edit.set_entry(edit.col_info['key'], val_list)
+            edit.set_entry(self.book_view.book.pl_row_id['key'], [self.pl_row_id])
 
     def col_tv_remove_entry(self):
         sel = self.col_treeview.get_selection()
@@ -183,15 +191,16 @@ class Edit_Row_Dialog:
         for i in self.track_edit_list_tmp:
             if i.col_info == self.selected_col:
                 unsaved_changes = True
-                for x in i.val_list:
+                for x in i.get_entries(self.selected_col['key']):
                     self.col_tv_model.append([x])
                 break
         # look for unsaved changes from previous dialog
         if not unsaved_changes:
             for i in self.track_edit_list:
-                if i.pl_row_id == row_id and i.col_info == self.selected_col:
+                i_id = i.get_entries(self.book_view.book.pl_row_id['key'])[0]
+                if i_id == row_id and i.col_info == self.selected_col:
                     unsaved_changes = True
-                    for x in i.val_list:
+                    for x in i.get_entries(self.selected_col['key']):
                         self.col_tv_model.append([x])
                     break
         # load saved entries from book track
@@ -365,12 +374,11 @@ class Book_View(Gtk.Box):
         # check first for pending changes to add
         pending_changes = False
         for entry in self.track_edit_list:
-            if entry.pl_row_id == pl_row_id and entry.col_info == col:
-                
-                for val in entry.val_list:
+            if entry.get_entries('pl_row_id')[0] == pl_row_id and col['key'] in entry.get_key_list():
+                for val in entry.get_entries(col['key']):
                     titles.append(val)
-                pending_changes = True
-                break
+                    pending_changes = True
+                    break
         if not pending_changes:     
             # append track entries to list
             for x in self.book.get_track_entries(pl_row_id, col):
@@ -383,41 +391,25 @@ class Book_View(Gtk.Box):
             
     def on_edited(self, renderer, path, text, col):
         # propagate changes to self.playlist and end editing
-        print('on_edited path[0]', type(path),  path)
         self.playlist[path][col['col']] = text
-        m = renderer.get_property('model')
-        print('self.editing', self.editing)
+        model = renderer.get_property('model')
         if self.editing == True :
             val_list = []
             val_list.append(text)
             # move selected text to front of list, skip once selected text in list, but do add duplicates
             matched = False
-            for i in m:
+            for i in model:
                 if matched == False and i[0] == text:
                     matched = True
                     continue
                 val_list.append(i[0])
             if len(val_list) > 0:
                 row_id = self.playlist[path][self.book.pl_row_id['col']]
-                self.book.track_edit_list_append(playlist.Track_Edit(col, row_id, val_list))
-        m.clear()
-        
-    #def pending_entry_list_update(self, track_edit_list_tmp):
-    #    # copy tmp list to pending_entry_list
-    #    for i in track_edit_list_tmp:
-    #        # remove old entry
-    #        for j in self.pending_entry_list:
-    #            if j.col_info == i.col_info:
-    #                self.pending_entry_list.remove(j)
-    #        # add new entry
-    #        self.pending_entry_list.append(i)
-    #        # set value in tree view to pirmary entry 
-    #        for j, row in enumerate(self.playlist):
-    #            if i.pl_row_id == row[self.book.pl_row_id['col']]:
-    #                itr = self.playlist.get_iter((j,))
-    #                self.playlist.set_value(itr, i.col_info['col'], i.val_list[0])
-    #                break
-
+                edit = playlist.Track_Edit(col)
+                edit.set_entry(col['key'], val_list)
+                edit.set_entry(self.book.pl_row_id['key'], [row_id]) 
+                self.book.track_edit_list_append(edit)
+        model.clear()
         
     def on_button_release(self, widget, event, data=None):
         if event.get_button()[0] is True:
@@ -433,14 +425,13 @@ class Book_View(Gtk.Box):
                         response = dialog.run()
                         if response == Gtk.ResponseType.OK:
                             # load the changes from the dialog into the books edit list
-                            for i in dialog.track_edit_list_tmp:
-                                print('i in dialog.track_edit_list_tmp:', i.val_list)
-                                self.book.track_edit_list_append(i)
+                            for edit in dialog.track_edit_list_tmp:
+                                self.book.track_edit_list_append(edit)
                                 # set value in tree view to pirmary entry
                                 for j, row in enumerate(self.playlist):
-                                    if i.pl_row_id == row[self.book.pl_row_id['col']]:
+                                    if edit.get_entries(self.book.pl_row_id['key'])[0] == row[self.book.pl_row_id['col']]:
                                         itr = self.playlist.get_iter((j,))
-                                        self.playlist.set_value(itr, i.col_info['col'], i.val_list[0])
+                                        self.playlist.set_value(itr, edit.col_info['col'], edit.get_entries(edit.col_info['key'])[0])
                                         break
                                 
                             print('response', response)

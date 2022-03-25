@@ -523,6 +523,25 @@ class Book(playlist.Playlist):
         GLib.idle_add(callback, self, priority=GLib.PRIORITY_DEFAULT)
         # Tell book view that the book is ready for display
         GLib.idle_add(self.book_view.on_book_data_ready, priority=GLib.PRIORITY_DEFAULT)
+
+    def track_edit_list_append(self, track_edit):
+        edit = None
+        # find old entry
+        for ed in self.track_edit_list:
+            if ed.get_entries(self.pl_row_id['key'])[0] == track_edit.get_entries('pl_row_id')[0]:
+                edit = ed
+                break
+        if edit == None:
+            # add new track edit
+            self.track_edit_list.append(track_edit)
+        else:
+            # modify existing track edit
+            for key in track_edit.get_key_list():
+                edit.set_entry(key, track_edit.get_entries(key))
+        for t in self.track_edit_list:
+            for key in t.get_key_list():
+                print(key, t.get_entries(key))
+
     
     def track_list_update(self):
         print('track_list_update')
@@ -532,12 +551,12 @@ class Book(playlist.Playlist):
             for tr in self.track_list:
                 tr_id = tr.get_entries(self.pl_row_id['key'])
                 if tr_id[0] is not None:
-                    if tr_id[0] == entry.pl_row_id:
+                    if tr_id[0] == entry.get_entries(self.pl_row_id['key'])[0]:
                         track = tr
                         break
             # set new track entries
             if track is not None:
-                track.set_entry(entry.col_info['key'], entry.val_list)
+                track.set_entry(entry.col_info['key'], entry.get_entries(entry.col_info['key']))
         self.track_edit_list.clear()
    
     def on_playlist_save(self, title):

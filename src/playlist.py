@@ -1,27 +1,24 @@
 import mutagen
 
 
-class Track_Edit:
-    
-    def __init__(self, col_info, pl_row_id=None, val_list=None):
-        # The description column(python map obj) created in the book obj
-        self.col_info = col_info
-        # unique id for a track
-        self.pl_row_id = pl_row_id
-        # list of maps containing track data
-        if type(val_list) == list:
-            self.val_list = val_list
-        else:
-            raise TypeError ('type(val_list) == type(self.val_list)')
-
-
 class Track:
-    def __init__(self, file_path):
-        self.file_path = file_path
-        self._file = file_path.rsplit('/', maxsplit=1)[1]
-        self.track_data = {'file':[self._file], 'path':[file_path]}
+    def __init__(self, file_path=None):
+        self.track_data = {}
+        if file_path is not None:
+            self.file_path = file_path
+            self._file = file_path.rsplit('/', maxsplit=1)[1]
+            self.track_data['file'] = [self._file]
+            self.track_data['path'] = [file_path]
         #self.load_metadata_from_file(self.track_data)
-
+    
+    def get_key_list(self):
+        key_list = []
+        for key in self.track_data:
+            key_list.append(key)
+        if len(key_list) <= 0:
+            key_list.append(None)
+        return key_list
+    
     def get_primary_entry(self, key):
         primary_entry = None
         if key in self.track_data:
@@ -74,17 +71,6 @@ class Playlist():
         self.track_edit_list = []
         self.track_list = []
 
-    def track_edit_list_append(self, track_edit):
-        # remove old entry
-        for j in self.track_edit_list:
-            if j.col_info == track_edit.col_info:
-                self.track_edit_list.remove(j)
-                break
-        # add new entry
-        self.track_edit_list.append(track_edit)
-        for x in self.track_edit_list:
-            print('x in self.track_edit_list:', x.val_list)
-
     def get_track_list(self):
         return self.track_list
 
@@ -101,6 +87,13 @@ class Playlist():
                     lst.append(entry)
         return lst
 
+
+class Track_Edit(Track):
+    
+    def __init__(self, col_info):
+        super().__init__()
+        # The description column(python map obj) created in the book obj
+        self.col_info = col_info
 
 
 
