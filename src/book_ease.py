@@ -2026,8 +2026,11 @@ class MainWindow(Gtk.Window):
         
 def main(args):
     #configuration file
+    config_dir = Path.home() / '.config' / 'book_ease'
+    config_dir.mkdir(mode=511, parents=True, exist_ok=True)
+    config_file = config_dir / 'book_ease.ini'
     config = configparser.ConfigParser()
-    config.read('book_ease.ini')
+    config.read(config_file)
     # Load the gui from glade
     builder = Gtk.Builder()
     builder.add_from_file("book_ease.glade")
@@ -2060,7 +2063,7 @@ def main(args):
         
     Gtk.main()
     # write any changes to the config
-    with open('book_ease.ini', 'w') as configfile:
+    with open(config_file, 'w') as configfile:
         config.write(configfile)
 
     return 0
