@@ -2,14 +2,21 @@ import mutagen
 
 
 class Track:
-    def __init__(self, file_path=None):
+    def __init__(self, file_path=None, row_num=None):
         self.track_data = {}
         if file_path is not None:
             self.file_path = file_path
             self._file = file_path.rsplit('/', maxsplit=1)[1]
             self.track_data['file'] = [self._file]
             self.track_data['path'] = [file_path]
+        self.row_num = row_num
         #self.load_metadata_from_file(self.track_data)
+
+    def set_row_num(self, row_num):
+        self.row_num = row_num
+
+    def get_row_num(self):
+        return self.row_num
     
     def get_key_list(self):
         key_list = []
