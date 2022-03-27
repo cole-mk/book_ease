@@ -512,9 +512,7 @@ class Book(playlist.Playlist):
             # modify existing track edit
             for key in track_edit.get_key_list():
                 edit.set_entry(key, track_edit.get_entries(key))
-        for t in self.track_edit_list:
-            for key in t.get_key_list():
-                print(key, t.get_entries(key))
+                edit.set_row_num(track_edit.get_row_num())
 
     
     def track_list_update(self):
