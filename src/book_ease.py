@@ -434,34 +434,8 @@ class Book(playlist.Playlist):
         
         self.book_view = BookView.Book_View(self)
 
-    #def get_playlist(self):
-    #   return self.playlist
-    #   
-    #def get_playlist_new(self):
-    #   return Gtk.ListStore(self.pl_title   ['g_typ'], 
-    #                        self.pl_author  ['g_typ'], 
-    #                        self.pl_read_by ['g_typ'], 
-    #                        self.pl_length  ['g_typ'],
-    #                        self.pl_track   ['g_typ'],
-    #                        self.pl_file    ['g_typ'],
-    #                        self.pl_row_id  ['g_typ'],
-    #                        self.pl_path    ['g_typ'])
-    
     def get_track_list(self):
         return self.track_list
-
-#    def get_track_entries(self, row, col):
-#        track = self.track_list[row]
-#        return track.get_entries(col['key'])
-
-#    def get_track_alt_entries(self, row, col):
-#        lst = []
-#        track = self.track_list[row]
-#        for i in col['alt_keys']:
-#            for j in track.get_entries(i):
-#                if j is not None:
-#                    lst.append(j)
-#        return lst
 
     def get_title_l(self, row):
         track = self.track_list[row]
@@ -593,13 +567,6 @@ class Book(playlist.Playlist):
                                                            track.get_entries(col['key']),
                                                            col['key'],
                                                            pl_track_id, cur)
-                                #primary = track.get_primary_entry(col['key'])
-                                #
-                                #self.db.track_metadata_set_primary(track_id,
-                                #                                   primary,
-                                #                                   col['key'],
-                                #                                   pl_track_id,
-                                #                                   cur)
             self.saved_playlist = True
 
         except sqlite3.Error as e:
@@ -672,21 +639,13 @@ class BookReader_View:
                                          self.book_reader.db.cur_pl_path['g_typ'])
 
         self.has_book_combo = Gtk.ComboBox.new_with_model(self.cur_pl_list)
-        #self.has_book_combo = Gtk.ComboBox.new_with_model(Gtk.ListStore(self.book_reader.db.cur_pl_title['g_typ']))
         renderer_text = Gtk.CellRendererText()
         self.has_book_combo.pack_start(renderer_text, True)
         self.has_book_combo.add_attribute(renderer_text, "text", self.book_reader.db.cur_pl_title['g_col'])
         self.has_book_combo.set_active(0)
-        #self.has_book_combo.set_text_column(0)
-        #self.close_has_book = Gtk.Button().new_from_icon_name('window-close', Gtk.IconSize.SMALL_TOOLBAR)
         self.has_book_box.pack_start(self.has_book_combo, expand=False, fill=False, padding=0)
         self.has_book_box.set_child_packing(child=self.has_book_combo, expand=False, fill=False, padding=0, pack_type=Gtk.PackType.END)
 
-        #self.load_book_label = Gtk.Label('Open')
-        #self.load_book_label.set_margin_right(4)
-        #self.has_book_box.pack_start(self.load_book_label, expand=False, fill=False, padding=0)
-        #self.has_book_box.set_child_packing(child=self.load_book_label, expand=False, fill=False, padding=0, pack_type=Gtk.PackType.END)
-        
         self.open_book_btn.connect('button-release-event', self.on_button_release)
 
         self.header_box.pack_end(self.has_book_box, expand=False, fill=False, padding=10)
@@ -804,34 +763,6 @@ class BookReader_DB:
             self.cur_pl_list.clear()
             for i, row in enumerate(pl_list):
                 self.cur_pl_list.append(row)
-                #itr = self.cur_pl_list.append()
-                # title
-                #pl_col = self.cur_pl_title['col']
-                #pl_val = row[self.cur_pl_title['col_name']]
-                #self.cur_pl_list.set_value(itr, pl_col, pl_val)
-                # path
-                #pl_col = self.cur_pl_path['col']
-                #pl_val = row[self.cur_pl_path['col_name']]
-                #self.cur_pl_list.set_value(itr, pl_col, pl_val)
-                # id
-                #pl_col = self.cur_pl_id['col']
-                #pl_val = row[self.cur_pl_id['col_name']]
-                #self.cur_pl_list.set_value(itr, pl_col, pl_val)
-
-            #for row in pl_list:
-            #    itr = self.cur_pl_list.append()
-            #    # title
-            #    pl_col = self.cur_pl_title['col']
-            #    pl_val = row[self.cur_pl_title['col_name']]
-            #    self.cur_pl_list.set_value(itr, pl_col, pl_val)
-            #    # path
-            #    pl_col = self.cur_pl_path['col']
-            #    pl_val = row[self.cur_pl_path['col_name']]
-            #    self.cur_pl_list.set_value(itr, pl_col, pl_val)
-            #    # id
-            #    pl_col = self.cur_pl_id['col']
-            #    pl_val = row[self.cur_pl_id['col_name']]
-            #    self.cur_pl_list.set_value(itr, pl_col, pl_val)
                 
         except sqlite3.Error as e:
             print("couldn't set_playlists_by_path", e)
@@ -858,7 +789,6 @@ class BookReader_DB:
 
     def track_metadata_set_primary(self, primary_index, track, key, pl_track_id, cur):
         # a track metadata table
-        #primary_entry = track.get_primary_entry(col['key'])
         if primary_index is not None:
             # get the id of the primary entry
             sql = """
@@ -915,10 +845,6 @@ class BookReader_DB:
             ent_index ASC            
             """
             
-        #sql = """
-        #    SELECT * FROM """ + field + """
-        #    WHERE playlist_id = (?)
-        #    """
         try:
             #cur.execute("""BEGIN""")
             cur = con.execute(sql, (pl_track_id,key))
@@ -998,7 +924,6 @@ class BookReader_DB:
             ORDER BY track_number ASC
             """
         try:
-            #cur.execute("""BEGIN""")
             cur.execute(sql, (playlist_id,))
             playlist = cur.fetchall()
         except sqlite3.Error as e:
@@ -1015,7 +940,6 @@ class BookReader_DB:
             WHERE path = (?)
             """
         try:
-            #cur.execute("""BEGIN""")
             cur.execute(sql, (path,))
             playlist = cur.fetchall()
         except sqlite3.Error as e:
@@ -1027,8 +951,6 @@ class BookReader_DB:
         #con = sqlite3.connect(self.db)
         pl_id = None
         try:
-            #with con:
-            
             sql = """
                     UPDATE playlist
                     SET title = ?
@@ -1045,7 +967,6 @@ class BookReader_DB:
         try:
             con = sqlite3.connect(self.db, isolation_level=None) 
             con.row_factory = sqlite3.Row
-            #con.isolation_level = None
         except sqlite3.Error as e:
             print('create_connection() error', e)
         return con
@@ -1061,7 +982,6 @@ class BookReader_DB:
               """
         lastrowid = None
         try:
-            #with con:
             cur.execute(sql, (playlist_id, track_number, track_id))
             lastrowid = cur.lastrowid
         except sqlite3.IntegrityError as e:
@@ -1077,10 +997,7 @@ class BookReader_DB:
                 AND track_number = (?)
                 """
             try:
-                #with con:
                 cur.execute(sql, (track_id, playlist_id, track_number))
-                # this doesn't work with update statements only inserts
-                #lastrowid = cur.lastrowid
                 success = True
             except sqlite3.Error as e:
                 print("playlist_track_add() update error", e)
@@ -1100,24 +1017,16 @@ class BookReader_DB:
         return lastrowid
 
     def playlist_insert(self, title, path, cur):
-        #con = sqlite3.connect(self.db)
-        #cur.execute("SAVEPOINT a")
-        #con.isolation_level = None
         lastrowid = None
         try:
             cur.execute("INSERT INTO playlist(title, path) VALUES (?,?)", (title, path))
             lastrowid = cur.lastrowid
-            #cur.execute("RELEASE a")
         except sqlite3.Error:
-            #cur.execute("ROLLBACK TO a")
             print("couldn't add", (title, path),"twice")
-        #con.execute("RELEASE a")
         return lastrowid
 
     def init_tables(self):
-        #con = sqlite3.connect(self.db)
         con = self.create_connection()
-        #con.isolation_level = None
 
         # Table: playlist
         sql = '''
@@ -1326,13 +1235,6 @@ class BookReader_:
         bk = self.get_book(cur_path, self.books)
         self.db.set_playlists_by_path(cur_path)
         playlists_in_path = self.db.cur_pl_list
-        #if bk:
-        #   self.signal_has_new_media(False)
-        #   # notify the view so we can do something like select a playlist tab?
-        #   # maybe just pass?  this is a cached tmp playlist and not a saved playlist
-        #   # 
-        ##elif self.has_book(cur_path):
-        #else:
         if len(playlists_in_path) > 0:
             self.book_reader_view.on_has_book(has_book=True, playlists_in_path=playlists_in_path)
         else:
@@ -1369,10 +1271,6 @@ class BookReader_:
         create_book_data_th.start()
         self.books.append(bk)
         self.signal_has_new_media(False)
-        #self.signal_append_book(bk.book_view, bk.title)
-        # save book history so we don't have to reinitialize upon reentering the same directory
-        #self.book_cache.append(bk)
-        #self.tmp_book = bk
 
     # register callback method to signal
     def connect(self, handle, method, user_data=None):
