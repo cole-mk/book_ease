@@ -569,19 +569,23 @@ class Book(playlist.Playlist):
         try:
             cur = con.cursor()
             cur.execute("""BEGIN""")
-            pl_id = self.db.playlist_insert(title, self.path, cur)
+            #pl_id = self.db.playlist_insert(title, self.path, cur)
             if self.playlist_id is None:
-                self.playlist_id = pl_id
+                #self.playlist_id = pl_id
+                self.playlist_id = self.db.playlist_insert(title, self.path, cur)
             else:
-                if pl_id is None:
-                    pl_id = self.db.playlist_update(title, self.path, self.playlist_id, cur)
-            if pl_id is not None:
+                # if this fails its bec
+                self.db.playlist_update(title, self.path, self.playlist_id, cur)
+                #if pl_id is None:
+                #    pl_id = self.db.playlist_update(title, self.path, self.playlist_id, cur)
+            if self.playlist_id is not None:
+            #if pl_id is not None:
                 self.title = title
                 # save playlist tracks,tracks and their metadata
                 for row_num, track in enumerate(self.track_list):
                     track_id = self.db.track_add(path=track.get_file_path(), filename=track.get_file_name(), cur=cur)
                     if track_id is not None:
-                        pl_track_id = self.db.playlist_track_add(pl_id, row_num, track_id, cur)
+                        pl_track_id = self.db.playlist_track_add(self.playlist_id, row_num, track_id, cur)
                         if pl_track_id is not None:
                             for col in self.metadata_col_list:
                                 
@@ -599,6 +603,7 @@ class Book(playlist.Playlist):
             self.saved_playlist = True
 
         except sqlite3.Error as e:
+            print('on_playlist_save', e)
         # reload the list of playlist names saved relative to this books directory
         self.db.set_playlists_by_path(self.book_reader.cur_path, con)
         con.commit()
@@ -1020,26 +1025,20 @@ class BookReader_DB:
 
     def playlist_update(self, title, path, playlist_id, cur):
         #con = sqlite3.connect(self.db)
-        lastrowid = None
+        pl_id = None
         try:
             #with con:
             
             sql = """
                     UPDATE playlist
-                    SET title = ? , path = ?
+                    SET title = ?
                     WHERE id = ?
                     """
-            cur.execute(sql, (title, path, playlist_id))
-            # get playlist id from updated row
-            sql = """
-                    SELECT playlist_id FROM playlist
-                    WHERE 
-                    """
-                        
-            lastrowid = playlist_id
+            cur.execute(sql, (title, playlist_id))
+            pl_id = playlist_id
         except sqlite3.IntegrityError:
-            print("couldn't playlist_update", (title, path))
-        return lastrowid
+            print("playlist", title, "already exists at", path)
+        return pl_id
     
     def create_connection(self):
         con = None
