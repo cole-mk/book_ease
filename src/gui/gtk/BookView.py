@@ -511,12 +511,12 @@ class Book_View(Gtk.Box):
             self.playlist.append(tuple(i))
                     
     def playlist_save(self):
-        # add row numbers to track edit list
+        # add row numbers to track  list
         for row_num, row in enumerate(self.playlist):
-            edit = playlist.Track_Edit(None)
-            edit.set_row_num(row_num)
-            edit.set_entry(self.book.pl_row_id['key'], row[self.book.pl_row_id['col']])
-            self.book.track_edit_list_append(edit)
+            track = playlist.Track()
+            track.set_row_num(row_num)
+            track.set_entry(self.book.pl_row_id['key'], row[self.book.pl_row_id['col']])
+            self.book.track_list_append(track)
 
         # apply pending changes
         old_t = self.book.title
