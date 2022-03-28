@@ -498,21 +498,21 @@ class Book(playlist.Playlist):
         # Tell book view that the book is ready for display
         GLib.idle_add(self.book_view.on_book_data_ready, priority=GLib.PRIORITY_DEFAULT)
 
-    def track_list_update(self, track_edit):
-        edit = None
-        # find old entry
-        for ed in self.track_edit_list:
-            if ed.get_entries(self.pl_row_id['key'])[0] == track_edit.get_entries('pl_row_id')[0]:
-                edit = ed
+    def track_list_update(self, track):
+        # find existing track
+        e_track = None
+        for tr in self.track_list:
+            if tr.get_entries(self.pl_row_id['key'])[0] == track.get_entries('pl_row_id')[0]:
+                e_track = tr
                 break
-        if edit == None:
+        if e_track == None:
             # add new track edit
-            self.track_edit_list.append(track_edit)
+            self.track_list.append(track)
         else:
             # modify existing track edit
-            for key in track_edit.get_key_list():
-                edit.set_entry(key, track_edit.get_entries(key))
-                edit.set_row_num(track_edit.get_row_num())
+            for key in track.get_key_list():
+                e_track.set_entry(key, track.get_entries(key))
+                e_track.set_row_num(track.get_row_num())
    
     def on_playlist_save(self, title):
         # playlist
