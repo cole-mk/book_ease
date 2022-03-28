@@ -426,7 +426,7 @@ class Book_View(Gtk.Box):
                         if response == Gtk.ResponseType.OK:
                             # load the changes from the dialog into the books edit list
                             for edit in dialog.track_edit_list_tmp:
-                                self.book.track_edit_list_append(edit)
+                                self.book.track_list_update(edit)
                                 # set value in tree view to pirmary entry
                                 for j, row in enumerate(self.playlist):
                                     if edit.get_entries(self.book.pl_row_id['key'])[0] == row[self.book.pl_row_id['col']]:
