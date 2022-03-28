@@ -531,8 +531,6 @@ class Book(playlist.Playlist):
         self.track_edit_list.clear()
    
     def on_playlist_save(self, title):
-        # update the tracklist
-        self.track_list_update()
         # playlist
         pl_id = None
         con = self.db.create_connection()
