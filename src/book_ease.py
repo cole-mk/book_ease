@@ -537,10 +537,10 @@ class Book(playlist.Playlist):
             #if pl_id is not None:
                 self.title = title
                 # save playlist tracks,tracks and their metadata
-                for row_num, track in enumerate(self.track_list):
+                for track in self.track_list:
                     track_id = self.db.track_add(path=track.get_file_path(), filename=track.get_file_name(), cur=cur)
                     if track_id is not None:
-                        pl_track_id = self.db.playlist_track_add(self.playlist_id, row_num, track_id, cur)
+                        pl_track_id = self.db.playlist_track_add(self.playlist_id, track.get_row_num(), track_id, cur)
                         if pl_track_id is not None:
                             for col in self.metadata_col_list:
                                 
