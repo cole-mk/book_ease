@@ -515,8 +515,8 @@ class Book_View(Gtk.Box):
         for row_num, row in enumerate(self.playlist):
             track = playlist.Track()
             track.set_row_num(row_num)
-            track.set_entry(self.book.pl_row_id['key'], row[self.book.pl_row_id['col']])
-            self.book.track_list_append(track)
+            track.set_entry(self.book.pl_row_id['key'], [row[self.book.pl_row_id['col']]])
+            self.book.track_list_update(track)
 
         # apply pending changes
         old_t = self.book.title
