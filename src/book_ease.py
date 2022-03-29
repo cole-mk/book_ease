@@ -36,6 +36,7 @@ import sqlite3
 from pathlib import Path
 import playlist
 from gui.gtk import BookView
+import pdb
 
 #p = playlist_data.
 
