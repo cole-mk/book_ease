@@ -558,7 +558,30 @@ class Book_View(Gtk.Box):
         title_store = cb.get_model()
         title_store.clear()
         cb.hide()
-                    
+
+    def book_data_load(self):
+        playlist = self.book.get_track_list()
+        if playlist:
+            if len(playlist) > 0:
+                # do the appending
+                self.playlist.clear()
+                playlist = self.book.get_track_list()
+                for i, track in enumerate(playlist):
+                    cur_row = self.playlist.append()
+                    # append entries for each in list of displayed columns
+                    for col in self.display_cols:
+                        # get first primary entry
+                        val = self.book.get_track_entries(i, col)[0]
+                        self.playlist.set_value(cur_row, col['col'], val)
+
+                    # the utility collumns always have a primary entry
+                    self.playlist.set_value(cur_row, self.book.pl_row_id['col'],
+                                   track.get_entries(self.book.pl_row_id['key'])[0])
+
+                    self.playlist.set_value(cur_row, self.book.pl_path['col'],
+                                   track.get_entries('path')[0])
+
+
     def playlist_set_edit(self, edit):
         # enter/exit editing mode
         if edit == True and (self.editing == False or self.editing == None):
@@ -671,42 +694,23 @@ class Book_View(Gtk.Box):
             self.remove(i)
         
     def on_book_data_ready(self):
-        playlist = self.book.get_track_list()
-        if playlist:
-            if len(playlist) > 0:
-
-                # do the appending
-                self.playlist.clear()
-                playlist = self.book.get_track_list()
-                for i, track in enumerate(playlist):
-                    cur_row = self.playlist.append()
-                    # append entries for each in list of displayed columns
-                    for col in self.display_cols:
-                        # get first primary entry
-                        val = self.book.get_track_entries(i, col)[0]
-                        self.playlist.set_value(cur_row, col['col'], val)
-
-                    # the utility collumns always have a primary entry
-                    self.playlist.set_value(cur_row, self.book.pl_row_id['col'],
-                                   track.get_entries(self.book.pl_row_id['key'])[0])
-                    
-                    self.playlist.set_value(cur_row, self.book.pl_path['col'],
-                                   track.get_entries('path')[0])
-
-                # load the new gui
-                self.remove_all_children()
-                self.pack_start(self.header_box, expand=False, fill=False, padding=0)
-                self.pack_start(self.scrolled_playlist_view, expand=True, fill=True, padding=0)
-                #set default sort order for the playlist
-                self.sort_by_column(self.default_sort_col[0], self.default_sort_col[1]) 
-                #self.title_entry.set_text(self.book.title)
-                self.title_label.set_label(self.book.title)
-                self.show_all()
-                self.notebook.set_tab_label_text(self, self.book.title[0:8])
-                # show editing buttons
-                #self.edit_playlist_box.set_no_show_all(False)
-                self.playlist_backup()
-                self.playlist_set_edit(True)
-                self.edit_playlist_box.show()
-                #self.edit_playlist_box.set_no_show_all(True)
-                #self.cancel_button.show()
+        self.book_data_load()
+        
+        if len(self.playlist) > 0:
+            # load the new gui
+            self.remove_all_children()
+            self.pack_start(self.header_box, expand=False, fill=False, padding=0)
+            self.pack_start(self.scrolled_playlist_view, expand=True, fill=True, padding=0)
+            #set default sort order for the playlist
+            self.sort_by_column(self.default_sort_col[0], self.default_sort_col[1]) 
+            #self.title_entry.set_text(self.book.title)
+            self.title_label.set_label(self.book.title)
+            self.show_all()
+            self.notebook.set_tab_label_text(self, self.book.title[0:8])
+            # show editing buttons
+            #self.edit_playlist_box.set_no_show_all(False)
+            self.playlist_backup()
+            self.playlist_set_edit(True)
+            self.edit_playlist_box.show()
+            #self.edit_playlist_box.set_no_show_all(True)
+            #self.cancel_button.show()
