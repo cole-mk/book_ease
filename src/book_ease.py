@@ -575,6 +575,8 @@ class Book(playlist.Playlist):
         self.track_list_sort_row_num()
         # inform the bookview that it needs to reload the tracklist
         GLib.idle_add(self.book_view.book_data_load, priority=GLib.PRIORITY_DEFAULT)
+        # inform book_reader that the book list has been updated
+        self.book_reader.book_updated(self.db.cur_pl_list)
 
     def is_media_file(self, file):
         for i in self.f_type_re:
@@ -1246,6 +1248,9 @@ class BookReader_:
             return True
         return False
         
+    def book_updated(self, cur_pl_list):
+        self.book_reader_view.on_has_book(has_book=True, playlists_in_path=cur_pl_list)
+
     def get_book(self, path, booklist):
         for i in booklist:
             if i.path == path:
