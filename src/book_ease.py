@@ -528,17 +528,11 @@ class Book(playlist.Playlist):
         try:
             cur = con.cursor()
             cur.execute("""BEGIN""")
-            #pl_id = self.db.playlist_insert(title, self.path, cur)
             if self.playlist_id is None:
-                #self.playlist_id = pl_id
                 self.playlist_id = self.db.playlist_insert(title, self.path, cur)
             else:
-                # if this fails its bec
                 self.db.playlist_update(title, self.path, self.playlist_id, cur)
-                #if pl_id is None:
-                #    pl_id = self.db.playlist_update(title, self.path, self.playlist_id, cur)
             if self.playlist_id is not None:
-            #if pl_id is not None:
                 self.title = title
                 # save playlist tracks,tracks and their metadata
                 for track in self.track_list:
@@ -555,10 +549,10 @@ class Book(playlist.Playlist):
                             track.set_saved(True)
                         else:
                             pl_track_id = self.db.playlist_track_update(self.playlist_id,
-                                                                     pl_track_num,
-                                                                     track_id,
-                                                                     pl_track_id,
-                                                                     cur)
+                                                                        pl_track_num,
+                                                                        track_id,
+                                                                        pl_track_id,
+                                                                        cur)
 
                         track.set_entry(self.pl_row_id['key'], [pl_track_id])
                         if pl_track_id is not None:
@@ -568,6 +562,8 @@ class Book(playlist.Playlist):
                                                            track.get_entries(col['key']),
                                                            col['key'],
                                                            pl_track_id, cur)
+
+            self.db.playlist_track_remove_deleted(self.playlist_id, len(self.track_list), cur)
             self.saved_playlist = True
 
         except sqlite3.Error as e:
@@ -1022,6 +1018,16 @@ class BookReader_DB:
                 print("playlist_track_add()update error", e)
 
         return lastrowid
+
+    def playlist_track_remove_deleted(self, playlist_id, playlist_len, cur):
+        if cur is None:
+            return None
+        sql = """
+            DELETE FROM pl_track
+            WHERE playlist_id = (?)
+            AND (track_number >= (?) OR track_number IS NULL)
+            """
+        cur.execute(sql, (playlist_id, playlist_len))
 
     def playlist_track_add(self, playlist_id, track_number, track_id, _id, cur):
         #con = self.create_connection()
