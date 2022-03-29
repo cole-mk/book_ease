@@ -456,6 +456,7 @@ class Book(playlist.Playlist):
             file_path = self.db.track_get_path(tr['id'])
             track = playlist.Track(file_path)
             track.set_entry(self.pl_row_id['key'], [i])
+            track.set_saved(True)
             self.track_list.append(track)
             # move the track attributes(metadata) from db to tracklist
             for col in self.metadata_col_list:
@@ -466,6 +467,8 @@ class Book(playlist.Playlist):
                 track.set_entry(col['key'], tr_entries_list)
         # playlist is now a saved playlist
         self.saved_playlist = True
+        # sort playlist by  row_num
+        self.track_list_sort_row_num()
         # notify the book view that book data is ready
         GLib.idle_add(self.book_view.on_book_data_ready, priority=GLib.PRIORITY_DEFAULT)
         
@@ -512,8 +515,9 @@ class Book(playlist.Playlist):
         else:
             # modify existing track edit
             for key in track.get_key_list():
-                e_track.set_entry(key, track.get_entries(key))
-                e_track.set_row_num(track.get_row_num())
+                if track.get_entries(key)[0] != None:
+                    e_track.set_entry(key, track.get_entries(key))
+            e_track.set_row_num(track.get_row_num())
    
     def on_playlist_save(self, title):
         # playlist
@@ -539,8 +543,24 @@ class Book(playlist.Playlist):
                 # save playlist tracks,tracks and their metadata
                 for track in self.track_list:
                     track_id = self.db.track_add(path=track.get_file_path(), filename=track.get_file_name(), cur=cur)
+                    pl_track_num = track.get_row_num()
+                    pl_track_id = track.get_entries(self.pl_row_id['key'])[0]
                     if track_id is not None:
-                        pl_track_id = self.db.playlist_track_add(self.playlist_id, track.get_row_num(), track_id, cur)
+                        if not track.is_saved():
+                            pl_track_id = self.db.playlist_track_add(self.playlist_id,
+                                                                     pl_track_num,
+                                                                     track_id,
+                                                                     pl_track_id,
+                                                                     cur)
+                            track.set_saved(True)
+                        else:
+                            pl_track_id = self.db.playlist_track_update(self.playlist_id,
+                                                                     pl_track_num,
+                                                                     track_id,
+                                                                     pl_track_id,
+                                                                     cur)
+
+                        track.set_entry(self.pl_row_id['key'], [pl_track_id])
                         if pl_track_id is not None:
                             for col in self.metadata_col_list:
                                 
@@ -556,6 +576,9 @@ class Book(playlist.Playlist):
         self.db.set_playlists_by_path(self.book_reader.cur_path, con)
         con.commit()
         con.close()
+        self.track_list_sort_row_num()
+        # inform the bookview that it needs to reload the tracklist
+        GLib.idle_add(self.book_view.book_data_load, priority=GLib.PRIORITY_DEFAULT)
 
     def is_media_file(self, file):
         for i in self.f_type_re:
@@ -952,7 +975,55 @@ class BookReader_DB:
             print('create_connection() error', e)
         return con
         
-    def playlist_track_add(self, playlist_id, track_number, track_id, cur):
+    def playlist_track_update(self, playlist_id, track_number, track_id, _id, cur):
+        if cur is None:
+            return None
+
+        lastrowid = None
+
+        # look for what will be a duplicate track_num and change it to NULL
+        sql = """
+            UPDATE pl_track
+            SET track_number = (?)
+            WHERE playlist_id = (?)
+            AND  track_number = (?)
+            """
+        try:
+            cur.execute(sql, (None, playlist_id, track_number))
+        except sqlite3.Error as e:
+            print("playlist_track_add() duplicate error", e)
+
+        success = False
+        # update track
+        sql = """
+            UPDATE pl_track
+            SET track_id = (?), track_number = (?)
+            WHERE id = (?)
+            """
+        try:
+            cur.execute(sql, (track_id, track_number, _id))
+            success = True
+        except sqlite3.Error as e:
+            print("playlist_track_add() update error", e)
+
+        if success:
+            sql = """
+                SELECT id
+                FROM pl_track
+                WHERE playlist_id = (?)
+                AND track_number = (?)
+                """
+            try:
+                cur.execute(sql, (playlist_id, track_number))
+                row = cur.fetchone()
+                if row != None:
+                    lastrowid = row['id']
+            except sqlite3.Error as e:
+                print("playlist_track_add()update error", e)
+
+        return lastrowid
+
+    def playlist_track_add(self, playlist_id, track_number, track_id, _id, cur):
         #con = self.create_connection()
         if cur is None:
             return None
@@ -968,33 +1039,6 @@ class BookReader_DB:
         except sqlite3.IntegrityError as e:
             pass
 
-        if lastrowid is None:
-            success = False
-            # update track
-            sql = """
-                UPDATE pl_track
-                SET track_id = (?)
-                WHERE playlist_id = (?)
-                AND track_number = (?)
-                """
-            try:
-                cur.execute(sql, (track_id, playlist_id, track_number))
-                success = True
-            except sqlite3.Error as e:
-                print("playlist_track_add() update error", e)
-            if success:
-                sql = """
-                    SELECT id
-                    FROM pl_track
-                    WHERE playlist_id = (?)
-                    AND track_number = (?)
-                    """
-                try:
-                    cur.execute(sql, (playlist_id, track_number))
-                    lastrowid = cur.fetchone()['id']
-                except sqlite3.Error as e:
-                    print("playlist_track_add()update error", e)
-           
         return lastrowid
 
     def playlist_insert(self, title, path, cur):
@@ -1053,7 +1097,7 @@ class BookReader_DB:
                     id INTEGER PRIMARY KEY ON CONFLICT ROLLBACK AUTOINCREMENT NOT NULL,
                     playlist_id  INTEGER REFERENCES playlist (id) 
                                         NOT NULL,
-                    track_number INTEGER NOT NULL,
+                    track_number INTEGER,
                     track_id     INTEGER NOT NULL REFERENCES track(id),
                     UNIQUE (
                         playlist_id,

@@ -560,19 +560,19 @@ class Book_View(Gtk.Box):
         cb.hide()
 
     def book_data_load(self):
+        self.playlist.clear()
         playlist = self.book.get_track_list()
         if playlist:
             if len(playlist) > 0:
                 # do the appending
-                self.playlist.clear()
-                playlist = self.book.get_track_list()
                 for i, track in enumerate(playlist):
                     cur_row = self.playlist.append()
                     # append entries for each in list of displayed columns
                     for col in self.display_cols:
                         # get first primary entry
-                        val = self.book.get_track_entries(i, col)[0]
-                        self.playlist.set_value(cur_row, col['col'], val)
+                        val = self.book.get_track_entries(track.get_entries(self.book.pl_row_id['key'])[0], col)[0]
+                        if val != None:
+                            self.playlist.set_value(cur_row, col['col'], val)
 
                     # the utility collumns always have a primary entry
                     self.playlist.set_value(cur_row, self.book.pl_row_id['col'],

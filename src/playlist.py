@@ -2,7 +2,7 @@ import mutagen
 
 
 class Track:
-    def __init__(self, file_path=None, row_num=None):
+    def __init__(self, file_path=None, row_num=None, is_saved=False):
         self.track_data = {}
         if file_path is not None:
             self.file_path = file_path
@@ -10,7 +10,14 @@ class Track:
             self.track_data['file'] = [self._file]
             self.track_data['path'] = [file_path]
         self.row_num = row_num
+        self.saved = is_saved
         #self.load_metadata_from_file(self.track_data)
+
+    def is_saved(self):
+        return self.saved
+
+    def set_saved(self, is_saved):
+        self.saved = is_saved
 
     def set_row_num(self, row_num):
         self.row_num = row_num
@@ -105,6 +112,8 @@ class Playlist():
                         lst.append(entry)
         return lst
 
+    def track_list_sort_row_num(self):
+        self.track_list.sort(key=lambda row: row.row_num)
 
 class Track_Edit(Track):
     
