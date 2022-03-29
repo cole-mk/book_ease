@@ -82,16 +82,27 @@ class Playlist():
         return self.track_list
 
     def get_track_entries(self, row, col):
-        track = self.track_list[row]
-        return track.get_entries(col['key'])
+        track = None
+        for tr in self.track_list:
+            if tr.get_entries(self.pl_row_id['key'])[0] == row:
+               track = tr
+               break
+        if track != None:
+            return track.get_entries(col['key'])
+        return [None]
 
     def get_track_alt_entries(self, row, col):
         lst = []
-        track = self.track_list[row]
-        for key in col['alt_keys']:
-            for entry in track.get_entries(key):
-                if entry is not None:
-                    lst.append(entry)
+        track = None
+        for tr in self.track_list:
+            if tr.get_entries(self.pl_row_id['key'])[0] == row:
+               track = tr
+               break
+        if track != None:
+            for key in col['alt_keys']:
+                for entry in track.get_entries(key):
+                    if entry is not None:
+                        lst.append(entry)
         return lst
 
 
