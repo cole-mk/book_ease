@@ -694,16 +694,16 @@ class Book_View(Gtk.Box):
         for i in widgits:
             self.remove(i)
         
-    def on_book_data_ready(self):
+    def on_book_data_ready(self, is_sorted=False):
         self.book_data_load()
-        
         if len(self.playlist) > 0:
             # load the new gui
             self.remove_all_children()
             self.pack_start(self.header_box, expand=False, fill=False, padding=0)
             self.pack_start(self.scrolled_playlist_view, expand=True, fill=True, padding=0)
             #set default sort order for the playlist
-            self.sort_by_column(self.default_sort_col[0], self.default_sort_col[1]) 
+            if not is_sorted:
+                self.sort_by_column(self.default_sort_col[0], self.default_sort_col[1]) 
             #self.title_entry.set_text(self.book.title)
             self.title_label.set_label(self.book.title)
             self.show_all()

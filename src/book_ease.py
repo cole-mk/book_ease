@@ -471,7 +471,7 @@ class Book(playlist.Playlist):
         # sort playlist by  row_num
         self.track_list_sort_row_num()
         # notify the book view that book data is ready
-        GLib.idle_add(self.book_view.on_book_data_ready, priority=GLib.PRIORITY_DEFAULT)
+        GLib.idle_add(self.book_view.on_book_data_ready, True, priority=GLib.PRIORITY_DEFAULT)
         
     # initialize the playlist 
     def create_book_data(self, callback=None):
