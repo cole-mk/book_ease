@@ -562,6 +562,7 @@ class Book_View(Gtk.Box):
     def book_data_load(self):
         self.playlist.clear()
         playlist = self.book.get_track_list()
+        self.title_label.set_label(self.book.title)
         if playlist:
             if len(playlist) > 0:
                 # do the appending
