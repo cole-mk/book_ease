@@ -503,6 +503,9 @@ class Book(playlist.Playlist):
         # Tell book view that the book is ready for display
         GLib.idle_add(self.book_view.on_book_data_ready, priority=GLib.PRIORITY_DEFAULT)
 
+    def close():
+        self.book_view.close()
+
     def track_list_update(self, track):
         # find existing track
         e_track = None

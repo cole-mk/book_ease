@@ -341,6 +341,10 @@ class Book_View(Gtk.Box):
         self.default_sort_col[0].set_sort_order(Gtk.SortType.DESCENDING)
         self.old_sort_order = Gtk.SortType.DESCENDING
 
+    def close(self):
+        # closes the notebook page b/c this view is the page
+        self.destroy()
+
     def get_playlist(self):
         return self.playlist
         
