@@ -528,7 +528,19 @@ class Book(playlist.Playlist):
         try:
             cur = con.cursor()
             cur.execute("""BEGIN""")
+            # add a incremented suffix to playlist title if there are duplicates
+            suffix = ''
+            ct = 1
+            while self.db.playlist_count_duplicates(title, self.path, self.playlist_id, cur) > 0:
+                title = title.rstrip(suffix)
+                suffix = '_' + str(ct)
+                title = title + suffix
+                ct += 1
+            # set book title to incremented value
+            self.title = title
+            # set playlist title
             if self.playlist_id is None:
+                # insert the newly created playlist
                 self.playlist_id = self.db.playlist_insert(title, self.path, cur)
             else:
                 self.db.playlist_update(title, self.path, self.playlist_id, cur)
@@ -1054,9 +1066,23 @@ class BookReader_DB:
         try:
             cur.execute("INSERT INTO playlist(title, path) VALUES (?,?)", (title, path))
             lastrowid = cur.lastrowid
-        except sqlite3.Error:
+        except sqlite3.IntegrityError:
             print("couldn't add", (title, path),"twice")
         return lastrowid
+
+    def playlist_count_duplicates(self, title, path, playlist_id, cur):
+        if playlist_id == None:
+            playlist_id = 'NULL'
+
+        sql = """
+            SELECT COUNT(*) FROM playlist
+            WHERE title = (?)
+            AND path = (?)
+            AND id != (?)
+            """
+        cur.execute(sql, (title, path, playlist_id))
+        ct = cur.fetchone()
+        return ct[0]
 
     def init_tables(self):
         con = self.create_connection()
