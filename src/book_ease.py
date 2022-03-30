@@ -457,6 +457,7 @@ class Book(playlist.Playlist):
             track = playlist.Track(file_path)
             track.set_entry(self.pl_row_id['key'], [i])
             track.set_saved(True)
+            track.set_row_num(tr['track_number'])
             self.track_list.append(track)
             # move the track attributes(metadata) from db to tracklist
             for col in self.metadata_col_list:
