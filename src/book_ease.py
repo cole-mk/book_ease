@@ -1298,7 +1298,6 @@ class BookReader_:
         # Do in View: Is there a playlist for the directory open in the bookreader view(is there an open book)
         # deal with the cache complication I created on day 1
         self.cur_path = cur_path
-        bk = self.get_book(cur_path, self.books)
         self.db.set_playlists_by_path(cur_path)
         playlists_in_path = self.db.cur_pl_list
         if len(playlists_in_path) > 0:
