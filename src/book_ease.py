@@ -356,6 +356,7 @@ class Image_View:
 class Book(playlist.Playlist):
     def __init__(self, path, file_list, config, files, book_reader):
         super().__init__()
+        self.index = None
         self.title = 'New Book'                 #####
         self.playlist_id = None                 #####
         self.saved_playlist = False
@@ -437,6 +438,12 @@ class Book(playlist.Playlist):
 
     def get_track_list(self):
         return self.track_list
+
+    def get_index(self):
+        return self.index
+
+    def set_index(self, index):
+        self.index = index
 
     def get_title_l(self, row):
         track = self.track_list[row]
@@ -1281,12 +1288,16 @@ class BookReader_:
     def book_updated(self, cur_pl_list):
         self.book_reader_view.on_has_book(has_book=True, playlists_in_path=cur_pl_list)
 
-    def get_book(self, path, booklist):
-        for i in booklist:
-            if i.path == path:
-                return i
-        return None
+    def get_book(self, index):
+        return books[index]
         
+    def remove_book(self, book_index):
+        self.books.pop(book_index)
+        # propogate changes to book list indices
+        while book_index < len(self.books):
+            self.books[book_index].set_index(book_index)
+            book_index+=1
+
     def on_book_data_ready(self, book):
         self.book_reader_view
         #self.signal_append_book(book.book_view, book.title)
@@ -1313,6 +1324,10 @@ class BookReader_:
                 has_new_media=True
                 break
         self.signal_has_new_media(has_new_media)
+
+    def append_book(self, book):
+        book.set_index(len(self.books))
+        self.books.append(book)
     
     def open_existing_book(self, pl_row):
         self.db
@@ -1323,7 +1338,7 @@ class BookReader_:
         #load_book_data_th.setDaemon(True)
         #load_book_data_th.start()
         bk.book_data_load(pl_row)
-        self.books.append(bk)
+        self.append_book(bk)
                 
     def open_new_book(self):
         fl = self.files.get_file_list_new()
@@ -1334,7 +1349,7 @@ class BookReader_:
         create_book_data_th = Thread(target=bk.create_book_data, args={self.on_book_data_ready})
         create_book_data_th.setDaemon(True)
         create_book_data_th.start()
-        self.books.append(bk)
+        self.append_book(bk)
         self.signal_has_new_media(False)
 
     # register callback method to signal
