@@ -433,8 +433,6 @@ class Book(playlist.Playlist):
                                  self.pl_length, self.pl_track] 
                             
         # self.playlist = self.get_playlist_new() 
-        
-        self.book_view = BookView.Book_View(self)
 
     def get_track_list(self):
         return self.track_list
@@ -1289,13 +1287,13 @@ class BookReader_:
         self.book_reader_view.on_has_book(has_book=True, playlists_in_path=cur_pl_list)
 
     def get_book(self, index):
-        return books[index]
+        return books[index][0]
 
     def remove_book(self, book_index):
         self.books.pop(book_index)
         # propogate changes to book list indices
         while book_index < len(self.books):
-            self.books[book_index].set_index(book_index)
+            self.get_book(book_index).set_index(book_index)
             book_index+=1
 
     def on_book_data_ready(self, book):
@@ -1325,9 +1323,9 @@ class BookReader_:
                 break
         self.signal_has_new_media(has_new_media)
 
-    def append_book(self, book):
+    def append_book(self, book, view):
         book.set_index(len(self.books))
-        self.books.append(book)
+        self.books.append((book, view))
     
     def open_existing_book(self, pl_row):
         self.db
