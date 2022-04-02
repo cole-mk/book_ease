@@ -1290,7 +1290,7 @@ class BookReader_:
 
     def get_book(self, index):
         return books[index]
-        
+
     def remove_book(self, book_index):
         self.books.pop(book_index)
         # propogate changes to book list indices
@@ -1332,7 +1332,8 @@ class BookReader_:
     def open_existing_book(self, pl_row):
         self.db
         bk = Book(self.cur_path, None, self.config, self.files, self)
-        bk.page = self.book_reader_view.append_book(bk.book_view, bk.title)
+        book_view = BookView(bk)
+        bk.page = self.book_reader_view.append_book(book_view, bk.title)
         # load the playlist metadata in background
         #load_book_data_th = Thread(target=bk.book_data_load, args={row})
         #load_book_data_th.setDaemon(True)
@@ -1344,7 +1345,8 @@ class BookReader_:
         fl = self.files.get_file_list_new()
         self.files.populate_file_list(fl, self.cur_path)
         bk = Book(self.cur_path, fl, self.config, self.files, self)
-        bk.page = self.book_reader_view.append_book(bk.book_view, bk.title)
+        book_view = BookView(bk)
+        bk.page = self.book_reader_view.append_book(book_view, bk.title)
         # load the playlist metadata in background
         create_book_data_th = Thread(target=bk.create_book_data, args={self.on_book_data_ready})
         create_book_data_th.setDaemon(True)
