@@ -563,6 +563,9 @@ class Book_View(Gtk.Box):
         title_store.clear()
         cb.hide()
 
+    def book_data_load_th(self, user_data=None):
+        GLib.idle_add(self.book_data_load, priority=GLib.PRIORITY_DEFAULT)
+
     def book_data_load(self):
         self.playlist.clear()
         playlist = self.book.get_track_list()
