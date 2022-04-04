@@ -434,7 +434,7 @@ class Book(playlist.Playlist):
 
         self.sig_l_book_data_loaded  = {}
         self.sig_l_book_data_created = {}
-        self.sig_l_book_saved.append = {}
+        self.sig_l_book_saved        = {}
 
 
         # self.playlist = self.get_playlist_new() 
@@ -495,6 +495,20 @@ class Book(playlist.Playlist):
         else:
             raise Exception(handle, 'doesn\'t match any signals in Book.connect()') 
 
+    def signal_book_data_loaded(self):
+        if len(self.sig_l_book_data_loaded) > 0:
+            for signal in self.sig_l_book_data_loaded:
+                signal[1](signal[2])
+
+    def signal_book_data_created(self):
+        if len(self.sig_l_book_data_created) > 0:
+            for signal in self.sig_l_book_data_created:
+                signal[1](signal[2])
+
+    def signal_book_saved(self):
+        if len(self.sig_l_book_saved) > 0:
+            for signal in self.sig_l_book_saved:
+                signal[1](signal[2])
         
     # initialize the playlist 
     def create_book_data(self, callback=None, **kwargs):
