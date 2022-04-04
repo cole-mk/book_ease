@@ -1327,7 +1327,7 @@ class BookReader_:
     def open_existing_book(self, pl_row):
         self.db
         bk = Book(self.cur_path, None, self.config, self.files, self)
-        book_view = BookView(bk)
+        book_view = BookView.Book_View(bk, self)
         bk.page = self.book_reader_view.append_book(book_view, bk.title)
         # load the playlist metadata in background
         #load_book_data_th = Thread(target=bk.book_data_load, args={row})
@@ -1340,7 +1340,7 @@ class BookReader_:
         fl = self.files.get_file_list_new()
         self.files.populate_file_list(fl, self.cur_path)
         bk = Book(self.cur_path, fl, self.config, self.files, self)
-        book_view = BookView(bk)
+        book_view = BookView.Book_View(bk, self)
         bk.page = self.book_reader_view.append_book(book_view, bk.title)
         # load the playlist metadata in background
         create_book_data_th = Thread(target=bk.create_book_data, args={self.on_book_data_ready})

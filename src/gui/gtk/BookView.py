@@ -247,11 +247,11 @@ class Edit_Row_Dialog:
 
 class Book_View(Gtk.Box):
 
-    def __init__(self, book):
+    def __init__(self, book, book_reader):
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self.book = book
         self.notebook = self.book.book_reader.book_reader_view.book_reader_notebook
-        self.book_reader = self.book.book_reader
+        self.book_reader = book_reader
         self.editing = None
         # store playlist edits until user saves playlist
         self.track_edit_list = self.book.track_edit_list
