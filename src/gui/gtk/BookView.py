@@ -529,7 +529,7 @@ class Book_View(Gtk.Box):
         entry = self.title_combo.get_child()
         title = entry.get_text()
         self.title_label.set_text(title)
-        self.book_view.on_playlist_save(title)
+        self.book_reader.on_playlist_save(self.book.get_index(), title)
         # check for changes that need to be applied to the pinned list
         if(self.book_reader.pinned_list_get(old_t, old_p) is not None):
             self.book_reader.pinned_list_remove(old_t, old_p)
