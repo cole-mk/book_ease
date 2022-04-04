@@ -432,9 +432,9 @@ class Book(playlist.Playlist):
         self.metadata_col_list =[self.pl_title,  self.pl_author, self.pl_read_by,
                                  self.pl_length, self.pl_track] 
 
-        self.sig_l_book_data_loaded  = {}
-        self.sig_l_book_data_created = {}
-        self.sig_l_book_saved        = {}
+        self.sig_l_book_data_loaded  = []
+        self.sig_l_book_data_created = []
+        self.sig_l_book_saved        = []
 
 
         # self.playlist = self.get_playlist_new() 
