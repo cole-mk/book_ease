@@ -527,7 +527,7 @@ class Book(playlist.Playlist):
                     e_track.set_entry(key, track.get_entries(key))
             e_track.set_row_num(track.get_row_num())
    
-    def on_playlist_save(self, title):
+    def save(self, title, callback, **cb_kwargs):
         # playlist
         pl_id = None
         con = self.db.create_connection()
@@ -593,8 +593,9 @@ class Book(playlist.Playlist):
         con.commit()
         con.close()
         self.track_list_sort_row_num()
+        # execute callback to notify any listeners that the playlist has been saved
         # inform the bookview that it needs to reload the tracklist
-        GLib.idle_add(self.book_view.book_data_load, priority=GLib.PRIORITY_DEFAULT)
+        callback()
         # inform book_reader that the book list has been updated
         self.book_reader.book_updated(self.db.cur_pl_list)
 
@@ -1286,18 +1287,18 @@ class BookReader_:
         self.book_reader_view.on_has_book(has_book=True, playlists_in_path=cur_pl_list)
 
     def get_book(self, index):
-        return books[index][0]
+        return self.books[index]
 
     def remove_book(self, book_index):
         self.books.pop(book_index)
         # propogate changes to book list indices
         while book_index < len(self.books):
-            self.get_book(book_index).set_index(book_index)
+            self.get_book(book_index)[0].set_index(book_index)
             book_index+=1
 
     def on_playlist_save(self, index, title):
         bk = self.get_book(index)
-        bk.save(title, self.book_view.book_data_load)
+        bk[0].save(title, bk[1].book_data_load)
 
     def on_book_data_ready(self, book):
         self.book_reader_view
