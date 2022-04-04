@@ -439,6 +439,10 @@ class Book(playlist.Playlist):
 
         # self.playlist = self.get_playlist_new() 
 
+    # get list of playlists associated with current path
+    def get_cur_pl_list(self):
+        return self.db.get_cur_pl_list()
+
     def get_track_list(self):
         return self.track_list
 
@@ -622,8 +626,6 @@ class Book(playlist.Playlist):
         self.track_list_sort_row_num()
         # notify any listeners that the playlist has been saved
         self.signal_book_saved()
-        # inform book_reader that the book list has been updated
-        self.book_reader.book_updated(self.db.cur_pl_list)
 
     def is_media_file(self, file):
         for i in self.f_type_re:
@@ -791,6 +793,9 @@ class BookReader_DB:
         if con is None:
             return None
     
+    def get_cur_pl_list(self):
+        return self.cur_pl_list
+
     def playlist_exists(self, path):
         if self.playlist_get_by_path(path) is not None:
             return True
@@ -1309,7 +1314,9 @@ class BookReader_:
             return True
         return False
         
-    def book_updated(self, cur_pl_list):
+    def book_updated(self, index):
+        print('book_updated index', index)
+        cur_pl_list=self.get_book(index)[0].get_cur_pl_list()
         self.book_reader_view.on_has_book(has_book=True, playlists_in_path=cur_pl_list)
 
     def get_book(self, index):
@@ -1354,8 +1361,10 @@ class BookReader_:
         self.signal_has_new_media(has_new_media)
 
     def append_book(self, book, view):
-        book.set_index(len(self.books))
+        index = len(self.books)
+        book.set_index(index)
         self.books.append((book, view))
+        return index
     
     def open_existing_book(self, pl_row):
         self.db
@@ -1370,8 +1379,9 @@ class BookReader_:
         #load_book_data_th.setDaemon(True)
         #load_book_data_th.start()
         bk.book_data_load(pl_row, book_view.on_book_data_ready_th, is_sorted=True)
-        self.append_book(bk, book_view)
-                
+        index = self.append_book(bk, book_view)
+        bk.connect('book_saved', self.book_updated, index=index)
+
     def open_new_book(self):
         fl = self.files.get_file_list_new()
         self.files.populate_file_list(fl, self.cur_path)
@@ -1385,7 +1395,8 @@ class BookReader_:
         create_book_data_th = Thread(target=bk.create_book_data, args={book_view.on_book_data_ready_th})
         create_book_data_th.setDaemon(True)
         create_book_data_th.start()
-        self.append_book(bk, book_view)
+        index = self.append_book(bk, book_view)
+        bk.connect('book_saved', self.book_updated, index=index)
         self.signal_has_new_media(False)
 
     # register callback method to signal
