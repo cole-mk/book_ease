@@ -1,6 +1,6 @@
 import gi
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Gdk
+from gi.repository import Gtk, Gdk, GLib
 import playlist
 
 class Edit_Row_Dialog:
@@ -697,6 +697,9 @@ class Book_View(Gtk.Box):
         widgits = self.get_children()
         for i in widgits:
             self.remove(i)
+
+    def on_book_data_ready_th(self, is_sorted=False):
+        GLib.idle_add(self.on_book_data_ready, is_sorted, priority=GLib.PRIORITY_DEFAULT)
         
     def on_book_data_ready(self, is_sorted=False):
         self.book_data_load()
