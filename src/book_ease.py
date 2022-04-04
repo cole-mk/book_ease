@@ -478,6 +478,18 @@ class Book(playlist.Playlist):
         # notify the book view that book data is ready
         callback(kwargs)
         #GLib.idle_add(self.book_view.on_book_data_ready, True, priority=GLib.PRIORITY_DEFAULT)
+
+    # register callback method to signal
+    def connect(self, handle, method, user_data=None):
+        if (handle == 'book_data_loaded'):
+            self.sig_l_book_data_loaded.append((handle, method, user_data))
+        elif(handle == 'book_data_created'):
+            self.sig_l_book_data_created.append((handle, method, user_data))
+        elif(handle == 'book_saved'):
+            self.sig_l_book_saved.append((handle, method, user_data))
+        else:
+            raise Exception(handle, 'doesn\'t match any signals in Book.connect()') 
+
         
     # initialize the playlist 
     def create_book_data(self, callback=None, **kwargs):
