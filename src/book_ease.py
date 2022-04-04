@@ -448,7 +448,7 @@ class Book(playlist.Playlist):
         return track.get_entries(self.title_keys)
     # initialize the playlist 
 
-    def book_data_load(self, pl_row):
+    def book_data_load(self, pl_row, callback, **kwargs):
         # pl_row is row from playlist database table (displayed in BookView)
         #TODO: get rid of the g_cols
         self.db.cur_pl_path['col'] 
@@ -476,10 +476,11 @@ class Book(playlist.Playlist):
         # sort playlist by  row_num
         self.track_list_sort_row_num()
         # notify the book view that book data is ready
-        GLib.idle_add(self.book_view.on_book_data_ready, True, priority=GLib.PRIORITY_DEFAULT)
+        callback(kwargs)
+        #GLib.idle_add(self.book_view.on_book_data_ready, True, priority=GLib.PRIORITY_DEFAULT)
         
     # initialize the playlist 
-    def create_book_data(self, callback=None):
+    def create_book_data(self, callback=None, **kwargs):
         #dont enumerate filelist, we nee more control over i
         i = 0
         for f in self.file_list:
@@ -504,9 +505,10 @@ class Book(playlist.Playlist):
         # book title
         self.title = self.track_list[0].get_entries('title')[0]
         # tell BookReader_ to have its view add a new book
-        GLib.idle_add(callback, self, priority=GLib.PRIORITY_DEFAULT)
+        callback(kwargs)
+        #GLib.idle_add(callback, self, priority=GLib.PRIORITY_DEFAULT)
         # Tell book view that the book is ready for display
-        GLib.idle_add(self.book_view.on_book_data_ready, priority=GLib.PRIORITY_DEFAULT)
+        #GLib.idle_add(self.book_view.on_book_data_ready, priority=GLib.PRIORITY_DEFAULT)
 
     def track_list_update(self, track):
         # find existing track
@@ -1333,8 +1335,8 @@ class BookReader_:
         #load_book_data_th = Thread(target=bk.book_data_load, args={row})
         #load_book_data_th.setDaemon(True)
         #load_book_data_th.start()
-        bk.book_data_load(pl_row)
-        self.append_book(bk)
+        bk.book_data_load(pl_row, book_view.on_book_data_ready_th, is_sorted=True)
+        self.append_book(bk, book_view)
                 
     def open_new_book(self):
         fl = self.files.get_file_list_new()
@@ -1343,10 +1345,10 @@ class BookReader_:
         book_view = BookView.Book_View(bk, self)
         bk.page = self.book_reader_view.append_book(book_view, bk.title)
         # load the playlist metadata in background
-        create_book_data_th = Thread(target=bk.create_book_data, args={self.on_book_data_ready})
+        create_book_data_th = Thread(target=bk.create_book_data, args={book_view.on_book_data_ready_th})
         create_book_data_th.setDaemon(True)
         create_book_data_th.start()
-        self.append_book(bk)
+        self.append_book(bk, book_view)
         self.signal_has_new_media(False)
 
     # register callback method to signal
