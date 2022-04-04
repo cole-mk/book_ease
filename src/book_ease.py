@@ -1295,6 +1295,10 @@ class BookReader_:
             self.get_book(book_index).set_index(book_index)
             book_index+=1
 
+    def on_playlist_save(self, index, title):
+        bk = self.get_book(index)
+        bk.save(title, self.book_view.book_data_load)
+
     def on_book_data_ready(self, book):
         self.book_reader_view
         #self.signal_append_book(book.book_view, book.title)
