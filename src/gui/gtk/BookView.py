@@ -563,7 +563,7 @@ class Book_View(Gtk.Box):
         title_store.clear()
         cb.hide()
 
-    def book_data_load_th(self, user_data=None):
+    def book_data_load_th(self, **kwargs):
         GLib.idle_add(self.book_data_load, priority=GLib.PRIORITY_DEFAULT)
 
     def book_data_load(self):
@@ -701,8 +701,10 @@ class Book_View(Gtk.Box):
         for i in widgits:
             self.remove(i)
 
-    def on_book_data_ready_th(self, is_sorted=False):
-        GLib.idle_add(self.on_book_data_ready, is_sorted, priority=GLib.PRIORITY_DEFAULT)
+    def on_book_data_ready_th(self, **kwargs):
+        if 'is_sorted' not in kwargs:
+            raise Exception ('on_book_data_ready_th is_sorted not in kwargs')
+        GLib.idle_add(self.on_book_data_ready, kwargs['is_sorted'], priority=GLib.PRIORITY_DEFAULT)
         
     def on_book_data_ready(self, is_sorted=False):
         self.book_data_load()
