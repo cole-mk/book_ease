@@ -480,35 +480,34 @@ class Book(playlist.Playlist):
         self.saved_playlist = True
         # sort playlist by  row_num
         self.track_list_sort_row_num()
-        # notify the book view that book data is ready
-        callback(kwargs)
-        #GLib.idle_add(self.book_view.on_book_data_ready, True, priority=GLib.PRIORITY_DEFAULT)
+        # notify listeners that book data has been loaded
+        self.signal_book_data_loaded()
 
     # register callback method to signal
-    def connect(self, handle, method, user_data=None):
+    def connect(self, handle, method, **cb_kwargs):
         if (handle == 'book_data_loaded'):
-            self.sig_l_book_data_loaded.append((handle, method, user_data))
+            self.sig_l_book_data_loaded.append((handle, method, cb_kwargs))
         elif(handle == 'book_data_created'):
-            self.sig_l_book_data_created.append((handle, method, user_data))
+            self.sig_l_book_data_created.append((handle, method, cb_kwargs))
         elif(handle == 'book_saved'):
-            self.sig_l_book_saved.append((handle, method, user_data))
+            self.sig_l_book_saved.append((handle, method, cb_kwargs))
         else:
             raise Exception(handle, 'doesn\'t match any signals in Book.connect()') 
 
     def signal_book_data_loaded(self):
         if len(self.sig_l_book_data_loaded) > 0:
             for signal in self.sig_l_book_data_loaded:
-                signal[1](signal[2])
+                signal[1](**signal[2])
 
     def signal_book_data_created(self):
         if len(self.sig_l_book_data_created) > 0:
             for signal in self.sig_l_book_data_created:
-                signal[1](signal[2])
+                signal[1](**signal[2])
 
     def signal_book_saved(self):
         if len(self.sig_l_book_saved) > 0:
             for signal in self.sig_l_book_saved:
-                signal[1](signal[2])
+                signal[1](**signal[2])
         
     # initialize the playlist 
     def create_book_data(self, callback=None, **kwargs):
@@ -535,11 +534,8 @@ class Book(playlist.Playlist):
                                break
         # book title
         self.title = self.track_list[0].get_entries('title')[0]
-        # tell BookReader_ to have its view add a new book
-        callback(kwargs)
-        #GLib.idle_add(callback, self, priority=GLib.PRIORITY_DEFAULT)
-        # Tell book view that the book is ready for display
-        #GLib.idle_add(self.book_view.on_book_data_ready, priority=GLib.PRIORITY_DEFAULT)
+        # emit book_data_created signal
+        self.signal_book_data_created()
 
     def track_list_update(self, track):
         # find existing track
@@ -624,9 +620,8 @@ class Book(playlist.Playlist):
         con.commit()
         con.close()
         self.track_list_sort_row_num()
-        # execute callback to notify any listeners that the playlist has been saved
-        # inform the bookview that it needs to reload the tracklist
-        callback()
+        # notify any listeners that the playlist has been saved
+        self.signal_book_saved()
         # inform book_reader that the book list has been updated
         self.book_reader.book_updated(self.db.cur_pl_list)
 
@@ -1366,7 +1361,7 @@ class BookReader_:
         self.db
         bk = Book(self.cur_path, None, self.config, self.files, self)
         book_view = BookView.Book_View(bk, self)
-        bk.connect('book_data_loaded', book_view.on_book_data_ready_th, None )
+        bk.connect('book_data_loaded', book_view.on_book_data_ready_th, {None} )
         bk.connect('book_data_created', book_view.on_book_data_ready_th, None)
         bk.connect('book_saved', book_view.book_data_load_th, None)
         bk.page = self.book_reader_view.append_book(book_view, bk.title)
@@ -1382,9 +1377,9 @@ class BookReader_:
         self.files.populate_file_list(fl, self.cur_path)
         bk = Book(self.cur_path, fl, self.config, self.files, self)
         book_view = BookView.Book_View(bk, self)
-        bk.connect('book_data_loaded', book_view.on_book_data_ready_th, None )
-        bk.connect('book_data_created', book_view.on_book_data_ready_th, None)
-        bk.connect('book_saved', book_view.book_data_load_th, None)
+        bk.connect('book_data_loaded', book_view.on_book_data_ready_th, is_sorted=True)
+        bk.connect('book_data_created', book_view.on_book_data_ready_th, is_sorted=False)
+        bk.connect('book_saved', book_view.book_data_load_th)
         bk.page = self.book_reader_view.append_book(book_view, bk.title)
         # load the playlist metadata in background
         create_book_data_th = Thread(target=bk.create_book_data, args={book_view.on_book_data_ready_th})
