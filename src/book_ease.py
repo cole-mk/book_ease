@@ -500,8 +500,7 @@ class Book(playlist.Playlist):
 
     def signal(self, signal_list):
         # Notify subscribers
-        if len(signal_list) > 0:
-            [signal[1](**signal[2]) for signal in signal_list]
+        [signal[1](**signal[2]) for signal in signal_list]
 
     # initialize the playlist 
     def create_book_data(self, callback=None, **kwargs):
