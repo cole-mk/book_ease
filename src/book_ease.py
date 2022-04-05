@@ -496,7 +496,7 @@ class Book(playlist.Playlist):
         elif(handle == 'book_saved'):
             self.sig_l_book_saved.append((handle, method, cb_kwargs))
         else:
-            raise Exception(handle, 'doesn\'t match any signals in Book.connect()') 
+            raise NameError(handle, 'doesn\'t match any signals in Book.connect()') 
 
     def signal(self, signal_list):
         # Notify subscribers
