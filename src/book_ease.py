@@ -499,17 +499,17 @@ class Book(playlist.Playlist):
             raise Exception(handle, 'doesn\'t match any signals in Book.connect()') 
 
     def signal_book_data_loaded(self):
-        # Notify users that book data has been loaded
+        # Notify subscribers that book data has been loaded
         if len(self.sig_l_book_data_loaded) > 0:
             [signal[1](**signal[2]) for signal in self.sig_l_book_data_loaded]
 
     def signal_book_data_created(self):
-        # Notify users that book data has been created
+        # Notify subscribers that book data has been created
         if len(self.sig_l_book_data_created) > 0:
             [signal[1](**signal[2]) for signal in self.sig_l_book_data_created]
 
     def signal_book_saved(self):
-        # Notify users that book data has been saved
+        # Notify subscribers that book data has been saved
         if len(self.sig_l_book_saved) > 0:
             [signal[1](**signal[2]) for signal in self.sig_l_book_saved]
         
