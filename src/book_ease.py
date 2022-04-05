@@ -457,7 +457,7 @@ class Book(playlist.Playlist):
         return track.get_entries(self.title_keys)
     # initialize the playlist 
 
-    def book_data_load(self, pl_row, callback, **kwargs):
+    def book_data_load(self, pl_row):
         # pl_row is row from playlist database table (displayed in BookView)
         #TODO: get rid of the g_cols
         self.db.cur_pl_path['col'] 
@@ -549,10 +549,10 @@ class Book(playlist.Playlist):
                 e_track = tr
                 break
         if e_track == None:
-            # add new track edit
+            # add new track
             self.track_list.append(track)
         else:
-            # modify existing track edit
+            # modify existing track
             for key in track.get_key_list():
                 if track.get_entries(key)[0] != None:
                     e_track.set_entry(key, track.get_entries(key))
@@ -1370,15 +1370,15 @@ class BookReader_:
         self.db
         bk = Book(self.cur_path, None, self.config, self.files, self)
         book_view = BookView.Book_View(bk, self)
-        bk.connect('book_data_loaded', book_view.on_book_data_ready_th, {None} )
-        bk.connect('book_data_created', book_view.on_book_data_ready_th, None)
-        bk.connect('book_saved', book_view.book_data_load_th, None)
+        bk.connect('book_data_loaded', book_view.on_book_data_ready_th, is_sorted=True)
+        #bk.connect('book_data_created', book_view.on_book_data_ready_th, is_sorted=False)
+        bk.connect('book_saved', book_view.book_data_load_th)
         bk.page = self.book_reader_view.append_book(book_view, bk.title)
         # load the playlist metadata in background
         #load_book_data_th = Thread(target=bk.book_data_load, args={row})
         #load_book_data_th.setDaemon(True)
         #load_book_data_th.start()
-        bk.book_data_load(pl_row, book_view.on_book_data_ready_th, is_sorted=True)
+        bk.book_data_load(pl_row)
         index = self.append_book(bk, book_view)
         bk.connect('book_saved', self.book_updated, index=index)
 
@@ -1387,7 +1387,7 @@ class BookReader_:
         self.files.populate_file_list(fl, self.cur_path)
         bk = Book(self.cur_path, fl, self.config, self.files, self)
         book_view = BookView.Book_View(bk, self)
-        bk.connect('book_data_loaded', book_view.on_book_data_ready_th, is_sorted=True)
+        #bk.connect('book_data_loaded', book_view.on_book_data_ready_th, is_sorted=True)
         bk.connect('book_data_created', book_view.on_book_data_ready_th, is_sorted=False)
         bk.connect('book_saved', book_view.book_data_load_th)
         bk.page = self.book_reader_view.append_book(book_view, bk.title)
