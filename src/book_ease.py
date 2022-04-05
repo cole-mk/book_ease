@@ -359,7 +359,6 @@ class Book(playlist.Playlist):
         self.index = None
         self.title = 'New Book'                 #####
         self.playlist_id = None                 #####
-        self.saved_playlist = False
         self.config = config
         self.files = files
         self.book_section = 'books'

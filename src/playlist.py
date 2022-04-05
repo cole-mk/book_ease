@@ -84,6 +84,13 @@ class Playlist():
         print('Playlist():')
         self.track_edit_list = []
         self.track_list = []
+        self.saved_playlist = False
+
+    def is_saved(self):
+        return self.saved_playlist
+
+    def set_saved(self, _bool):
+        self.saved_playlist = _bool
 
     def get_track_list(self):
         return self.track_list
