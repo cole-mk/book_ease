@@ -485,7 +485,7 @@ class Book(playlist.Playlist):
         # sort playlist by  row_num
         self.track_list_sort_row_num()
         # notify listeners that book data has been loaded
-        self.signal_book_data_loaded()
+        self.signal(self.sig_l_book_data_loaded)
 
     # register callback method to signal
     def connect(self, handle, method, **cb_kwargs):
@@ -498,21 +498,11 @@ class Book(playlist.Playlist):
         else:
             raise Exception(handle, 'doesn\'t match any signals in Book.connect()') 
 
-    def signal_book_data_loaded(self):
-        # Notify subscribers that book data has been loaded
-        if len(self.sig_l_book_data_loaded) > 0:
-            [signal[1](**signal[2]) for signal in self.sig_l_book_data_loaded]
+    def signal(self, signal_list):
+        # Notify subscribers
+        if len(signal_list) > 0:
+            [signal[1](**signal[2]) for signal in signal_list]
 
-    def signal_book_data_created(self):
-        # Notify subscribers that book data has been created
-        if len(self.sig_l_book_data_created) > 0:
-            [signal[1](**signal[2]) for signal in self.sig_l_book_data_created]
-
-    def signal_book_saved(self):
-        # Notify subscribers that book data has been saved
-        if len(self.sig_l_book_saved) > 0:
-            [signal[1](**signal[2]) for signal in self.sig_l_book_saved]
-        
     # initialize the playlist 
     def create_book_data(self, callback=None, **kwargs):
         #dont enumerate filelist, we nee more control over i
@@ -539,7 +529,7 @@ class Book(playlist.Playlist):
         # book title
         self.title = self.track_list[0].get_entries('title')[0]
         # emit book_data_created signal
-        self.signal_book_data_created()
+        self.signal(self.sig_l_book_data_created)
 
     def track_list_update(self, track):
         # find existing track
@@ -625,7 +615,7 @@ class Book(playlist.Playlist):
         con.close()
         self.track_list_sort_row_num()
         # notify any listeners that the playlist has been saved
-        self.signal_book_saved()
+        self.signal(self.sig_l_book_saved)
 
     def is_media_file(self, file):
         for i in self.f_type_re:
