@@ -411,7 +411,7 @@ class Book_View(Gtk.Box):
                 edit = playlist.Track_Edit(col)
                 edit.set_entry(col['key'], val_list)
                 edit.set_entry(self.book.pl_row_id['key'], [row_id]) 
-                self.book.track_edit_list_append(edit)
+                self.book.track_list_update(edit)
         model.clear()
         
     def on_button_release(self, widget, event, data=None):
