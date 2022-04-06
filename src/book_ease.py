@@ -555,7 +555,7 @@ class Book(playlist.Playlist):
                     e_track.set_entry(key, track.get_entries(key))
             e_track.set_row_num(track.get_row_num())
    
-    def save(self, title, callback, **cb_kwargs):
+    def save(self, title):
         # playlist
         pl_id = None
         con = self.db.create_connection()
@@ -1327,7 +1327,7 @@ class BookReader_:
 
     def on_playlist_save(self, index, title):
         bk = self.get_book(index)
-        bk[0].save(title, bk[1].book_data_load)
+        bk[0].save(title)
 
     def on_book_data_ready(self, book):
         self.book_reader_view
