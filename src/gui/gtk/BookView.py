@@ -685,8 +685,7 @@ class Book_View(Gtk.Box):
                 self.playlist_save()
             elif btn == self.cancel_button:
                 self.playlist_set_edit(False)
-                self.playlist_restore()
-                self.track_edit_list.clear()
+                self.book_reader.book_editing_cancelled(self.book.get_index())
             elif btn == self.edit_button:
                 self.playlist_backup()
                 self.playlist_set_edit(True)

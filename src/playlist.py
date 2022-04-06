@@ -86,6 +86,9 @@ class Playlist():
         self.track_list = []
         self.saved_playlist = False
 
+    def clear_track_list(self):
+        self.track_list.clear()
+
     def is_saved(self):
         return self.saved_playlist
 

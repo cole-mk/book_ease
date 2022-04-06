@@ -442,6 +442,17 @@ class Book(playlist.Playlist):
     def get_cur_pl_list(self):
         return self.db.get_cur_pl_list()
 
+    def get_cur_pl_row(self):
+        cur_pl_list = self.get_cur_pl_list()
+        cur_pl_row = None
+        for row in cur_pl_list:
+            if row[self.db.cur_pl_id['col']] == self.playlist_id:
+                cur_pl_row = row
+                break
+        if cur_pl_row == None:
+            raise KeyError(self.playlist_id, 'not found in currently saved playlists associated with this path')
+        return cur_pl_row
+
     def get_track_list(self):
         return self.track_list
 
@@ -457,7 +468,7 @@ class Book(playlist.Playlist):
     # initialize the playlist 
 
     def book_data_load(self, pl_row):
-        # pl_row is row from playlist database table (displayed in BookView)
+        # pl_row is row (tuple) from playlist database table (displayed in BookView)
         #TODO: get rid of the g_cols
         self.db.cur_pl_path['col'] 
         self.title = pl_row[self.db.cur_pl_title['col']]
@@ -466,7 +477,7 @@ class Book(playlist.Playlist):
         track_list = self.db.playlist_get_tracks(self.playlist_id)
         # move track data from database into internal tracklist   
         for i, tr in enumerate(track_list):
-            file_path = self.db.track_get_path(tr['id'])
+            file_path = self.db.track_get_path(tr['track_id'])
             track = playlist.Track(file_path)
             track.set_entry(self.pl_row_id['key'], [i])
             track.set_saved(True)
@@ -1303,7 +1314,6 @@ class BookReader_:
         return False
         
     def book_updated(self, index):
-        print('book_updated index', index)
         cur_pl_list=self.get_book(index)[0].get_cur_pl_list()
         self.book_reader_view.on_has_book(has_book=True, playlists_in_path=cur_pl_list)
 
@@ -1353,7 +1363,7 @@ class BookReader_:
         book.set_index(index)
         self.books.append((book, view))
         return index
-    
+
     def open_existing_book(self, pl_row):
         self.db
         bk = Book(self.cur_path, None, self.config, self.files, self)
@@ -1418,6 +1428,19 @@ class BookReader_:
             if i.match(file):
                 return True
         return False
+
+    def book_editing_cancelled(self, books_index):
+        bk, bv = self.get_book(books_index)
+        if bk.is_saved():
+            # clear the tracklisr and reload from DB
+            pl_row = bk.get_cur_pl_row()
+            bk.clear_track_list()
+            bk.db.set_playlists_by_path(bk.path)
+            bk.book_data_load(pl_row)
+        else:
+            # close the playlist
+            bv.close()
+            self.remove_book(books_index)
 
 
 class Files_:
