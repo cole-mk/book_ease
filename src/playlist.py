@@ -82,7 +82,6 @@ class Playlist():
     
     def __init__(self):
         print('Playlist():')
-        self.track_edit_list = []
         self.track_list = []
         self.saved_playlist = False
 

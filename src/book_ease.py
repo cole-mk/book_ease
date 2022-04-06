@@ -364,8 +364,6 @@ class Book(playlist.Playlist):
         self.book_section = 'books'
         self.path = path                        #####
         self.book_reader = book_reader
-        # added to parent as track_edit_list
-        #self.pending_entry_list = []
         self.db = BookReader_DB(self)
         # track metadata
         self.file_list = file_list

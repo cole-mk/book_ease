@@ -5,7 +5,7 @@ import playlist
 
 class Edit_Row_Dialog:
 
-    def __init__(self, row, g_col, book_view, track_edit_list, model):
+    def __init__(self, row, g_col, book_view, model):
         self.row = row
         self.selected_col = None
         for i in book_view.display_cols:
@@ -13,7 +13,6 @@ class Edit_Row_Dialog:
                 self.selected_col = i
                 break
         self.book_view = book_view
-        self.track_edit_list = track_edit_list
         self.track_edit_list_tmp = []
         self.model = model
         itr = self.model.get_iter(row)
@@ -194,15 +193,6 @@ class Edit_Row_Dialog:
                 for x in i.get_entries(self.selected_col['key']):
                     self.col_tv_model.append([x])
                 break
-        # look for unsaved changes from previous dialog
-        if not unsaved_changes:
-            for i in self.track_edit_list:
-                i_id = i.get_entries(self.book_view.book.pl_row_id['key'])[0]
-                if i_id == row_id and i.col_info == self.selected_col:
-                    unsaved_changes = True
-                    for x in i.get_entries(self.selected_col['key']):
-                        self.col_tv_model.append([x])
-                    break
         # load saved entries from book track
         if not unsaved_changes:
             for i in self.book_view.book.get_track_entries(row_id, self.selected_col):
@@ -253,9 +243,9 @@ class Book_View(Gtk.Box):
         self.notebook = self.book.book_reader.book_reader_view.book_reader_notebook
         self.book_reader = book_reader
         self.editing = None
-        # store playlist edits until user saves playlist
-        self.track_edit_list = self.book.track_edit_list
+        # the liststore for the main treeview
         self.playlist = self.get_playlist_new()
+
         self.playlist_tree_view = Gtk.TreeView()
         self.playlist_tree_view.set_model(self.playlist)
         self.playlist_tree_view.set_reorderable(True)
@@ -374,19 +364,10 @@ class Book_View(Gtk.Box):
         pl_row_id = self.playlist.get_value(itr, self.book.pl_row_id['col'])
         # the list of combo entries
         titles = []
-        # check first for pending changes to add
-        pending_changes = False
-        for entry in self.track_edit_list:
-            if entry.get_entries('pl_row_id')[0] == pl_row_id and col['key'] in entry.get_key_list():
-                for val in entry.get_entries(col['key']):
-                    titles.append(val)
-                    pending_changes = True
-                    break
-        if not pending_changes:     
-            # append track entries to list
-            for x in self.book.get_track_entries(pl_row_id, col):
-                if x:
-                    titles.append(x)
+        # append track entries to list
+        for x in self.book.get_track_entries(pl_row_id, col):
+            if x:
+                titles.append(x)
         # append the list to the combo model
         for x in titles:
             if x:
@@ -424,7 +405,7 @@ class Book_View(Gtk.Box):
                     if self.editing == True:
                         # run editing dialog on pressed column and first selected row
                         pth, col, cel_x, cel_y = self.playlist_tree_view.get_path_at_pos(event.x,  event.y)
-                        dialog = Edit_Row_Dialog(pth, col, self, self.track_edit_list, self.playlist)
+                        dialog = Edit_Row_Dialog(pth, col, self, self.playlist)
                         response = dialog.run()
                         if response == Gtk.ResponseType.OK:
                             # load the changes from the dialog into the books edit list
