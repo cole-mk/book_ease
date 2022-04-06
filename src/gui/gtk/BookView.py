@@ -256,7 +256,6 @@ class Book_View(Gtk.Box):
         # store playlist edits until user saves playlist
         self.track_edit_list = self.book.track_edit_list
         self.playlist = self.get_playlist_new()
-        self.playlist_old = self.get_playlist_new()
         self.playlist_tree_view = Gtk.TreeView()
         self.playlist_tree_view.set_model(self.playlist)
         self.playlist_tree_view.set_reorderable(True)
@@ -508,12 +507,7 @@ class Book_View(Gtk.Box):
         self.playlist_old.clear()
         for i in self.playlist:
             self.playlist_old.append(tuple(i))
-        
-    def playlist_restore(self):
-        self.playlist.clear()
-        for i in self.playlist_old:
-            self.playlist.append(tuple(i))
-                    
+
     def playlist_save(self):
         # add row numbers to track  list
         for row_num, row in enumerate(self.playlist):
@@ -687,7 +681,6 @@ class Book_View(Gtk.Box):
                 self.playlist_set_edit(False)
                 self.book_reader.book_editing_cancelled(self.book.get_index())
             elif btn == self.edit_button:
-                self.playlist_backup()
                 self.playlist_set_edit(True)
     
     def on_row_deleted(self, a, b):
@@ -721,7 +714,6 @@ class Book_View(Gtk.Box):
             self.notebook.set_tab_label_text(self, self.book.title[0:8])
             # show editing buttons
             #self.edit_playlist_box.set_no_show_all(False)
-            self.playlist_backup()
             self.playlist_set_edit(True)
             self.edit_playlist_box.show()
             #self.edit_playlist_box.set_no_show_all(True)
