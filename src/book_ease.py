@@ -1429,18 +1429,23 @@ class BookReader_:
                 return True
         return False
 
+    def close_book(self, books_index):
+        self.remove_book(books_index)
+        # close the bookview
+        bk, bv = self.get_book(books_index)
+        bv.close()
+
     def book_editing_cancelled(self, books_index):
         bk, bv = self.get_book(books_index)
         if bk.is_saved():
-            # clear the tracklisr and reload from DB
+            # clear the tracklist and reload from DB
             pl_row = bk.get_cur_pl_row()
             bk.clear_track_list()
             bk.db.set_playlists_by_path(bk.path)
             bk.book_data_load(pl_row)
         else:
             # close the playlist
-            bv.close()
-            self.remove_book(books_index)
+            self.close_book(books_index)
 
 
 class Files_:
