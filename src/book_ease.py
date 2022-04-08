@@ -477,7 +477,7 @@ class Book(playlist.Playlist):
         for i, tr in enumerate(track_list):
             file_path = self.db.track_get_path(tr['track_id'])
             track = playlist.Track(file_path)
-            track.set_entry(self.pl_row_id['key'], [i])
+            track.set_entry(self.pl_row_id['key'], [tr['id']])
             track.set_saved(True)
             track.set_row_num(tr['track_number'])
             self.track_list.append(track)
