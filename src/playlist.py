@@ -31,13 +31,6 @@ class Track:
             key_list.append(key)
         return key_list
     
-    def get_primary_entry(self, key):
-        primary_entry = None
-        if key in self.track_data:
-            #primary_entry = self.track_data[key][0]
-            primary_entry = 0
-        return primary_entry
-    
     def load_metadata_from_file(self):
         metadata = mutagen.File(self.file_path, easy=True)
         for key in metadata:
