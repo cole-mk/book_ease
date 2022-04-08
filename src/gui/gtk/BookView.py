@@ -548,7 +548,7 @@ class Book_View(Gtk.Box):
         if playlist:
             if len(playlist) > 0:
                 # do the appending
-                for i, track in enumerate(playlist):
+                for track in playlist:
                     cur_row = self.playlist.append()
                     # append entries for each in list of displayed columns
                     for col in self.display_cols:
