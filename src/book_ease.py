@@ -950,7 +950,7 @@ class BookReader_DB:
             cur.execute(sql, (path, filename))
             track_id = cur.lastrowid
         except sqlite3.IntegrityError as e:
-            print("track_add() error", e)
+            pass
 
         # get track id if the track was pre-existing
         if track_id is None:
