@@ -11,7 +11,6 @@ class Track:
             self.track_data['path'] = [file_path]
         self.row_num = row_num
         self.saved = is_saved
-        #self.load_metadata_from_file(self.track_data)
 
     def is_saved(self):
         return self.saved
