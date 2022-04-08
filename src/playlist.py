@@ -29,8 +29,6 @@ class Track:
         key_list = []
         for key in self.track_data:
             key_list.append(key)
-        if len(key_list) <= 0:
-            key_list.append(None)
         return key_list
     
     def get_primary_entry(self, key):
