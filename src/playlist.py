@@ -6,7 +6,7 @@ class Track:
         self.track_data = {}
         if file_path is not None:
             self.file_path = file_path
-            self._file = file_path.rsplit('/', maxsplit=1)[1]
+            self._file = file_path.rsplit('/', maxsplit=1).pop()
             self.track_data['file'] = [self._file]
             self.track_data['path'] = [file_path]
         self.row_num = row_num
