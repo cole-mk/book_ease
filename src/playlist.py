@@ -60,12 +60,8 @@ class Track:
     def get_entries(self, key):
         # return a list of all the entries in trackdata[key]
         entries = []
-        if key is not None:
-            if key in self.track_data:
-                for entry in self.track_data[key]:
-                    entries.append(entry)
-        if len(entries) <= 0:
-            entries.append(None)
+        if key is not None and key in self.track_data:
+            [entries.append(entry) for entry in self.track_data[key] if entry is not None]
         return entries
         
     def get_file_name(self):
@@ -104,7 +100,11 @@ class Playlist():
                track = tr
                break
         if track != None:
-            return track.get_entries(col['key'])
+            val = track.get_entries(col['key'])
+            if val:
+                return track.get_entries(col['key'])
+            else:
+                return [None]
         return [None]
 
     def get_track_alt_entries(self, row, col):
@@ -116,9 +116,7 @@ class Playlist():
                break
         if track != None:
             for key in col['alt_keys']:
-                for entry in track.get_entries(key):
-                    if entry is not None:
-                        lst.append(entry)
+                [lst.append(entry) for entry in track.get_entries(key) if entry]
         return lst
 
     def track_list_sort_row_num(self):

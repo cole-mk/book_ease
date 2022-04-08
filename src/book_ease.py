@@ -526,15 +526,17 @@ class Book(playlist.Playlist):
                 i+=1
                 # check for alt values if this entry is empty
                 for col in self.pl_saved_col_list:
-                    if track.get_entries(col['key'])[0] is None:
+                    if not track.get_entries(col['key']):
                         #has_entry = False
                         for k in col['alt_keys']:
                             val = track.get_entries(k)
-                            if val[0] is not None:
+                            if val:
                                track.set_entry(col['key'], val)
                                break
-        # book title
-        self.title = self.track_list[0].get_entries('title')[0]
+        # set book title from the first track title
+        title_list = self.track_list[0].get_entries('title')
+        if title_list:
+            self.title = title_list[0]
         # emit book_data_created signal
         self.signal(self.sig_l_book_data_created)
 
@@ -550,9 +552,7 @@ class Book(playlist.Playlist):
             self.track_list.append(track)
         else:
             # modify existing track
-            for key in track.get_key_list():
-                if track.get_entries(key)[0] != None:
-                    e_track.set_entry(key, track.get_entries(key))
+            [e_track.set_entry(key, entry) for entry in track.get_entries(key) if entry]
             e_track.set_row_num(track.get_row_num())
    
     def save(self, title):
