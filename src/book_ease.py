@@ -552,7 +552,7 @@ class Book(playlist.Playlist):
             self.track_list.append(track)
         else:
             # modify existing track
-            [e_track.set_entry(key, entry) for entry in track.get_entries(key) if entry]
+            [e_track.set_entry(key, track.get_entries(key)) for key in track.get_key_list()]
             e_track.set_row_num(track.get_row_num())
    
     def save(self, title):
