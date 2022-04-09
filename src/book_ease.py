@@ -1357,7 +1357,6 @@ class BookReader_:
         bk = Book(self.cur_path, None, self.config, self.files, self)
         book_view = BookView.Book_View(bk, self)
         bk.connect('book_data_loaded', book_view.on_book_data_ready_th, is_sorted=True)
-        #bk.connect('book_data_created', book_view.on_book_data_ready_th, is_sorted=False)
         bk.connect('book_saved', book_view.book_data_load_th)
         bk.page = self.book_reader_view.append_book(book_view, bk.title)
         # load the playlist metadata in background
@@ -1373,7 +1372,6 @@ class BookReader_:
         self.files.populate_file_list(fl, self.cur_path)
         bk = Book(self.cur_path, fl, self.config, self.files, self)
         book_view = BookView.Book_View(bk, self)
-        #bk.connect('book_data_loaded', book_view.on_book_data_ready_th, is_sorted=True)
         bk.connect('book_data_created', book_view.on_book_data_ready_th, is_sorted=False)
         bk.connect('book_saved', book_view.book_data_load_th)
         bk.page = self.book_reader_view.append_book(book_view, bk.title)
