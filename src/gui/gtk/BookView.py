@@ -360,18 +360,12 @@ class Book_View(Gtk.Box):
     def on_editing_started(self, renderer, editable, path, col):
         # build the dropdown menu with suggestions
         m = editable.get_model()
+        m.clear()
         itr = self.playlist.get_iter(path)
         pl_row_id = self.playlist.get_value(itr, self.book.pl_row_id['col'])
-        # the list of combo entries
-        titles = []
-        # append track entries to list
-        for x in self.book.get_track_entries(pl_row_id, col):
-            if x:
-                titles.append(x)
-        # append the list to the combo model
-        for x in titles:
-            if x:
-                m.append([x])
+        # append track entries to combo model
+        for entry in self.book.get_track_entries(pl_row_id, col):
+            m.append([entry])
             
     def on_edited(self, renderer, path, text, col):
         # propagate changes to self.playlist and end editing
@@ -554,9 +548,9 @@ class Book_View(Gtk.Box):
                     for col in self.display_cols:
                         # get first primary entry
                         id_ = track.get_entries(self.book.pl_row_id['key'])[0]
-                        val = self.book.get_track_entries(id_, col)[0]
-                        if self.book.get_track_entries(id_, col)[0] != None:
-                            self.playlist.set_value(cur_row, col['col'], val)
+                        val = self.book.get_track_entries(id_, col)
+                        if val:
+                            self.playlist.set_value(cur_row, col['col'], val[0])
 
                     # the utility collumns always have a primary entry
                     self.playlist.set_value(cur_row, self.book.pl_row_id['col'],
@@ -564,7 +558,6 @@ class Book_View(Gtk.Box):
 
                     self.playlist.set_value(cur_row, self.book.pl_path['col'],
                                    track.get_entries('path')[0])
-
 
     def playlist_set_edit(self, edit):
         # enter/exit editing mode
