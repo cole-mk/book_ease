@@ -23,7 +23,7 @@ import unittest
 from lib.signal_.signal_ import Signal_
 
 
-class Track_Get_Entries(unittest.TestCase):
+class Signal_Test(unittest.TestCase):
 
     def setUp(self):
         self.sig = Signal_()
@@ -43,6 +43,7 @@ class Track_Get_Entries(unittest.TestCase):
     def test_remove_signal(self):
         # remove_signal() successfully removes entry from signal handlers list
         self.sig.add_signal('test_handle')
+        self.assertIn('test_handle', self.sig._sig_handlers, 'failed to create signal for testing removal on')
         self.sig.remove_signal('test_handle')
         self.assertNotIn('test_handle', self.sig._sig_handlers)
 
@@ -57,11 +58,16 @@ class Track_Get_Entries(unittest.TestCase):
         self.assertEqual(self.sig._sig_handlers['test_handle'][0][3]['args3'], 'argsthree')
         self.assertEqual(self.sig._sig_handlers['test_handle'][0][3]['args4'], 'argsfour')
 
+    def test_connect_wrong_handle(self):
+        # connect correctly raises KeyError if handle hasn't been implemented on server'
+        self.assertRaises(KeyError, self.sig.connect, 'test_handle', self.call_back, 'args1', 'args2', args3='argsthree', args4='argsfour')
+
     def test_signal(self):
+        # signal correctly calls the correct sig handler method with args and kwargs
         self.sig.add_signal('test_handle')
         self.sig.connect('test_handle', self.call_back, 'args1', 'args2', args3='argsthree', args4='argsfour')
         self.sig.signal('test_handle')
-        self.assertEqual(self.cb_args, ('args1', 'args2'))
+        self.assertEqual(self.cb_args, ('args1',  'args2'))
         self.assertEqual(self.cb_kwargs['args3'], 'argsthree')
         self.assertEqual(self.cb_kwargs['args4'], 'argsfour')
 
