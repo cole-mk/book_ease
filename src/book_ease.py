@@ -624,12 +624,6 @@ class Book(playlist.Playlist):
         # notify any listeners that the playlist has been saved
         self.signal(self.sig_l_book_saved)
 
-    def is_media_file(self, file):
-        for i in self.f_type_re:
-            if i.match(file):
-                return True
-        return False
-
 
 class BookReader_View:
 
@@ -1328,10 +1322,6 @@ class BookReader_:
     def on_playlist_save(self, index, title):
         bk = self.get_book(index)
         bk[0].save(title)
-
-    def on_book_data_ready(self, book):
-        self.book_reader_view
-        #self.signal_append_book(book.book_view, book.title)
 
     def on_file_list_updated(self, cur_path, user_data=None):
         # conditions that need to be considered:
