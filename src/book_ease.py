@@ -1239,10 +1239,6 @@ class BookReader_:
         self.books = []
         self.book_cache = []
         self.tmp_book = None
-        #Signals/callbacks
-        self.signal_new_book = []
-        self.signal_l_has_new_media = []
-        self.signal_l_has_book = []
         # playlist_filetypes key has values given in a comma separated list
         file_types = config[self.book_reader_section]['playlist_filetypes'].split(",")
         # build compiled regexes for matching list of media suffixes. 
@@ -1363,17 +1359,6 @@ class BookReader_:
         index = self.append_book(bk, book_view)
         bk.connect('book_saved', self.book_updated, index=index)
         self.book_reader_view.on_has_new_media(False)
-
-    # register callback method to signal
-    def connect(self, handle, method, user_data=None):
-        if (handle == 'new_book'):
-            self.signal_new_book.append((handle, method, user_data))
-        elif(handle == 'has_new_media'):
-            self.signal_l_has_new_media.append((handle, method, user_data))
-        elif(handle == 'has_book'):
-            self.signal_l_has_book.append((handle, method, user_data))
-        else:
-            raise Exception(handle, 'doesn\'t match any signals in BookReader_.connect()') 
 
     def is_media_file(self, file):
         for i in self.f_type_re:
