@@ -36,6 +36,7 @@ import sqlite3
 from pathlib import Path
 import playlist
 from gui.gtk import BookView
+import signal_
 import pdb
 
 #p = playlist_data.
@@ -353,9 +354,10 @@ class Image_View:
 
 
 # TODO: file_list can be removed from the constructor all together. create_book can get it from self.files 
-class Book(playlist.Playlist):
+class Book(playlist.Playlist, signal_.Signal_):
     def __init__(self, path, file_list, config, files, book_reader):
-        super().__init__()
+        playlist.Playlist.__init__(self)
+        signal_.Signal_.__init__(self)
         self.index = None
         self.title = 'New Book'                 #####
         self.playlist_id = None                 #####
@@ -381,6 +383,11 @@ class Book(playlist.Playlist):
         for i in file_types:
             i = '.*.\\' + i.strip() + '$'
             self.f_type_re.append(re.compile(i))
+
+        # initialize the callback system
+        self.add_signal('book_data_loaded')
+        self.add_signal('book_data_created')
+        self.add_signal('book_saved')
 
         # path needs to be stored with the metadata info. what if someone add tracks from outside the playlist directory? hmmm? 
         self.pl_title    = {'name':'Title',         'col':0, 
@@ -428,13 +435,6 @@ class Book(playlist.Playlist):
  
         self.metadata_col_list =[self.pl_title,  self.pl_author, self.pl_read_by,
                                  self.pl_length, self.pl_track] 
-
-        self.sig_l_book_data_loaded  = []
-        self.sig_l_book_data_created = []
-        self.sig_l_book_saved        = []
-
-
-        # self.playlist = self.get_playlist_new() 
 
     # get list of playlists associated with current path
     def get_cur_pl_list(self):
@@ -493,22 +493,7 @@ class Book(playlist.Playlist):
         # sort playlist by  row_num
         self.track_list_sort_row_num()
         # notify listeners that book data has been loaded
-        self.signal(self.sig_l_book_data_loaded)
-
-    # register callback method to signal
-    def connect(self, handle, method, **cb_kwargs):
-        if (handle == 'book_data_loaded'):
-            self.sig_l_book_data_loaded.append((handle, method, cb_kwargs))
-        elif(handle == 'book_data_created'):
-            self.sig_l_book_data_created.append((handle, method, cb_kwargs))
-        elif(handle == 'book_saved'):
-            self.sig_l_book_saved.append((handle, method, cb_kwargs))
-        else:
-            raise NameError(handle, 'doesn\'t match any signals in Book.connect()') 
-
-    def signal(self, signal_list):
-        # Notify subscribers
-        [signal[1](**signal[2]) for signal in signal_list]
+        self.signal('book_data_loaded')
 
     # initialize the playlist 
     def create_book_data(self, callback=None, **kwargs):
@@ -538,7 +523,7 @@ class Book(playlist.Playlist):
         if title_list:
             self.title = title_list[0]
         # emit book_data_created signal
-        self.signal(self.sig_l_book_data_created)
+        self.signal('book_data_created')
 
     def track_list_update(self, track):
         # find existing track
@@ -622,7 +607,7 @@ class Book(playlist.Playlist):
         con.close()
         self.track_list_sort_row_num()
         # notify any listeners that the playlist has been saved
-        self.signal(self.sig_l_book_saved)
+        self.signal('book_saved')
 
 
 class BookReader_View:
