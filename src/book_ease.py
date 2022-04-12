@@ -685,10 +685,6 @@ class BookReader_View:
         
         self.br_view.pack_start(self.outer_box, expand=True, fill=True, padding=0)
         
-        #set callback handle, method, user_data=None new_book
-        self.book_reader.connect('new_book', self.append_book)
-        self.book_reader.connect('has_new_media', self.on_has_new_media)
-    
     def on_button_release(self, btn, evt, data=None):
         if evt.get_button()[0] is True:
             if evt.get_button()[1] == 1:
@@ -1329,7 +1325,7 @@ class BookReader_:
             if self.is_media_file(i[1]):
                 has_new_media=True
                 break
-        self.signal_has_new_media(has_new_media)
+        self.book_reader_view.on_has_new_media(has_new_media)
 
     def append_book(self, book, view):
         index = len(self.books)
@@ -1366,7 +1362,7 @@ class BookReader_:
         create_book_data_th.start()
         index = self.append_book(bk, book_view)
         bk.connect('book_saved', self.book_updated, index=index)
-        self.signal_has_new_media(False)
+        self.book_reader_view.on_has_new_media(False)
 
     # register callback method to signal
     def connect(self, handle, method, user_data=None):
@@ -1379,21 +1375,6 @@ class BookReader_:
         else:
             raise Exception(handle, 'doesn\'t match any signals in BookReader_.connect()') 
 
-    def signal_has_book(self, has_book=True):
-        if len(self.signal_l_has_book) > 0:
-            for signal in self.signal_l_has_book:
-                signal[1](has_book, signal[2])
-
-    def signal_append_book(self, book_view, title='New Book'):
-        if len(self.signal_new_book) > 0:
-            for signal in self.signal_new_book:
-                signal[1](book_view, title)
-                
-    def signal_has_new_media(self, has_new_media=True):
-        if len(self.signal_l_has_new_media) > 0:
-            for signal in self.signal_l_has_new_media:
-                signal[1](has_new_media, signal[2])
-        
     def is_media_file(self, file):
         for i in self.f_type_re:
             if i.match(file):
