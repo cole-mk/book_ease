@@ -67,7 +67,6 @@ class Track:
 class Playlist():
     
     def __init__(self):
-        print('Playlist():')
         self.track_list = []
         self.saved_playlist = False
 
