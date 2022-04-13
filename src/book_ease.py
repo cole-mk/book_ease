@@ -1230,7 +1230,7 @@ class BookReader_:
                                          self.pinned_path['g_typ'])
 
         # register a updated file list callback with files instance 
-        self.files.connect('file_list_updated', self.on_file_list_updated)
+        self.files.connect('file_list_updated', self.on_file_list_updated, get_cur_path=self.files.get_path_current)
         self.book_conf = configparser.ConfigParser()
         self.found_book_path = None
         self.book_path = None
@@ -1300,14 +1300,14 @@ class BookReader_:
         bk = self.get_book(index)
         bk[0].save(title)
 
-    def on_file_list_updated(self, cur_path, user_data=None):
+    def on_file_list_updated(self, get_cur_path, user_data=None):
         # conditions that need to be considered:
         # are there any media files in the directory
         # Is there a pre-existing playlist in the dir already
         # Do in View: Is there a playlist for the directory open in the bookreader view(is there an open book)
         # deal with the cache complication I created on day 1
-        self.cur_path = cur_path
-        self.db.set_playlists_by_path(cur_path)
+        self.cur_path = get_cur_path()
+        self.db.set_playlists_by_path(self.cur_path)
         playlists_in_path = self.db.cur_pl_list
         if len(playlists_in_path) > 0:
             self.book_reader_view.on_has_book(has_book=True, playlists_in_path=playlists_in_path)
@@ -1385,8 +1385,9 @@ class BookReader_:
             self.close_book(books_index)
 
 
-class Files_:
+class Files_(signal_.Signal_):
     def __init__(self, config):
+        signal_.Signal_.__init__(self)
         self.config = config
         self.library_path = self.config['app']['library path']
         self.current_path = self.library_path
@@ -1403,7 +1404,7 @@ class Files_:
 
         # Signals
         # Notify of file changes
-        self.signal_file_list_updated = []
+        self.add_signal('file_list_updated')
         # populate the file_list
         self.__update_file_list()
     
@@ -1411,9 +1412,7 @@ class Files_:
         self.file_list.clear() 
         self.populate_file_list(self.file_list, self.current_path)
         # notify subscribers that the file list has been updated
-        if len(self.signal_file_list_updated) > 0:
-            for signal in self.signal_file_list_updated:
-                signal[1](self.current_path, signal[2])
+        self.signal('file_list_updated')
                 
     def get_file_list_new(self):
             fl = Gtk.ListStore(Pixbuf, str, bool, str, str, str)
@@ -1445,13 +1444,6 @@ class Files_:
     def get_file_list(self):
         return self.file_list
     
-    # register callback method to signal
-    def connect(self, handle, method, user_data=None):
-        if (handle == 'file_list_updated'):
-            self.signal_file_list_updated.append((handle, method, user_data))
-        else:
-            raise Exception(handle, 'doesn\'t match any signals in Files_.connect()') 
-
     # callback signaled by Files_View   
     def cmp_f_list_dir_fst(self, model, row1, row2, user_data=None):
         sort_column, sort_order = model.get_sort_column_id()
