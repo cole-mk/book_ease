@@ -602,7 +602,7 @@ class Book(playlist.Playlist, signal_.Signal_):
         except sqlite3.Error as e:
             print('on_playlist_save', e)
         # reload the list of playlist names saved relative to this books directory
-        self.db.set_playlists_by_path(self.book_reader.cur_path, con)
+        self.db.set_cur_pl_list_by_path(self.book_reader.cur_path, con)
         con.commit()
         con.close()
         self.track_list_sort_row_num()
@@ -1307,7 +1307,7 @@ class BookReader_:
         # Do in View: Is there a playlist for the directory open in the bookreader view(is there an open book)
         # deal with the cache complication I created on day 1
         self.cur_path = get_cur_path()
-        self.db.set_playlists_by_path(self.cur_path)
+        self.db.set_cur_pl_list_by_path(self.cur_path)
         playlists_in_path = self.db.cur_pl_list
         if len(playlists_in_path) > 0:
             self.book_reader_view.on_has_book(has_book=True, playlists_in_path=playlists_in_path)
@@ -1378,7 +1378,7 @@ class BookReader_:
             # clear the tracklist and reload from DB
             pl_row = bk.get_cur_pl_row()
             bk.clear_track_list()
-            bk.db.set_playlists_by_path(bk.path)
+            bk.db.set_cur_pl_list_by_path(bk.path)
             bk.book_data_load(pl_row)
         else:
             # close the playlist
