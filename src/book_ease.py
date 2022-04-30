@@ -615,6 +615,15 @@ class BookReader_View:
     def __init__(self, br_view, book_reader):
         self.br_view = br_view
         self.book_reader = book_reader
+
+        # add gui keys to helpers for accessing playlist data stored in db
+        self.book_reader.db.cur_pl_id['g_typ'] = int
+        self.book_reader.db.cur_pl_id['g_col'] = 0
+        self.book_reader.db.cur_pl_title['g_typ'] = str
+        self.book_reader.db.cur_pl_title['g_col'] = 1
+        self.book_reader.db.cur_pl_path['g_typ'] = str
+        self.book_reader.db.cur_pl_path['g_col'] = 2
+
         self.outer_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
 
         self.header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)

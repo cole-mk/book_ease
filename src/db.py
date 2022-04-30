@@ -18,9 +18,9 @@ class _DB:
         # playlists saved in cur dir
         self.cur_pl_list = []
         # helpers for accessing data stored in self.cur_pl_list
-        self.cur_pl_id = {'col':0, 'g_typ':int, 'col_name':'id', 'g_col':0}
-        self.cur_pl_title  = {'col':1, 'g_typ':str, 'col_name':'title', 'g_col':1}
-        self.cur_pl_path  = {'col':2, 'g_typ':str, 'col_name':'path', 'g_col':2}
+        self.cur_pl_id = {'col':0, 'col_name':'id'}
+        self.cur_pl_title  = {'col':1, 'col_name':'title'}
+        self.cur_pl_path  = {'col':2, 'col_name':'path'}
         self.cur_pl_helper_l = [self.cur_pl_id, self.cur_pl_title, self.cur_pl_path]
         self.cur_pl_helper_l.sort(key=lambda col: col['col'])
 
@@ -49,6 +49,10 @@ class _DB:
         return con
 
     def set_cur_pl_list_by_path(self, path, con=None):
+        """
+        populate self.cur_pl_list with the current playlist data
+        associated with the path passed as a parameter
+        """
         pl_list = None
         if con is None:
             con = self.create_connection()
