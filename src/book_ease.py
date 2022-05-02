@@ -36,6 +36,7 @@ import sqlite3
 from pathlib import Path
 import playlist
 from gui.gtk import BookView
+import signal_
 import pdb
 
 #p = playlist_data.
@@ -353,9 +354,10 @@ class Image_View:
 
 
 # TODO: file_list can be removed from the constructor all together. create_book can get it from self.files 
-class Book(playlist.Playlist):
+class Book(playlist.Playlist, signal_.Signal_):
     def __init__(self, path, file_list, config, files, book_reader):
-        super().__init__()
+        playlist.Playlist.__init__(self)
+        signal_.Signal_.__init__(self)
         self.index = None
         self.title = 'New Book'                 #####
         self.playlist_id = None                 #####
@@ -381,6 +383,11 @@ class Book(playlist.Playlist):
         for i in file_types:
             i = '.*.\\' + i.strip() + '$'
             self.f_type_re.append(re.compile(i))
+
+        # initialize the callback system
+        self.add_signal('book_data_loaded')
+        self.add_signal('book_data_created')
+        self.add_signal('book_saved')
 
         # path needs to be stored with the metadata info. what if someone add tracks from outside the playlist directory? hmmm? 
         self.pl_title    = {'name':'Title',         'col':0, 
@@ -428,13 +435,6 @@ class Book(playlist.Playlist):
  
         self.metadata_col_list =[self.pl_title,  self.pl_author, self.pl_read_by,
                                  self.pl_length, self.pl_track] 
-
-        self.sig_l_book_data_loaded  = []
-        self.sig_l_book_data_created = []
-        self.sig_l_book_saved        = []
-
-
-        # self.playlist = self.get_playlist_new() 
 
     # get list of playlists associated with current path
     def get_cur_pl_list(self):
@@ -493,22 +493,7 @@ class Book(playlist.Playlist):
         # sort playlist by  row_num
         self.track_list_sort_row_num()
         # notify listeners that book data has been loaded
-        self.signal(self.sig_l_book_data_loaded)
-
-    # register callback method to signal
-    def connect(self, handle, method, **cb_kwargs):
-        if (handle == 'book_data_loaded'):
-            self.sig_l_book_data_loaded.append((handle, method, cb_kwargs))
-        elif(handle == 'book_data_created'):
-            self.sig_l_book_data_created.append((handle, method, cb_kwargs))
-        elif(handle == 'book_saved'):
-            self.sig_l_book_saved.append((handle, method, cb_kwargs))
-        else:
-            raise NameError(handle, 'doesn\'t match any signals in Book.connect()') 
-
-    def signal(self, signal_list):
-        # Notify subscribers
-        [signal[1](**signal[2]) for signal in signal_list]
+        self.signal('book_data_loaded')
 
     # initialize the playlist 
     def create_book_data(self, callback=None, **kwargs):
@@ -538,7 +523,7 @@ class Book(playlist.Playlist):
         if title_list:
             self.title = title_list[0]
         # emit book_data_created signal
-        self.signal(self.sig_l_book_data_created)
+        self.signal('book_data_created')
 
     def track_list_update(self, track):
         # find existing track
@@ -617,12 +602,12 @@ class Book(playlist.Playlist):
         except sqlite3.Error as e:
             print('on_playlist_save', e)
         # reload the list of playlist names saved relative to this books directory
-        self.db.set_playlists_by_path(self.book_reader.cur_path, con)
+        self.db.set_cur_pl_list_by_path(self.book_reader.cur_path, con)
         con.commit()
         con.close()
         self.track_list_sort_row_num()
         # notify any listeners that the playlist has been saved
-        self.signal(self.sig_l_book_saved)
+        self.signal('book_saved')
 
 
 class BookReader_View:
@@ -630,6 +615,15 @@ class BookReader_View:
     def __init__(self, br_view, book_reader):
         self.br_view = br_view
         self.book_reader = book_reader
+
+        # add gui keys to helpers for accessing playlist data stored in db
+        self.book_reader.db.cur_pl_id['g_typ'] = int
+        self.book_reader.db.cur_pl_id['g_col'] = 0
+        self.book_reader.db.cur_pl_title['g_typ'] = str
+        self.book_reader.db.cur_pl_title['g_col'] = 1
+        self.book_reader.db.cur_pl_path['g_typ'] = str
+        self.book_reader.db.cur_pl_path['g_col'] = 2
+
         self.outer_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
 
         self.header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
@@ -700,10 +694,6 @@ class BookReader_View:
         
         self.br_view.pack_start(self.outer_box, expand=True, fill=True, padding=0)
         
-        #set callback handle, method, user_data=None new_book
-        self.book_reader.connect('new_book', self.append_book)
-        self.book_reader.connect('has_new_media', self.on_has_new_media)
-    
     def on_button_release(self, btn, evt, data=None):
         if evt.get_button()[0] is True:
             if evt.get_button()[1] == 1:
@@ -1249,7 +1239,7 @@ class BookReader_:
                                          self.pinned_path['g_typ'])
 
         # register a updated file list callback with files instance 
-        self.files.connect('file_list_updated', self.on_file_list_updated)
+        self.files.connect('file_list_updated', self.on_file_list_updated, get_cur_path=self.files.get_path_current)
         self.book_conf = configparser.ConfigParser()
         self.found_book_path = None
         self.book_path = None
@@ -1258,10 +1248,6 @@ class BookReader_:
         self.books = []
         self.book_cache = []
         self.tmp_book = None
-        #Signals/callbacks
-        self.signal_new_book = []
-        self.signal_l_has_new_media = []
-        self.signal_l_has_book = []
         # playlist_filetypes key has values given in a comma separated list
         file_types = config[self.book_reader_section]['playlist_filetypes'].split(",")
         # build compiled regexes for matching list of media suffixes. 
@@ -1323,14 +1309,14 @@ class BookReader_:
         bk = self.get_book(index)
         bk[0].save(title)
 
-    def on_file_list_updated(self, cur_path, user_data=None):
+    def on_file_list_updated(self, get_cur_path, user_data=None):
         # conditions that need to be considered:
         # are there any media files in the directory
         # Is there a pre-existing playlist in the dir already
         # Do in View: Is there a playlist for the directory open in the bookreader view(is there an open book)
         # deal with the cache complication I created on day 1
-        self.cur_path = cur_path
-        self.db.set_playlists_by_path(cur_path)
+        self.cur_path = get_cur_path()
+        self.db.set_cur_pl_list_by_path(self.cur_path)
         playlists_in_path = self.db.cur_pl_list
         if len(playlists_in_path) > 0:
             self.book_reader_view.on_has_book(has_book=True, playlists_in_path=playlists_in_path)
@@ -1344,7 +1330,7 @@ class BookReader_:
             if self.is_media_file(i[1]):
                 has_new_media=True
                 break
-        self.signal_has_new_media(has_new_media)
+        self.book_reader_view.on_has_new_media(has_new_media)
 
     def append_book(self, book, view):
         index = len(self.books)
@@ -1381,34 +1367,8 @@ class BookReader_:
         create_book_data_th.start()
         index = self.append_book(bk, book_view)
         bk.connect('book_saved', self.book_updated, index=index)
-        self.signal_has_new_media(False)
+        self.book_reader_view.on_has_new_media(False)
 
-    # register callback method to signal
-    def connect(self, handle, method, user_data=None):
-        if (handle == 'new_book'):
-            self.signal_new_book.append((handle, method, user_data))
-        elif(handle == 'has_new_media'):
-            self.signal_l_has_new_media.append((handle, method, user_data))
-        elif(handle == 'has_book'):
-            self.signal_l_has_book.append((handle, method, user_data))
-        else:
-            raise Exception(handle, 'doesn\'t match any signals in BookReader_.connect()') 
-
-    def signal_has_book(self, has_book=True):
-        if len(self.signal_l_has_book) > 0:
-            for signal in self.signal_l_has_book:
-                signal[1](has_book, signal[2])
-
-    def signal_append_book(self, book_view, title='New Book'):
-        if len(self.signal_new_book) > 0:
-            for signal in self.signal_new_book:
-                signal[1](book_view, title)
-                
-    def signal_has_new_media(self, has_new_media=True):
-        if len(self.signal_l_has_new_media) > 0:
-            for signal in self.signal_l_has_new_media:
-                signal[1](has_new_media, signal[2])
-        
     def is_media_file(self, file):
         for i in self.f_type_re:
             if i.match(file):
@@ -1427,15 +1387,16 @@ class BookReader_:
             # clear the tracklist and reload from DB
             pl_row = bk.get_cur_pl_row()
             bk.clear_track_list()
-            bk.db.set_playlists_by_path(bk.path)
+            bk.db.set_cur_pl_list_by_path(bk.path)
             bk.book_data_load(pl_row)
         else:
             # close the playlist
             self.close_book(books_index)
 
 
-class Files_:
+class Files_(signal_.Signal_):
     def __init__(self, config):
+        signal_.Signal_.__init__(self)
         self.config = config
         self.library_path = self.config['app']['library path']
         self.current_path = self.library_path
@@ -1452,7 +1413,7 @@ class Files_:
 
         # Signals
         # Notify of file changes
-        self.signal_file_list_updated = []
+        self.add_signal('file_list_updated')
         # populate the file_list
         self.__update_file_list()
     
@@ -1460,9 +1421,7 @@ class Files_:
         self.file_list.clear() 
         self.populate_file_list(self.file_list, self.current_path)
         # notify subscribers that the file list has been updated
-        if len(self.signal_file_list_updated) > 0:
-            for signal in self.signal_file_list_updated:
-                signal[1](self.current_path, signal[2])
+        self.signal('file_list_updated')
                 
     def get_file_list_new(self):
             fl = Gtk.ListStore(Pixbuf, str, bool, str, str, str)
@@ -1494,13 +1453,6 @@ class Files_:
     def get_file_list(self):
         return self.file_list
     
-    # register callback method to signal
-    def connect(self, handle, method, user_data=None):
-        if (handle == 'file_list_updated'):
-            self.signal_file_list_updated.append((handle, method, user_data))
-        else:
-            raise Exception(handle, 'doesn\'t match any signals in Files_.connect()') 
-
     # callback signaled by Files_View   
     def cmp_f_list_dir_fst(self, model, row1, row2, user_data=None):
         sort_column, sort_order = model.get_sort_column_id()
