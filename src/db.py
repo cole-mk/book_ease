@@ -1,4 +1,6 @@
 """Database accessing root class"""
+from pathlib import Path
+import sqlite3
 
 
 class _DB:
