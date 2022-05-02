@@ -40,6 +40,7 @@ import playlist
 from gui.gtk import BookView
 import signal_
 import pdb
+import db
 
 #p = playlist_data.
 
@@ -368,7 +369,7 @@ class Book(playlist.Playlist, signal_.Signal_):
         self.book_section = 'books'
         self.path = path                        #####
         self.book_reader = book_reader
-        self.db = BookReader_DB(self)
+        self.db = Book_DB()
         # track metadata
         self.file_list = file_list
         # added to parent as track_list
@@ -753,57 +754,112 @@ class BookReader_View:
         return start_box
         #self.add(start_box)
 
-#TODO: make a MapList(list) class that has methods to sort based on map key and get expandable map from a map key
-class BookReader_DB:
-    def __init__(self, book=None):
-        self.book = book
-        config_dir = Path.home() / '.config' / 'book_ease'
-        db_dir = config_dir / 'data'
-        db_dir.mkdir(mode=511, parents=True, exist_ok=True)
-        self.db = db_dir / 'book_ease.db'
-        
-        # playlists saved in cur dir
-        self.cur_pl_id = {'col':0, 'g_typ':int, 'col_name':'id', 'g_col':0}    
-        self.cur_pl_title  = {'col':1, 'g_typ':str, 'col_name':'title', 'g_col':1}
-        self.cur_pl_path  = {'col':2, 'g_typ':str, 'col_name':'path', 'g_col':2}
-        self.cur_pl_helper_l = [self.cur_pl_id, self.cur_pl_title, self.cur_pl_path]
-        self.cur_pl_helper_l.sort(key=lambda col: col['col'])
-        
-        self.cur_pl_list = []
-        
-        self.init_tables()
-        con = self.create_connection()
-        if con is None:
-            return None
+class Book_DB(db._DB):
     
-    def get_cur_pl_list(self):
-        return self.cur_pl_list
+    def __init__(self):
+        db._DB.__init__(self)
+
+    def init_tables(self):
+        con = self.create_connection()
+        self.init_table_playlist(con)
+        self.init_table_track(con)
+        self.init_table_pl_track(con)
+        self.init_table_pl_track_metadata(con)
+
+    def init_table_playlist(self, con):
+        """create database table: playlist"""
+        sql = '''
+                CREATE TABLE playlist (
+                    id INTEGER PRIMARY KEY ON CONFLICT ROLLBACK AUTOINCREMENT NOT NULL,
+                    title       TEXT NOT NULL,
+                    path        TEXT NOT NULL,
+                    UNIQUE (
+                        title,
+                        path
+                    )
+                    ON CONFLICT ROLLBACK
+                )
+                '''
+        try:
+            with con:
+                con.execute(sql)
+        except sqlite3.OperationalError as e:
+            # table already exists
+            pass
+
+    def init_table_track(self, con):
+        """create database table: track"""
+        sql = """
+                CREATE TABLE track (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    path     TEXT NOT NULL,
+                    filename TEXT NOT NULL,
+                    UNIQUE (
+                        path,
+                        filename
+                    )
+                )
+                """
+        try:
+            with con:
+                con.execute(sql)
+        except sqlite3.OperationalError:
+            # table already exists
+            pass
+
+    def init_table_pl_track(self, con):
+        """create database table: pl_track"""
+        sql = """
+                CREATE TABLE pl_track (
+                    id INTEGER PRIMARY KEY ON CONFLICT ROLLBACK AUTOINCREMENT NOT NULL,
+                    playlist_id  INTEGER REFERENCES playlist (id)
+                                        NOT NULL,
+                    track_number INTEGER,
+                    track_id     INTEGER NOT NULL REFERENCES track(id),
+                    UNIQUE (
+                        playlist_id,
+                        track_number
+                    )
+                )
+                """
+        try:
+            with con:
+                con.execute(sql)
+        except sqlite3.OperationalError:
+            # table already exists
+            pass
+
+    def init_table_pl_track_metadata(self, con):
+        """create database table: pl_track"""
+        sql = """
+                CREATE TABLE  pl_track_metadata (
+                    id          INTEGER PRIMARY KEY ON CONFLICT ROLLBACK AUTOINCREMENT
+                                    UNIQUE
+                                    NOT NULL,
+                    pl_track_id    INTEGER REFERENCES pl_track (id)
+                                    NOT NULL,
+                    entry      TEXT NOT NULL,
+                    ent_index      INTEGER NOT NULL,
+                    _key      TEXT NOT NULL,
+                    UNIQUE (
+                       pl_track_id,
+                       ent_index,
+                       _key
+                   )
+                  ON CONFLICT ROLLBACK
+                )
+                """
+        try:
+            with con:
+                con.execute(sql)
+        except sqlite3.OperationalError as e:
+            # table already exists
+            pass
 
     def playlist_exists(self, path):
         if self.playlist_get_by_path(path) is not None:
             return True
         return False
-
-    def set_playlists_by_path(self, path, con=None):
-        pl_list = None
-        if con is None:
-            con = self.create_connection()
-        try:
-            sql = '''
-                SELECT * FROM playlist
-                WHERE path = ?
-                '''
-            cur = con.execute(sql, (path,))
-            pl_list = cur.fetchall()
-
-            # fill cur_pl_list with pl_list
-            self.cur_pl_list.clear()
-            for i, row in enumerate(pl_list):
-                self.cur_pl_list.append(row)
-                
-        except sqlite3.Error as e:
-            print("couldn't set_playlists_by_path", e)
-        return pl_list
 
     def track_get_path(self, track_id):
         con = self.create_connection()
@@ -999,15 +1055,6 @@ class BookReader_DB:
             print("playlist", title, "already exists at", path)
         return pl_id
     
-    def create_connection(self):
-        con = None
-        try:
-            con = sqlite3.connect(self.db, isolation_level=None) 
-            con.row_factory = sqlite3.Row
-        except sqlite3.Error as e:
-            print('create_connection() error', e)
-        return con
-        
     def playlist_track_update(self, playlist_id, track_number, track_id, _id, cur):
         if cur is None:
             return None
@@ -1107,120 +1154,10 @@ class BookReader_DB:
         ct = cur.fetchone()
         return ct[0]
 
-    def init_tables(self):
-        con = self.create_connection()
-
-        # Table: playlist
-        sql = '''
-                CREATE TABLE playlist (
-                    id INTEGER PRIMARY KEY ON CONFLICT ROLLBACK AUTOINCREMENT NOT NULL,
-                    title       TEXT NOT NULL,
-                    path        TEXT NOT NULL,
-                    UNIQUE (
-                        title,
-                        path
-                    )
-                    ON CONFLICT ROLLBACK
-                )
-                ''' 
-
-        try:
-            with con:
-                con.execute(sql)
-        except sqlite3.OperationalError as e:
-            pass
-        
-        # Table: track
-        sql = """
-                CREATE TABLE track (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                    path     TEXT NOT NULL,
-                    filename TEXT NOT NULL,
-                    UNIQUE (
-                        path,
-                        filename
-                    )
-                )
-                """
-        try:
-            with con:
-                con.execute(sql)
-        except sqlite3.OperationalError:
-            pass
-
-        # Table: pl_track
-        sql = """
-                CREATE TABLE pl_track (
-                    id INTEGER PRIMARY KEY ON CONFLICT ROLLBACK AUTOINCREMENT NOT NULL,
-                    playlist_id  INTEGER REFERENCES playlist (id) 
-                                        NOT NULL,
-                    track_number INTEGER,
-                    track_id     INTEGER NOT NULL REFERENCES track(id),
-                    UNIQUE (
-                        playlist_id,
-                        track_number
-                    )
-                )
-                """
-        try:
-            with con:
-                con.execute(sql)
-        except sqlite3.OperationalError:
-            pass
-                
-
-        # Table: pl_track_metadata
-        sql = """
-                CREATE TABLE  pl_track_metadata (
-                    id          INTEGER PRIMARY KEY ON CONFLICT ROLLBACK AUTOINCREMENT
-                                    UNIQUE
-                                    NOT NULL,
-                    pl_track_id    INTEGER REFERENCES pl_track (id) 
-                                    NOT NULL,
-                    entry      TEXT NOT NULL,
-                    ent_index      INTEGER NOT NULL,
-                    _key      TEXT NOT NULL,
-                    UNIQUE (
-                       pl_track_id,
-                       ent_index,
-                       _key
-                   )
-                  ON CONFLICT ROLLBACK
-                )
-                """
- 
-
-        try:
-            with con:
-                con.execute(sql)
-        except sqlite3.OperationalError as e:
-            print("CREATE TABLE track_author exists", e)
-
-        # primary metadata selection
-        sql = """
-                CREATE TABLE primary_metadata (
-                    id                      INTEGER PRIMARY KEY ON CONFLICT ROLLBACK AUTOINCREMENT
-                                                UNIQUE
-                                                NOT NULL,
-                    pl_track_id             INTEGER NOT NULL 
-                                                REFERENCES pl_track (id),
-                    pl_track_metadata_id    INTEGER REFERENCES pl_track_metadata (id) 
-                                                NOT NULL,
-                    pl_track_metadata_key   TEXT REFERENCES pl_track_metadata (_key) 
-                                                NOT NULL,
-                    UNIQUE (
-                        pl_track_id,
-                        pl_track_metadata_id,
-                        pl_track_metadata_key
-                    )
-                    ON CONFLICT ROLLBACK
-                )       
-                """
-        try:
-            with con:
-                con.execute(sql)
-        except sqlite3.OperationalError:
-            pass
+#TODO: make a MapList(list) class that has methods to sort based on map key and get expandable map from a map key
+class BookReader_DB(db._DB):
+    def __init__(self):
+        db._DB.__init__(self)
 
 
 class BookReader_:
