@@ -29,7 +29,7 @@ import os
 import configparser
 from datetime import datetime
 import re
-import vlc
+#import vlc
 import mutagen
 from mutagen.easyid3 import EasyID3
 from threading import Thread
