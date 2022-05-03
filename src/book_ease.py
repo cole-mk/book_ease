@@ -754,12 +754,16 @@ class BookReader_View:
         return start_box
         #self.add(start_box)
 
+
 class Book_DB(db._DB):
+    """Database accessing implementation class that serves Book class"""
     
     def __init__(self):
+        """create database tables used by this class by calling an init function for each of the tables"""
         db._DB.__init__(self)
 
     def init_tables(self):
+        """create database tables used by this class by calling an init function for each of the tables"""
         con = self.create_connection()
         self.init_table_playlist(con)
         self.init_table_track(con)
