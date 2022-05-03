@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  book_ease.py
+#  playlist.py
 #
 #  This file is part of book_ease.
 #
