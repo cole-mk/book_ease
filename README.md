@@ -34,5 +34,6 @@ mark cole <mark@capstonedistribution.com>
 This project is licensed under the GPLv3 License - see the LICENSE.md file for details
 
 ## Acknowledgments
-* book_ease was inspired by using [spacefm](https://ignorantguru.github.io/spacefm/) filemanager's bookmark/scripting interface to create a more feature complete audiobook reader than other options currently available for Linux
+
+book_ease was inspired by using [spacefm](https://ignorantguru.github.io/spacefm/) filemanager's bookmark/scripting interface to control [mplayer](http://www.mplayerhq.hu/design7/news.html) resulting a more feature complete audiobook reader than other options currently available for Linux.
 
