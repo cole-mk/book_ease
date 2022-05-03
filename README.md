@@ -8,24 +8,19 @@
 ## Getting Started
 
 ### Dependencies
-
-* mutagen
-  * [docs](https://mutagen.readthedocs.io/en/latest/)
-* linux
-* python3
-* Gtk3 from gi.repository
-  * [PyGObject](https://www.gtk.org/docs/language-bindings/python)
-* python bindings for VLC 
-  * ```$pip install python-vlc```
+* mutagen==1.45.1
+* pycairo==1.21.0
+* PyGObject==3.36.0
 
 ### Installing
 
-* ```$git clone https://github.com/cole-mk/book_ease.git```
+* ```$ git clone https://github.com/cole-mk/book_ease.git```
 
 ### Executing program
 
-* cd to the src folder inside cloned project
-* ```$./book_ease.py```
+* move to the src folder inside cloned project
+* ```$ cd book_ease/src```
+* ```$ python3 book_ease.py```
 
 ## Authors
 

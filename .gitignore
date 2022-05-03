@@ -9,3 +9,8 @@ __pycache__/
 gitignore_local
 *.ini
 *.pyc
+# python virtual environments
+venv
+env
+.venv
+.env
