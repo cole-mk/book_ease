@@ -28,7 +28,9 @@ class _SqliteDB:
     Database accessor base class:
     stores the common database path information
 
-    Note: all exceptions are propogated to an upper layer
+    Note: all exceptions are to be propogated to an upper layer
+        except for init_tables, usually called from __init__
+        in the child class
     
     init_tables()
     create_connection()
