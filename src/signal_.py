@@ -45,7 +45,7 @@ class Signal_():
         # called by client
         self._sig_handlers[handle].append((handle, method, args, cb_kwargs))
 
-    def signal(self, handle):
+    def signal(self, handle, *ext_args, **ext_kwargs):
         # execute each signal in the sig handlers list
         # called by server
-        [signal[1](*signal[2], **signal[3]) for signal in self._sig_handlers[handle]]
+        [signal[1](*signal[2], *ext_args, **signal[3], **ext_kwargs) for signal in self._sig_handlers[handle]]
