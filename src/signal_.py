@@ -21,31 +21,61 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 """
-helper class for model classes (MVC) to implement signal system (notifications)
+helper class to implement signal system (notifications)
+note: instantiated/inherited by server
 """
 
 class Signal_():
 
     def __init__(self):
-        # each entry will hold a list of tuples as defined in connect()
+        """
+        create empty signal handler container, dict
+        note: instantiated/inherited by server
+
+        for each key/val pair,
+        the key will be the signal handle
+        and the val will hold a list of containers that hold
+        the data for a signal call. the container is defined in connect()
+        """
         self._sig_handlers = {}
 
     def add_signal(self, handle):
-        # add signal to the sig handlers list
-        # called by server
+        """
+        create/add signal to the sig handlers list
+        note: called by server
+        """
         self._sig_handlers[handle] = []
 
     def remove_signal(self, handle):
-        # remove signal from the sig handlers list
-        # called by server
-       del self._sig_handlers[handle]
+        """
+        remove signal from the sig handlers list
+        note: called by server
+        """
+        del self._sig_handlers[handle]
 
-    def connect(self, handle, method, *args, **cb_kwargs):
-        # connect callback to signal in the sig handlers list
-        # called by client
-        self._sig_handlers[handle].append((handle, method, args, cb_kwargs))
+    def connect(self, handle, method, *cb_args, **cb_kwargs):
+        """
+        connect callback to signal in the sig handlers list
+        note: called by subscriber
+        note: server must have added the signal before subscriber can connect
 
-    def signal(self, handle, *ext_args, **ext_kwargs):
-        # execute each signal in the sig handlers list
-        # called by server
-        [signal[1](*signal[2], *ext_args, **signal[3], **ext_kwargs) for signal in self._sig_handlers[handle]]
+        handle: signal name
+        method: subscriber chosen method to call during signal execution
+        cb_args: user data to be passed to the callback function during signal execution
+        cb_kwargs: user data to be passed to the callback function during signal execution
+        """
+        self._sig_handlers[handle].append((method, cb_args, cb_kwargs))
+
+    def signal(self, handle, *extra_args, **extra_kwargs):
+        """
+        execute each signal for this handle in the sig handlers list
+        note: called by server
+
+        handle: signal name
+        extra_args: allow server to add args to the signal call
+        extra_kwargs: allow server to add kwargs to the signal call
+        signal[0]: callback method
+        signal[1]: cb_args
+        signal[2]: cb_kwargs
+        """
+        [signal[0](*signal[1], *extra_args, **signal[2], **extra_kwargs) for signal in self._sig_handlers[handle]]
