@@ -46,6 +46,16 @@ class _SqliteDB:
         db_dir = config_dir / 'data'
         db_dir.mkdir(mode=511, parents=True, exist_ok=True)
         self.db = db_dir / 'book_ease.db'
+        # create the database table used by child class
+        con = self.create_connection()
+        try:
+            with con:
+                self.init_table(con)
+        except sqlite3.OperationalError:
+            # table already exists
+            pass
+        con.close()
+
 
     def init_table(self):
         """
@@ -78,15 +88,6 @@ class PinnedPlaylists(_SqliteDB):
     """
     def __init__(self):
         _SqliteDB.__init__(self)
-        # create database tables used by this class
-        con = self.create_connection()
-        try:
-            with con:
-                self.init_table(con)
-        except sqlite3.OperationalError:
-            # table already exists
-            pass
-        con.close()
 
     def init_table(self, con):
         """create database table: pinned_playlists"""
@@ -164,16 +165,6 @@ class Playlist(_SqliteDB):
 
     def __init__(self):
         _SqliteDB.__init__(self)
-        # create the database table used by this class
-        con = self.create_connection()
-        try:
-            with con:
-                self.init_table(con)
-        except sqlite3.OperationalError:
-            # table already exists
-            pass
-        con.close()
-
         
     def init_table(self, con):
         """create database table: playlist"""
