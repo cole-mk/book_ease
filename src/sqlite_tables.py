@@ -76,9 +76,15 @@ class PinnedPlaylists(_SqliteDB):
     """
     def __init__(self):
         _SqliteDB.__init__(self)
-        # create database tables used by this class by calling an init function for each of the tables
+        # create database tables used by this class
         con = self.create_connection()
-        self.init_table(con)
+        try:
+            with con:
+                self.init_table(con)
+        except sqlite3.OperationalError:
+            # table already exists
+            pass
+        con.close()
 
     def init_table(self, con):
         """create database table: pinned_playlists"""
@@ -89,12 +95,7 @@ class PinnedPlaylists(_SqliteDB):
                                          UNIQUE ON CONFLICT ROLLBACK NOT NULL
                 )
                 """
-        try:
-            with con:
-                con.execute(sql)
-        except sqlite3.OperationalError:
-            # table already exists
-            pass
+        con.execute(sql)
 
     def has_playlist(self, con, playlist_id):
         """
@@ -161,7 +162,7 @@ class Playlist(_SqliteDB):
 
     def __init__(self):
         _SqliteDB.__init__(self)
-        # create the database table used by this class by calling an init function for the table
+        # create the database table used by this class
         con = self.create_connection()
         try:
             with con:
@@ -169,6 +170,8 @@ class Playlist(_SqliteDB):
         except sqlite3.OperationalError:
             # table already exists
             pass
+        con.close()
+
         
     def init_table(self, con):
         """create database table: playlist"""
