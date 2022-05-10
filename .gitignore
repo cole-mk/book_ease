@@ -16,3 +16,4 @@ env/
 .env/
 # dia autosave files
 *.autosave
+*.png
