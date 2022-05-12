@@ -134,7 +134,6 @@ class PinnedPlaylists(_SqliteDB):
         insert a new playlist into the pinned_playlists table
         returns row id of the newly pinned playlist
         """
-
         sql = """
             INSERT INTO pinned_playlists(playlist_id)
             VALUES (?)
@@ -187,11 +186,16 @@ class Playlist(_SqliteDB):
         search for playlists by list of ids
         return all rows encapsulated in sqlite row objects
         """
+        rows = []
         sql = """
             SELECT * FROM playlist
             WHERE id = (?)            
             """
-        cur = con.executemany(sql, playlist_ids)
+        for id_ in playlist_ids:
+            cur = con.execute(sql, (id_,))
+            row = cur.fetchone()
+            rows.append(row)
+        return rows
 
     def get_row(self, con, id_):
         """
@@ -203,6 +207,8 @@ class Playlist(_SqliteDB):
             WHERE id = (?)
             """
         cur = con.execute(sql, (id_,))
+        row = cur.fetchone()
+        return row
 
     def get_title_by_id(self, id_, con):
         """
