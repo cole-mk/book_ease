@@ -25,6 +25,8 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
 import playlist
+import signal_
+
 
 class Edit_Row_Dialog:
 
@@ -259,9 +261,14 @@ class Edit_Row_Dialog:
 
 
 class Book_View(Gtk.Box):
+    """
+    this class displays the book playlist
+    """
 
     def __init__(self, book, book_reader):
-        super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        self.signal = signal_.Signal_()
+        self.signal.add_signal('pinned_state_changed')
         self.book = book
         self.notebook = self.book.book_reader.book_reader_view.book_reader_notebook
         self.book_reader = book_reader
@@ -284,9 +291,10 @@ class Book_View(Gtk.Box):
 
         #header
         self.header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
-        self.pinned_button = Gtk.CheckButton(label='pin')
-        self.pinned_button.connect('toggled', self.on_button_toggled)
-        self.header_box.pack_start(self.pinned_button, expand=False, fill=False, padding=0)
+        # The container that will hold the pinned playlist check button
+        self.pinned_button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        self.pinned_button = False
+        self.header_box.pack_start(self.pinned_button_box, expand=False, fill=False, padding=0)
         self.title_label = Gtk.Label(label=self.book.title)
         self.title_label.set_no_show_all(True)
         self.title_label.set_halign(Gtk.Align.END)
@@ -370,12 +378,6 @@ class Book_View(Gtk.Box):
                              self.book.pl_row_id  ['g_typ'],
                              self.book.pl_path    ['g_typ'])
 
-    def on_button_toggled(self,btn):
-        if btn.get_active():
-            self.book_reader.pinned_list_add(self.book.title, self.book.path)
-        else:
-            self.book_reader.pinned_list_remove(self.book.title, self.book.path)
-    
     def on_editing_cancelled(self, renderer):
         m = renderer.get_property('model')
         m.clear()
@@ -507,6 +509,11 @@ class Book_View(Gtk.Box):
             self.playlist_old.append(tuple(i))
 
     def playlist_save(self):
+        """
+        playlist_save is part of the callback chain when the save button
+        is pressed.
+        populate track data objects with the tracks stored in the edited playlist
+        """
         # add row numbers to track  list
         for row_num, row in enumerate(self.playlist):
             track = playlist.Track()
@@ -522,10 +529,6 @@ class Book_View(Gtk.Box):
         title = entry.get_text()
         self.title_label.set_text(title)
         self.book_reader.on_playlist_save(self.book.get_index(), title)
-        # check for changes that need to be applied to the pinned list
-        if(self.book_reader.pinned_list_get(old_t, old_p) is not None):
-            self.book_reader.pinned_list_remove(old_t, old_p)
-            self.book_reader.pinned_list_add(self.book.title, self.book.path)
         
     def enable_sorting(self, enable=True):
         if enable:
@@ -557,6 +560,21 @@ class Book_View(Gtk.Box):
 
     def book_data_load_th(self, **kwargs):
         GLib.idle_add(self.book_data_load, priority=GLib.PRIORITY_DEFAULT)
+
+    def add_pinned_button(self, pinned_button):
+        """
+        display a button to control wether or not a playlist is bookmarked
+        pinned_button: a PinnedButton_V object
+        """
+        self.pinned_button_box.pack_start(pinned_button, expand=False, fill=False, padding=0)
+        self.pinned_button = True
+
+    def has_pinned_button(self):
+        """
+        determine if BookView has already had a PinnedButton_V
+        object added to itself
+        """
+        return self.pinned_button
 
     def book_data_load(self):
         self.playlist.clear()

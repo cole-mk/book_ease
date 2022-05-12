@@ -41,6 +41,9 @@ from gui.gtk import BookView
 import signal_
 import pdb
 import db
+import sqlite_tables
+import singleton_
+import pinned_books
 
 #p = playlist_data.
 
@@ -454,6 +457,10 @@ class Book(playlist.Playlist, signal_.Signal_):
             raise KeyError(self.playlist_id, 'not found in currently saved playlists associated with this path')
         return cur_pl_row
 
+    def get_playlist_id(self):
+        """get this book instance's unique id"""
+        return self.playlist_id
+
     def get_track_list(self):
         return self.track_list
 
@@ -615,7 +622,7 @@ class Book(playlist.Playlist, signal_.Signal_):
 
 class BookReader_View:
 
-    def __init__(self, br_view, book_reader):
+    def __init__(self, br_view, book_reader, pinned_view):
         self.br_view = br_view
         self.book_reader = book_reader
 
@@ -630,22 +637,8 @@ class BookReader_View:
         self.outer_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
 
         self.header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
-        
-        self.pinned_view = Gtk.TreeView()
-        self.pinned_view.set_model(self.book_reader.pinned_list)
-        # title column
-        title_r = Gtk.CellRendererText()    
-        title_col = Gtk.TreeViewColumn("Title")
-        title_col.pack_start(title_r, True)
-        title_col.add_attribute(title_r, "text", self.book_reader.pinned_title['col'])
-        self.pinned_view.append_column(title_col)
-        # path column
-        path_r = Gtk.CellRendererText() 
-        path_col = Gtk.TreeViewColumn("Location")
-        path_col.pack_start(path_r, True)
-        path_col.add_attribute(path_r, "text", self.book_reader.pinned_path['col'])
-        self.pinned_view.append_column(path_col)
-        
+        # a view of the pinned books that will be displayed on the start page
+        self.pinned_view = pinned_view
         
         self.book_reader_notebook = Gtk.Notebook()
         self.start_page = self.build_start_page()
@@ -696,7 +689,7 @@ class BookReader_View:
         self.outer_box.pack_start(self.book_reader_notebook, expand=True, fill=True, padding=0)
         
         self.br_view.pack_start(self.outer_box, expand=True, fill=True, padding=0)
-        
+
     def on_button_release(self, btn, evt, data=None):
         if evt.get_button()[0] is True:
             if evt.get_button()[1] == 1:
@@ -1197,11 +1190,8 @@ class BookReader_:
         # playlists database helper
         self.db = BookReader_DB()
 
-        # pinned playlists
-        self.pinned_title = {'col':0, 'g_typ':str}  
-        self.pinned_path  = {'col':1, 'g_typ':str}
-        self.pinned_list = Gtk.ListStore(self.pinned_title['g_typ'], 
-                                         self.pinned_path['g_typ'])
+        # pinned playlists that will be displayed bookReader_View
+        self.pinned_books =  pinned_books.PinnedBooks_C()
 
         # register a updated file list callback with files instance 
         self.files.connect('file_list_updated', self.on_file_list_updated, get_cur_path=self.files.get_path_current)
@@ -1223,32 +1213,10 @@ class BookReader_:
 
         self.book_reader_view = BookReader_View(
             builder.get_object("book_reader_view"),
-            self
+            self,
+            self.pinned_books.get_view()
         )
     
-    def pinned_list_get(self, title, path):
-        pinned_path = None
-        for i , v in enumerate(self.pinned_list):
-            if v[self.pinned_title['col']] == title and v[self.pinned_path['col']] == path:
-                pinned_path = i
-                break
-        return pinned_path
-    
-    def pinned_list_add(self, title, path):
-        for i in self.pinned_list:
-            if i[self.pinned_title['col']] == title and i[self.pinned_path['col']] == path:
-                return None
-        return self.pinned_list.append([title, path])
-
-    def pinned_list_remove(self, title, path):
-        i = self.pinned_list.get_iter_first()
-        while i != None:
-            l_title, l_path = self.pinned_list.get(i, self.pinned_title['col'], self.pinned_path['col'])
-            if l_title == title and l_path  == path:
-                self.pinned_list.remove(i)
-                break
-            i = self.pinned_list.iter_next(i)
-
     def has_book(self, pth):
         
         br_path = os.path.join(pth, self.book_reader_dir, self.playlist_file)
@@ -1257,8 +1225,16 @@ class BookReader_:
         return False
         
     def book_updated(self, index):
-        cur_pl_list=self.get_book(index)[0].get_cur_pl_list()
+        book, view = self.get_book(index)
+        cur_pl_list=book.get_cur_pl_list()
         self.book_reader_view.on_has_book(has_book=True, playlists_in_path=cur_pl_list)
+        # add the pinned button to the bookview if this is the first time its been saved
+        if not view.has_pinned_button():
+            pinned_button = self.pinned_books.get_pinned_button_new(book.get_playlist_id())
+            view.add_pinned_button(pinned_button)
+        else:
+            # tell pinned_books to update
+            self.pinned_books.on_book_updated(book.get_playlist_id())
 
     def get_book(self, index):
         return self.books[index]
@@ -1304,7 +1280,6 @@ class BookReader_:
         return index
 
     def open_existing_book(self, pl_row):
-        self.db
         bk = Book(self.cur_path, None, self.config, self.files, self)
         book_view = BookView.Book_View(bk, self)
         bk.connect('book_data_loaded', book_view.on_book_data_ready_th, is_sorted=True)
@@ -1314,9 +1289,11 @@ class BookReader_:
         #load_book_data_th = Thread(target=bk.book_data_load, args={row})
         #load_book_data_th.setDaemon(True)
         #load_book_data_th.start()
-        bk.book_data_load(pl_row)
         index = self.append_book(bk, book_view)
         bk.connect('book_saved', self.book_updated, index=index)
+        # connect the book_data_loaded to the add book_updated callback
+        bk.connect('book_data_loaded', self.book_updated, index=index)
+        bk.book_data_load(pl_row)
 
     def open_new_book(self):
         fl = self.files.get_file_list_new()
@@ -1732,7 +1709,8 @@ class MainWindow(Gtk.Window):
             self.file_manager_pane.hide()
         elif (self.file_manager1.get_visible() or self.file_manager2.get_visible()) and not self.file_manager_pane.get_visible():
             self.file_manager_pane.show()
-        
+
+
 def main(args):
     #configuration file
     config_dir = Path.home() / '.config' / 'book_ease'
