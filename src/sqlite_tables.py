@@ -222,3 +222,101 @@ class Playlist(_SqliteDB):
         cur = con.execute(sql, (id_,))
         row = cur.fetchone()
         return row
+
+
+class PlTrack(_SqliteDB):
+    """database accessor for table pl_track"""
+
+    def __init__(self):
+        _SqliteDB.__init__(self)
+
+    def init_table(self, con):
+        """create database table: pl_track"""
+        sql = """
+            CREATE TABLE pl_track (
+                id INTEGER PRIMARY KEY ON CONFLICT ROLLBACK AUTOINCREMENT NOT NULL,
+                playlist_id  INTEGER REFERENCES playlist (id)
+                                    NOT NULL,
+                track_number INTEGER,
+                track_id     INTEGER NOT NULL REFERENCES track(id),
+                UNIQUE (
+                    playlist_id,
+                    track_number
+                )
+            )
+            """
+        con.execute(sql)
+
+class PlTrackMetadata(_SqliteDB):
+        """create database table: pl_track_mmetadata"""
+
+    def __init__(self):
+        _SqliteDB.__init__(self)
+
+    def init_table(self, con):
+        """create database table: pl_track_metadata"""
+        sql = """
+            CREATE TABLE  pl_track_metadata (
+                id          INTEGER PRIMARY KEY ON CONFLICT ROLLBACK AUTOINCREMENT
+                                UNIQUE
+                                NOT NULL,
+                pl_track_id    INTEGER REFERENCES pl_track (id)
+                                NOT NULL,
+                entry      TEXT NOT NULL,
+                ent_index      INTEGER NOT NULL,
+                _key      TEXT NOT NULL,
+                UNIQUE (
+                    pl_track_id,
+                    ent_index,
+                    _key
+                )
+                ON CONFLICT ROLLBACK
+            )
+            """
+        con.execute(sql)
+
+
+class Track(_SqliteDB):
+        """create database table: pltrack"""
+
+    def __init__(self):
+        _SqliteDB.__init__(self)
+
+    def init_table(self, con):
+        """create database table: track"""
+        sql = """
+                CREATE TABLE track (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    path TEXT UNIQUE NOT NULL,
+                )
+                """
+        con.execute(sql)
+
+    def add_row(self, con, path):
+        """
+        insert row into table track
+        returns new track_id
+        """
+        sql = """
+              INSERT INTO track(path)
+              VALUES (?)
+              """
+        cur = con.execute(sql, (path,))
+        return cur.lastrowid
+
+    def get_row_by_path(self, con, path):
+        """get row from table track that matches path"""
+        sql = """
+            SELECT id FROM track
+            WHERE path = (?)
+            """
+        cur = con.execute(sql, (path,))
+        return cur.fetchone()
+
+    def get_row_by_id(self, con, id_):
+        sql = """
+            SELECT path FROM track
+            WHERE id = (?)
+            """
+        cur = con.execute(sql, (id_,))
+        return cur.fetchone()
