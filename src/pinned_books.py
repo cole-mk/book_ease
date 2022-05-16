@@ -326,7 +326,7 @@ class PinnedBooks_DBI:
         get the desired playlist row from the database
         and return a PinnedData object
         """
-        con = self.playlist.create_connection()
+        con = sqlite_tables.create_connection()
         with con:
             # get sqlite row object from the table class
             row = self.playlist.get_row(con, playlist_id)
@@ -339,7 +339,7 @@ class PinnedBooks_DBI:
         get all playlist rows matching the playlist_ids from the database
         and return a list of PinnedData objects
         """
-        con = self.pinned_playlists.create_connection()
+        con = sqlite_tables.create_connection()
         with con:
             # get the desired sqlite row objects
             rows = self.playlist.get_rows(con, playlist_ids)
@@ -354,7 +354,7 @@ class PinnedBooks_DBI:
         search pinned list table for playlist_id
         return bool
         """
-        con = self.pinned_playlists.create_connection()
+        con = sqlite_tables.create_connection()
         with con:
             has_playlist = self.pinned_playlists.has_playlist(con, playlist_id)
         con.close()
@@ -362,21 +362,21 @@ class PinnedBooks_DBI:
 
     def pin_playlist(self, playlist_id):
         """add a playlist to the pinned list in the database"""
-        con = self.pinned_playlists.create_connection()
+        con = sqlite_tables.create_connection()
         with con:
             self.pinned_playlists.insert_playlist(con, playlist_id)
         con.close()
 
     def unpin_playlist(self, playlist_id):
         """remove a playlist from the pinned list in the database"""
-        con = self.playlist.create_connection()
+        con = sqlite_tables.create_connection()
         with con:
             self.pinned_playlists.remove_playlist(con, playlist_id)
         con.close()
 
     def get_pinned_ids(self):
         """get a list of just the playlist ids and not the whole PinnedData object"""
-        con = self.playlist.create_connection()
+        con = sqlite_tables.create_connection()
         pinned_list = []
         with con:
             rows = self.pinned_playlists.get_pinned_playlists(con)

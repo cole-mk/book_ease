@@ -23,17 +23,29 @@
 from pathlib import Path
 import sqlite3
 
+
+# set database file creating config directory
+config_dir = Path.home() / '.config' / 'book_ease'
+db_dir = config_dir / 'data'
+db_dir.mkdir(mode=511, parents=True, exist_ok=True)
+db = db_dir / 'book_ease.db'
+
+def create_connection():
+    """ create a sqlite3 connection object and return it"""
+    con = None
+    con = sqlite3.connect(db, isolation_level=None)
+    con.row_factory = sqlite3.Row
+    return con
+
+
 class _SqliteDB:
     """
     Database accessor base class:
     stores the common database path information
 
     Note: all exceptions are to be propogated to an upper layer
-        except for init_tables, usually called from __init__
+        except for init_table, usually called from __init__
         in the child class
-    
-    init_tables()
-    create_connection()
     """
 
     def __init__(self):
@@ -41,13 +53,8 @@ class _SqliteDB:
         initialize the DB class by setting the db file
         create list to store playlists stored in the "pwd"
         """
-        # set database file creating config directory
-        config_dir = Path.home() / '.config' / 'book_ease'
-        db_dir = config_dir / 'data'
-        db_dir.mkdir(mode=511, parents=True, exist_ok=True)
-        self.db = db_dir / 'book_ease.db'
         # create the database table used by child class
-        con = self.create_connection()
+        con = create_connection()
         try:
             with con:
                 self.init_table(con)
@@ -64,16 +71,6 @@ class _SqliteDB:
         as a pass function in this base class
         """
         pass
-
-    def create_connection(self):
-        """ create a sqlite3 connection object and return it"""
-        con = None
-        try:
-            con = sqlite3.connect(self.db, isolation_level=None)
-            con.row_factory = sqlite3.Row
-        except sqlite3.Error as e:
-            print('create_connection() error', e)
-        return con
 
 
 class PinnedPlaylists(_SqliteDB):
@@ -115,7 +112,7 @@ class PinnedPlaylists(_SqliteDB):
         if row is None:
             return False
         return True
-        
+
     def get_pinned_playlists(self, con):
         """
         retreive entire list of pinned playlists
@@ -127,7 +124,7 @@ class PinnedPlaylists(_SqliteDB):
         # retrieve the list
         cur = con.execute(sql)
         rows = cur.fetchall()
-        return rows        
+        return rows
 
     def insert_playlist(self, con, playlist_id):
         """
@@ -164,7 +161,7 @@ class Playlist(_SqliteDB):
 
     def __init__(self):
         _SqliteDB.__init__(self)
-        
+
     def init_table(self, con):
         """create database table: playlist"""
         sql = '''
@@ -189,7 +186,7 @@ class Playlist(_SqliteDB):
         rows = []
         sql = """
             SELECT * FROM playlist
-            WHERE id = (?)            
+            WHERE id = (?)
             """
         for id_ in playlist_ids:
             cur = con.execute(sql, (id_,))
@@ -217,7 +214,7 @@ class Playlist(_SqliteDB):
         """
         sql = '''
             SELECT title FROM playlists
-            WHERE id = (?) 
+            WHERE id = (?)
             '''
         cur = con.execute(sql, (id_,))
         row = cur.fetchone()
