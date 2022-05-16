@@ -248,7 +248,7 @@ class PlTrack(_SqliteDB):
         con.execute(sql)
 
 class PlTrackMetadata(_SqliteDB):
-        """create database table: pl_track_mmetadata"""
+    """create database table: pl_track_mmetadata"""
 
     def __init__(self):
         _SqliteDB.__init__(self)
@@ -277,7 +277,7 @@ class PlTrackMetadata(_SqliteDB):
 
 
 class Track(_SqliteDB):
-        """create database table: pltrack"""
+    """create database table: pltrack"""
 
     def __init__(self):
         _SqliteDB.__init__(self)
