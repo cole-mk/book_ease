@@ -38,58 +38,15 @@ def create_connection():
     return con
 
 
-class _SqliteDB:
-    """
-    Database accessor base class:
-    stores the common database path information
-
-    Note: all exceptions are to be propogated to an upper layer
-        except for init_table, usually called from __init__
-        in the child class
-    """
-
+class PinnedPlaylists:
+    """database accessor for table pinned_playlists"""
     def __init__(self):
-        """
-        initialize the DB class by setting the db file
-        create list to store playlists stored in the "pwd"
-        """
-        # create the database table used by child class
-        con = create_connection()
-        try:
-            with con:
-                self.init_table(con)
-        except sqlite3.OperationalError:
-            # table already exists
-            pass
-        con.close()
-
-
-    def init_table(self):
-        """
-        routine to initialize database tables
-        This is an informal interface implemented
-        as a pass function in this base class
-        """
-        pass
-
-
-class PinnedPlaylists(_SqliteDB):
-    """
-    database accessor for table pinned_playlists
-
-    init_table(self, con)
-        create database table: pinned_playlists
-
-    get_pinned_playlists(self, con=None):
-        retreive entire list of pinned playlists returning sqlite3 row object
-    """
-    def __init__(self):
-        _SqliteDB.__init__(self)
+        self.init_table(create_connection())
 
     def init_table(self, con):
         """create database table: pinned_playlists"""
         sql = """
-                CREATE TABLE pinned_playlists (
+                CREATE TABLE IF NOT EXISTS pinned_playlists (
                     id INTEGER PRIMARY KEY ON CONFLICT ROLLBACK AUTOINCREMENT NOT NULL,
                     playlist_id  INTEGER REFERENCES playlist (id)  ON DELETE CASCADE
                                          UNIQUE ON CONFLICT ROLLBACK NOT NULL
@@ -148,24 +105,16 @@ class PinnedPlaylists(_SqliteDB):
         cur = con.execute(sql, (playlist_id,))
 
 
-class Playlist(_SqliteDB):
-    """
-    database accessor for table playlist
-
-    init_table(self, con)
-        create database table: playlist
-
-    get_title_by_id(self, id_, con)
-        search for playlist title by id
-    """
+class Playlist:
+    """database accessor for table playlist"""
 
     def __init__(self):
-        _SqliteDB.__init__(self)
+        self.init_table(create_connection())
 
     def init_table(self, con):
         """create database table: playlist"""
         sql = '''
-                CREATE TABLE playlist (
+                CREATE TABLE IF NOT EXISTS playlist (
                     id INTEGER PRIMARY KEY ON CONFLICT ROLLBACK AUTOINCREMENT NOT NULL,
                     title       TEXT NOT NULL,
                     path        TEXT NOT NULL,
@@ -221,16 +170,16 @@ class Playlist(_SqliteDB):
         return row
 
 
-class PlTrack(_SqliteDB):
+class PlTrack:
     """database accessor for table pl_track"""
 
     def __init__(self):
-        _SqliteDB.__init__(self)
+        self.init_table(create_connection())
 
     def init_table(self, con):
         """create database table: pl_track"""
         sql = """
-            CREATE TABLE pl_track (
+            CREATE TABLE IF NOT EXISTS pl_track (
                 id INTEGER PRIMARY KEY ON CONFLICT ROLLBACK AUTOINCREMENT NOT NULL,
                 playlist_id  INTEGER REFERENCES playlist (id)
                                     NOT NULL,
@@ -244,16 +193,16 @@ class PlTrack(_SqliteDB):
             """
         con.execute(sql)
 
-class PlTrackMetadata(_SqliteDB):
+class PlTrackMetadata:
     """create database table: pl_track_mmetadata"""
 
     def __init__(self):
-        _SqliteDB.__init__(self)
+        self.init_table(create_connection())
 
     def init_table(self, con):
         """create database table: pl_track_metadata"""
         sql = """
-            CREATE TABLE  pl_track_metadata (
+            CREATE TABLE IF NOT EXISTS pl_track_metadata (
                 id          INTEGER PRIMARY KEY ON CONFLICT ROLLBACK AUTOINCREMENT
                                 UNIQUE
                                 NOT NULL,
@@ -273,16 +222,16 @@ class PlTrackMetadata(_SqliteDB):
         con.execute(sql)
 
 
-class Track(_SqliteDB):
+class Track:
     """create database table: pltrack"""
 
     def __init__(self):
-        _SqliteDB.__init__(self)
+        self.init_table(create_connection())
 
     def init_table(self, con):
         """create database table: track"""
         sql = """
-                CREATE TABLE track (
+                CREATE TABLE IF NOT EXISTS track (
                     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                     path TEXT UNIQUE NOT NULL,
                 )
