@@ -231,11 +231,11 @@ class Track:
     def init_table(self, con):
         """create database table: track"""
         sql = """
-                CREATE TABLE IF NOT EXISTS track (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                    path TEXT UNIQUE NOT NULL,
-                )
-                """
+            CREATE TABLE IF NOT EXISTS track (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                path TEXT UNIQUE NOT NULL
+            )
+            """
         con.execute(sql)
 
     def add_row(self, con, path):
