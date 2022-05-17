@@ -690,6 +690,51 @@ class Book_DB(db._DB):
         ct = cur.fetchone()
         return ct[0]
 
+
+
+class PlaylistDBI(sqlite_tables.DBI_):
+
+    __init__(self):
+        sqlite_tables.DBI_.__init__(self)
+        self.playlist = sqlite_tables.Playlist()
+
+    def count_duplicates(self, pl_data) -> 'int':
+        # get a count of the number of playlist titles associated with this path
+        # that have the same title, but exclude playlist_id from the list
+        con = self._query_begin()
+        count = self.playlist.count_duplicates(pl_data.get_title(),
+                                               pl_data.get_path(),
+                                               pl_data.get_id())
+        self._query_end(con)
+        return count[0]
+
+    def exists_in_path(self, pl_data) -> 'bool':
+        # tell if any playlists are associated with this path
+        if self.get_by_path(pl_data) is not None:
+            return True
+        return False
+
+    def get_by_path(self, pl_data) -> 'PlaylistData':
+        # get playlists associated with path
+        playlists = []
+        con = self._query_begin()
+        # execute query
+        pl_list = self.playlist.get_rows_by_path(con, pl_data.get_path())
+        self._query_end(con)
+        # build playlists list
+        for pl in pl_list:
+            playlist = PlaylistData(title=pl['title'], path=pl['path'], id_=pl['id'])
+            playlists.append(playlist)
+        return playlists
+
+    def replace(self, pl_data) -> 'playlist_id:int':
+        # insert or update playlist
+        con = self._query_begin()
+        id_ = self.playlist.replace(con, pl_data.get_title(), pl_data.get_path())
+        self._query_end(con)
+        return id_
+
+
 class PlaylistData:
 
     def __init__(self, title=None, path=None, id_=None):

@@ -154,13 +154,13 @@ class PinnedPlaylists:
 
 
 class Playlist:
-    """database accessor for table playlist"""
+    # database accessor for table playlist
 
     def __init__(self):
         self.init_table(create_connection())
 
     def init_table(self, con):
-        """create database table: playlist"""
+        #create database table: playlist
         sql = '''
                 CREATE TABLE IF NOT EXISTS playlist (
                     id INTEGER PRIMARY KEY ON CONFLICT ROLLBACK AUTOINCREMENT NOT NULL,
@@ -175,11 +175,8 @@ class Playlist:
                 '''
         con.execute(sql)
 
-    def get_rows(self, con, playlist_ids):
-        """
-        search for playlists by list of ids
-        return all rows encapsulated in sqlite row objects
-        """
+    def get_rows(self, con, playlist_ids) -> 'list of sqlite3.row':
+        # search for playlists by list of ids
         rows = []
         sql = """
             SELECT * FROM playlist
@@ -191,11 +188,8 @@ class Playlist:
             rows.append(row)
         return rows
 
-    def get_row(self, con, id_):
-        """
-        search for playlist by id
-        return entire row encapsulated in sqlite row object
-        """
+    def get_row(self, con, id_) -> 'sqlite3.row':
+        # search for playlist by id
         sql = """
             SELECT * FROM playlist
             WHERE id = (?)
@@ -204,11 +198,19 @@ class Playlist:
         row = cur.fetchone()
         return row
 
-    def get_title_by_id(self, id_, con):
-        """
-        search for playlist title by id
-        return title encapsulated in sqlite row
-        """
+    def get_rows_by_path(self, con, path) -> 'list of sqlite3.row':
+        # search for playlists by path
+        rows = []
+        sql = """
+            SELECT * FROM playlist
+            WHERE path = (?)
+            """
+        cur = con.execute(sql, (path,))
+        [rows.append(row) for row in cur.fetchall()]
+        return rows
+
+    def get_title_by_id(self, id_, con) -> 'sqlite3.row':
+        # search for playlist title by id
         sql = '''
             SELECT title FROM playlists
             WHERE id = (?)
@@ -216,6 +218,27 @@ class Playlist:
         cur = con.execute(sql, (id_,))
         row = cur.fetchone()
         return row
+
+    def count_duplicates(self, title, path, playlist_id, con) -> 'sqlite3.row':
+        #get a count of the number of playlist titles associated with this path
+        #that have the same title, but exclude playlist_id from the list
+        if playlist_id == None:
+            playlist_id = 'NULL'
+
+        sql = """
+            SELECT COUNT(*) FROM playlist
+            WHERE title = (?)
+            AND path = (?)
+            AND id != (?)
+            """
+        cur = con.execute(sql, (title, path, playlist_id))
+        return cur.fetchone()
+
+    def replace(self, con, title, path) -> 'id:int':
+        # insert or replace a playlist
+        cur.execute("REPLACE INTO playlist(title, path) VALUES (?,?)", (title, path))
+        lastrowid = cur.lastrowid
+        return lastrowid
 
 
 class PlTrack:
