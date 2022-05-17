@@ -689,3 +689,28 @@ class Book_DB(db._DB):
         cur.execute(sql, (title, path, playlist_id))
         ct = cur.fetchone()
         return ct[0]
+
+class PlaylistData:
+
+    def __init__(self, title=None, path=None, id_=None):
+        self.title = title
+        self.path = path
+        self.id_ = id_
+
+    def get_title(self):
+        return self.title
+
+    def set_title(self, title):
+        self.title = title
+
+    def get_path(self):
+        return self.path
+
+    def set_path(self, path):
+        self.path = path
+
+    def get_id(self):
+        return self.id_
+
+    def set_id(self, id_):
+        self.id_ = id_
