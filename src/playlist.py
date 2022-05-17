@@ -46,13 +46,13 @@ class Track:
 
     def get_row_num(self):
         return self.row_num
-    
+
     def get_key_list(self):
         key_list = []
         for key in self.track_data:
             key_list.append(key)
         return key_list
-    
+
     def load_metadata_from_file(self):
         metadata = mutagen.File(self.file_path, easy=True)
         for key in metadata:
@@ -62,21 +62,21 @@ class Track:
                     entry_list_f.append(self.format_track_num(entry))
                 self.track_data[key] = entry_list_f
             else:
-                self.track_data[key] = metadata[key]     
+                self.track_data[key] = metadata[key]
 
     def set_entry(self, key, entries):
         if type(entries) is not list:
             raise TypeError ( entries, 'is not a list' )
         self.track_data[key] = entries
-        
-            
+
+
     def get_entries(self, key):
         # return a list of all the entries in trackdata[key]
         entries = []
         if key is not None and key in self.track_data:
             [entries.append(entry) for entry in self.track_data[key] if entry is not None]
         return entries
-        
+
     def get_file_name(self):
         return self._file
 
@@ -88,7 +88,7 @@ class Track:
 
 
 class Playlist():
-    
+
     def __init__(self):
         self.track_list = []
         self.saved_playlist = False
@@ -132,7 +132,7 @@ class Playlist():
         self.track_list.sort(key=lambda row: row.row_num)
 
 class Track_Edit(Track):
-    
+
     def __init__(self, col_info):
         super().__init__()
         # The description column(python map obj) created in the book obj
