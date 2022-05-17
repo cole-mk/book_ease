@@ -38,6 +38,54 @@ def create_connection():
     return con
 
 
+class DBI_:
+    """
+    Base class for the various DBIs throughout book_ease
+    Handles the conection control for single and multi queries
+    """
+    __init__(self):
+        self.con = None
+
+    def multi_query_begin(self):
+        """
+        create a semi-persistent connection
+        for executing multiple transactions
+        """
+        if self.con is not None:
+            raise RuntimeError('connection already exists')
+        else:
+            self.con = create_connection()
+
+    def multi_query_end(self):
+        """commit and close connection of a multi_query"""
+        if self.con is None:
+            raise RuntimeError('connection doesn\'t exist')
+        else:
+            self.con.commit()
+            self.con.close()
+            self.con = None
+
+    def _query_begin(self):
+        """
+        get an sqlite connection object
+        returns self.con if a multi_query is in effect.
+        Otherwise, create and return a new connection
+        """
+        if self.con is None:
+            return create_connection()
+        else:
+            return self.con
+
+    def _query_end(self, con):
+        """
+        commit and close connection if a multi_query
+        is not in effect.
+        """
+        if con is not self.con:
+            con.commit()
+            con.close()
+
+
 class PinnedPlaylists:
     """database accessor for table pinned_playlists"""
     def __init__(self):
