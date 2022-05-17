@@ -27,6 +27,55 @@ import sqlite3
 import re
 import os
 
+
+# The Playlist Data Column Setup
+pl_title    = {'name':'Title',         'col':0,
+               'g_typ':str,            'editable':True,
+               'table':'track_title',  'field':'title',
+               'key':'title',  'alt_keys':['album']}
+
+pl_author   = {'name':'Author',            'col':1,
+               'g_typ':str,                'editable':True ,
+               'table':'track_author',     'field':'author',
+               'key':'author',             'alt_keys':['artist', 'performer', 'composer']}
+
+pl_read_by  = {'name':'Read by',           'col':2,
+               'g_typ':str,                'editable':True ,
+               'table':'track_read_by',    'field':'read_by',
+               'key':'performer',          'alt_keys':['author', 'artist', 'composer']}
+
+pl_length   = {'name':'Length',            'col':3,
+               'g_typ':str,                'editable':True ,
+               'table':'track_length',     'field':'length',
+               'key':'length',             'alt_keys':[None]}
+
+pl_track    = {'name':'Track',             'col':4,
+               'g_typ':str,                'editable':True ,
+               'table':'track_number',     'field':'number',
+               'key':'tracknumber',        'alt_keys':[None]}
+
+pl_file     = {'name':'File',      'col':5,
+               'g_typ':str,        'editable':False,
+               'table':'track',    'field':'filename',
+               'key':'file',       'alt_keys':[None]}
+
+pl_row_id   = {'name':'pl_row_id',     'col':6,
+               'g_typ':int,            'editable':True ,
+               'table':None,           'field':None,
+               'key':'pl_row_id',      'alt_keys':[None]}
+
+pl_path      = {'name':'pl_path',  'col':7,
+               'g_typ':str,        'editable':False ,
+               'table':'track',    'field':'path',
+               'key':None,         'alt_keys':[None]}
+
+pl_saved_col_list = [pl_title,  pl_author, pl_read_by,
+                     pl_length, pl_track,  pl_file, pl_path]
+
+metadata_col_list =[pl_title,  pl_author, pl_read_by,
+                    pl_length, pl_track]
+
+
 # TODO: file_list can be removed from the constructor all together. create_book can get it from self.files
 class Book(playlist.Playlist, signal_.Signal_):
     def __init__(self, path, file_list, config, files, book_reader):
@@ -43,13 +92,6 @@ class Book(playlist.Playlist, signal_.Signal_):
         self.db = Book_DB()
         # track metadata
         self.file_list = file_list
-        # added to parent as track_list
-        #self.track_list = []
-        self.title_keys = ['title', 'album']
-        self.author_keys = ['author', 'artist', 'performer', 'composer']
-        self.read_by_keys = ['performer','author', 'artist', 'composer']
-        self.length_keys = ['length']
-        self.track_keys = ['tracknumber']
         # playlist_filetypes key has values given in a comma separated list
         file_types = config[self.book_section]['playlist_filetypes'].split(",")
         # build compiled regexes for matching list of media suffixes.
@@ -63,52 +105,6 @@ class Book(playlist.Playlist, signal_.Signal_):
         self.add_signal('book_data_created')
         self.add_signal('book_saved')
 
-        # path needs to be stored with the metadata info. what if someone add tracks from outside the playlist directory? hmmm?
-        self.pl_title    = {'name':'Title',         'col':0,
-                            'g_typ':str,            'editable':True,
-                            'table':'track_title',  'field':'title',
-                            'key':'title',  'alt_keys':['album']}
-
-        self.pl_author   = {'name':'Author',            'col':1,
-                            'g_typ':str,                'editable':True ,
-                            'table':'track_author',     'field':'author',
-                            'key':'author',             'alt_keys':['artist', 'performer', 'composer']}
-
-        self.pl_read_by  = {'name':'Read by',           'col':2,
-                            'g_typ':str,                'editable':True ,
-                            'table':'track_read_by',    'field':'read_by',
-                            'key':'performer',          'alt_keys':['author', 'artist', 'composer']}
-
-        self.pl_length   = {'name':'Length',            'col':3,
-                            'g_typ':str,                'editable':True ,
-                            'table':'track_length',     'field':'length',
-                            'key':'length',             'alt_keys':[None]}
-
-        self.pl_track    = {'name':'Track',             'col':4,
-                            'g_typ':str,                'editable':True ,
-                            'table':'track_number',     'field':'number',
-                            'key':'tracknumber',        'alt_keys':[None]}
-
-        self.pl_file     = {'name':'File',      'col':5,
-                            'g_typ':str,        'editable':False,
-                            'table':'track',    'field':'filename',
-                            'key':'file',       'alt_keys':[None]}
-
-        self.pl_row_id   = {'name':'pl_row_id',     'col':6,
-                            'g_typ':int,            'editable':True ,
-                            'table':None,           'field':None,
-                            'key':'pl_row_id',      'alt_keys':[None]}
-
-        self.pl_path      = {'name':'pl_path',  'col':7,
-                            'g_typ':str,        'editable':False ,
-                            'table':'track',    'field':'path',
-                            'key':None,         'alt_keys':[None]}
-
-        self.pl_saved_col_list = [self.pl_title,  self.pl_author, self.pl_read_by,
-                                  self.pl_length, self.pl_track,  self.pl_file, self.pl_path]
-
-        self.metadata_col_list =[self.pl_title,  self.pl_author, self.pl_read_by,
-                                 self.pl_length, self.pl_track]
 
     # get list of playlists associated with current path
     def get_cur_pl_list(self):
@@ -155,12 +151,12 @@ class Book(playlist.Playlist, signal_.Signal_):
         for i, tr in enumerate(track_list):
             file_path = self.db.track_get_path(tr['track_id'])
             track = playlist.Track(file_path)
-            track.set_entry(self.pl_row_id['key'], [tr['id']])
+            track.set_entry(pl_row_id['key'], [tr['id']])
             track.set_saved(True)
             track.set_row_num(tr['track_number'])
             self.track_list.append(track)
             # move the track attributes(metadata) from db to tracklist
-            for col in self.metadata_col_list:
+            for col in metadata_col_list:
                 entries = self.db.track_metadata_get(tr['id'], col['key'])
                 tr_entries_list = []
                 for entry in entries:
@@ -183,12 +179,12 @@ class Book(playlist.Playlist, signal_.Signal_):
             if not f[self.files.is_dir_pos] and self.book_reader.is_media_file(file_path):
                 track = playlist.Track(file_path)
                 track.load_metadata_from_file()
-                track.set_entry(self.pl_row_id['key'], [i])
+                track.set_entry(pl_row_id['key'], [i])
                 # do the appending
                 self.track_list.append(track)
                 i+=1
                 # check for alt values if this entry is empty
-                for col in self.pl_saved_col_list:
+                for col in pl_saved_col_list:
                     if not track.get_entries(col['key']):
                         #has_entry = False
                         for k in col['alt_keys']:
@@ -207,7 +203,7 @@ class Book(playlist.Playlist, signal_.Signal_):
         # find existing track
         e_track = None
         for tr in self.track_list:
-            if tr.get_entries(self.pl_row_id['key'])[0] == track.get_entries('pl_row_id')[0]:
+            if tr.get_entries(pl_row_id['key'])[0] == track.get_entries('pl_row_id')[0]:
                 e_track = tr
                 break
         if e_track == None:
@@ -249,7 +245,7 @@ class Book(playlist.Playlist, signal_.Signal_):
                 for track in self.track_list:
                     track_id = self.db.track_add(path=track.get_file_path(), filename=track.get_file_name(), cur=cur)
                     pl_track_num = track.get_row_num()
-                    pl_track_id = track.get_entries(self.pl_row_id['key'])[0]
+                    pl_track_id = track.get_entries(pl_row_id['key'])[0]
                     if track_id is not None:
                         if not track.is_saved():
                             pl_track_id = self.db.playlist_track_add(self.playlist_id,

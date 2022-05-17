@@ -109,7 +109,7 @@ class Playlist():
         track = None
         entries = []
         for tr in self.track_list:
-            if tr.get_entries(self.pl_row_id['key'])[0] == row:
+            if tr.get_entries(book.pl_row_id['key'])[0] == row:
                track = tr
                break
         if track:
@@ -120,7 +120,7 @@ class Playlist():
         lst = []
         track = None
         for tr in self.track_list:
-            if tr.get_entries(self.pl_row_id['key'])[0] == row:
+            if tr.get_entries(book.pl_row_id['key'])[0] == row:
                track = tr
                break
         if track != None:
