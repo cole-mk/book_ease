@@ -149,7 +149,7 @@ class Edit_Row_Dialog:
             # add it to the track_edit_list_tmp
             existing_edit = False
             for edt in self.track_edit_list_tmp:
-                if self.pl_row_id in edt.get_entries(book.pl_row_id['key']):
+                if self.pl_row_id in edt.get_pl_row_id():
                     edit = edt
                     existing_edit = True
                     break
@@ -159,7 +159,7 @@ class Edit_Row_Dialog:
                 self.track_edit_list_tmp.append(edit)
 
             edit.set_entry(edit.col_info['key'], val_list)
-            edit.set_entry(book.pl_row_id['key'], [self.pl_row_id])
+            edit.set_pl_row_id(pl_row_id)
 
     def col_tv_remove_entry(self):
         sel = self.col_treeview.get_selection()
@@ -411,7 +411,7 @@ class Book_View(Gtk.Box):
                 row_id = self.playlist[path][book.pl_row_id['col']]
                 edit = playlist.Track_Edit(col)
                 edit.set_entry(col['key'], val_list)
-                edit.set_entry(book.pl_row_id['key'], [row_id])
+                edit.set_pl_row_id(row_id)
                 self.book.track_list_update(edit)
         model.clear()
 
@@ -433,7 +433,7 @@ class Book_View(Gtk.Box):
                                 self.book.track_list_update(edit)
                                 # set value in tree view to pirmary entry
                                 for j, row in enumerate(self.playlist):
-                                    if edit.get_entries(book.pl_row_id['key'])[0] == row[book.pl_row_id['col']]:
+                                    if edit.get_pl_row_id() == row[book.pl_row_id['col']]:
                                         itr = self.playlist.get_iter((j,))
                                         self.playlist.set_value(itr, edit.col_info['col'], edit.get_entries(edit.col_info['key'])[0])
                                         break
@@ -519,7 +519,7 @@ class Book_View(Gtk.Box):
         for row_num, row in enumerate(self.playlist):
             track = playlist.Track()
             track.set_row_num(row_num)
-            track.set_entry(book.pl_row_id['key'], [row[book.pl_row_id['col']]])
+            track.set_pl_row_id(row[book.pl_row_id['col']])
             self.book.track_list_update(track)
 
         # apply pending changes
@@ -589,14 +589,14 @@ class Book_View(Gtk.Box):
                     # append entries for each in list of displayed columns
                     for col in self.display_cols:
                         # get first primary entry
-                        id_ = track.get_entries(book.pl_row_id['key'])[0]
+                        id_ = get_pl_row_id()
                         val = self.book.get_track_entries(id_, col)
                         if val:
                             self.playlist.set_value(cur_row, col['col'], val[0])
 
                     # the utility collumns always have a primary entry
                     self.playlist.set_value(cur_row, book.pl_row_id['col'],
-                                   track.get_entries(book.pl_row_id['key'])[0])
+                                   track.get_pl_row_id())
 
                     self.playlist.set_value(cur_row, book.pl_path['col'],
                                    track.get_entries('path')[0])

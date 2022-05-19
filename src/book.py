@@ -151,7 +151,7 @@ class Book(playlist.Playlist, signal_.Signal_):
         for i, tr in enumerate(track_list):
             file_path = self.db.track_get_path(tr['track_id'])
             track = playlist.Track(file_path)
-            track.set_entry(pl_row_id['key'], [tr['id']])
+            track.set_pl_row_id(tr['id'])
             track.set_saved(True)
             track.set_row_num(tr['track_number'])
             self.track_list.append(track)
@@ -179,7 +179,7 @@ class Book(playlist.Playlist, signal_.Signal_):
             if not f[self.files.is_dir_pos] and self.book_reader.is_media_file(file_path):
                 track = playlist.Track(file_path)
                 track.load_metadata_from_file()
-                track.set_entry(pl_row_id['key'], [i])
+                track.set_pl_row_id(i)
                 # do the appending
                 self.track_list.append(track)
                 i+=1
@@ -203,7 +203,7 @@ class Book(playlist.Playlist, signal_.Signal_):
         # find existing track
         e_track = None
         for tr in self.track_list:
-            if tr.get_entries(pl_row_id['key'])[0] == track.get_entries('pl_row_id')[0]:
+            if tr.get_pl_row_id() == track.get_pl_row_id():
                 e_track = tr
                 break
         if e_track == None:
@@ -245,7 +245,7 @@ class Book(playlist.Playlist, signal_.Signal_):
                 for track in self.track_list:
                     track_id = self.db.track_add(path=track.get_file_path(), filename=track.get_file_name(), cur=cur)
                     pl_track_num = track.get_row_num()
-                    pl_track_id = track.get_entries(pl_row_id['key'])[0]
+                    pl_track_id = track.get_pl_row_id()
                     if track_id is not None:
                         if not track.is_saved():
                             pl_track_id = self.db.playlist_track_add(self.playlist_id,
@@ -261,7 +261,7 @@ class Book(playlist.Playlist, signal_.Signal_):
                                                                         pl_track_id,
                                                                         cur)
 
-                        track.set_entry(self.pl_row_id['key'], [pl_track_id])
+                        track.set_pl_row_id(pl_track_id)
                         if pl_track_id is not None:
                             for col in self.metadata_col_list:
 
