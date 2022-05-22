@@ -25,7 +25,7 @@ import mutagen
 
 
 class Track:
-    def __init__(self, file_path=None, row_num=None, is_saved=False):
+    def __init__(self, file_path=None, row_num=None, is_saved=False, pl_row_id=None):
         self.track_data = {}
         if file_path is not None:
             self.file_path = file_path
@@ -34,6 +34,13 @@ class Track:
             self.track_data['path'] = [file_path]
         self.row_num = row_num
         self.saved = is_saved
+        self.pl_row_id = pl_row_id
+
+    def get_pl_row_id(self) -> 'int or None':
+        return self.pl_row_id
+
+    def set_pl_row_id(self, pl_row_id):
+        self.pl_row_id = pl_row_id
 
     def is_saved(self):
         return self.saved
@@ -46,13 +53,13 @@ class Track:
 
     def get_row_num(self):
         return self.row_num
-    
+
     def get_key_list(self):
         key_list = []
         for key in self.track_data:
             key_list.append(key)
         return key_list
-    
+
     def load_metadata_from_file(self):
         metadata = mutagen.File(self.file_path, easy=True)
         for key in metadata:
@@ -62,21 +69,20 @@ class Track:
                     entry_list_f.append(self.format_track_num(entry))
                 self.track_data[key] = entry_list_f
             else:
-                self.track_data[key] = metadata[key]     
+                self.track_data[key] = metadata[key]
 
     def set_entry(self, key, entries):
         if type(entries) is not list:
             raise TypeError ( entries, 'is not a list' )
         self.track_data[key] = entries
-        
-            
+
     def get_entries(self, key):
         # return a list of all the entries in trackdata[key]
         entries = []
         if key is not None and key in self.track_data:
             [entries.append(entry) for entry in self.track_data[key] if entry is not None]
         return entries
-        
+
     def get_file_name(self):
         return self._file
 
@@ -88,7 +94,7 @@ class Track:
 
 
 class Playlist():
-    
+
     def __init__(self):
         self.track_list = []
         self.saved_playlist = False
@@ -109,7 +115,7 @@ class Playlist():
         track = None
         entries = []
         for tr in self.track_list:
-            if tr.get_entries(self.pl_row_id['key'])[0] == row:
+            if tr.get_pl_row_id() == row:
                track = tr
                break
         if track:
@@ -120,7 +126,7 @@ class Playlist():
         lst = []
         track = None
         for tr in self.track_list:
-            if tr.get_entries(self.pl_row_id['key'])[0] == row:
+            if tr.get_pl_row_id() == row:
                track = tr
                break
         if track != None:
@@ -132,7 +138,7 @@ class Playlist():
         self.track_list.sort(key=lambda row: row.row_num)
 
 class Track_Edit(Track):
-    
+
     def __init__(self, col_info):
         super().__init__()
         # The description column(python map obj) created in the book obj
