@@ -117,17 +117,6 @@ class Playlist():
                return tr
         raise ValueError('track.pl_row_id not found in tracklist')
 
-    def get_track_entries(self, row, col):
-        track = None
-        entries = []
-        for tr in self.track_list:
-            if tr.get_pl_row_id() == row:
-               track = tr
-               break
-        if track:
-            entries = track.get_entries(col['key'])
-        return entries
-
     def get_track_alt_entries(self, row, col):
         lst = []
         track = None
