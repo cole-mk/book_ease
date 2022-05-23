@@ -200,7 +200,8 @@ class Edit_Row_Dialog:
     def set_active_column(self, col_name):
         # load new_value combo with suggestions
         self.new_value_model.clear()
-        new_values = self.book_view.book.get_track_entries(self.pl_row_id, self.selected_col)
+        track = self.book_view.book.get_track(self.pl_row_id)
+        new_values = track.get_entries(self.selected_col['key'])
         for i in book.get_track_alt_entries(self.pl_row_id, self.selected_col):
             if not i in new_values:
                 new_values.append(i)
@@ -221,7 +222,8 @@ class Edit_Row_Dialog:
                 break
         # load saved entries from book track
         if not unsaved_changes:
-            for i in self.book_view.book.get_track_entries(row_id, self.selected_col):
+            track = self.book_view.book.get_track(row_id)
+            for i in track.get_entries(self.selected_col['key']):
                 self.col_tv_model.append([i])
         # set column title
         self.col_tv_c.set_title(col_name)
@@ -390,7 +392,8 @@ class Book_View(Gtk.Box):
         itr = self.playlist.get_iter(path)
         pl_row_id = self.playlist.get_value(itr, book.pl_row_id['col'])
         # append track entries to combo model
-        for entry in self.book.get_track_entries(pl_row_id, col):
+        track = self.book.get_track(pl_row_id)
+        for entry in track.get_entries(col['key']):
             m.append([entry])
 
     def on_edited(self, renderer, path, text, col):
@@ -590,7 +593,7 @@ class Book_View(Gtk.Box):
                     for col in self.display_cols:
                         # get first primary entry
                         id_ = track.get_pl_row_id()
-                        val = self.book.get_track_entries(id_, col)
+                        val = self.book.get_track(id_).get_entries(col['key'])
                         if val:
                             self.playlist.set_value(cur_row, col['col'], val[0])
 
@@ -673,7 +676,7 @@ class Book_View(Gtk.Box):
 
             # append to title_store each val in metadata value list for each p
             pl_row_id = tv_model.get_value(itr, book.pl_row_id['col'])
-            for meta_val in self.book.get_track_entries(pl_row_id, book.pl_title):
+            for meta_val in self.book.get_track(pl_row_id).get_entries(book.pl_title):
                 match = False
                 # make sure meta_val isnt a duplicate
                 for i in title_store:
