@@ -26,12 +26,12 @@ import mutagen
 
 class Track:
     def __init__(self, file_path=None, row_num=None, is_saved=False, pl_row_id=None):
-        self.track_data = {}
+        self.metadata = {}
         if file_path is not None:
             self.file_path = file_path
             self._file = file_path.rsplit('/', maxsplit=1).pop()
-            self.track_data['file'] = [self._file]
-            self.track_data['path'] = [file_path]
+            self.metadata['file'] = [self._file]
+            self.metadata['path'] = [file_path]
         self.row_num = row_num
         self.saved = is_saved
         self.pl_row_id = pl_row_id
@@ -56,7 +56,7 @@ class Track:
 
     def get_key_list(self):
         key_list = []
-        for key in self.track_data:
+        for key in self.metadata:
             key_list.append(key)
         return key_list
 
@@ -67,20 +67,20 @@ class Track:
                 entry_list_f = []
                 for entry in metadata[key]:
                     entry_list_f.append(self.format_track_num(entry))
-                self.track_data[key] = entry_list_f
+                self.metadata[key] = entry_list_f
             else:
-                self.track_data[key] = metadata[key]
+                self.metadata[key] = metadata[key]
 
     def set_entry(self, key, entries):
         if type(entries) is not list:
             raise TypeError ( entries, 'is not a list' )
-        self.track_data[key] = entries
+        self.metadata[key] = entries
 
     def get_entries(self, key):
         # return a list of all the entries in trackdata[key]
         entries = []
-        if key is not None and key in self.track_data:
-            [entries.append(entry) for entry in self.track_data[key] if entry is not None]
+        if key is not None and key in self.metadata:
+            [entries.append(entry) for entry in self.metadata[key] if entry is not None]
         return entries
 
     def get_file_name(self):
