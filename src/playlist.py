@@ -111,6 +111,12 @@ class Playlist():
     def get_track_list(self):
         return self.track_list
 
+    def get_track(self, id_):
+        for tr in self.track_list:
+            if tr.get_pl_row_id() == row:
+               return tr
+        raise ValueError('track.pl_row_id not found in tracklist')
+
     def get_track_entries(self, row, col):
         track = None
         entries = []
