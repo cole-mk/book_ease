@@ -26,6 +26,7 @@ import db
 import sqlite3
 import re
 import os
+import sqlite_tables
 
 
 # The Playlist Data Column Setup
@@ -263,7 +264,7 @@ class Book(playlist.Playlist, signal_.Signal_):
 
                         track.set_pl_row_id(pl_track_id)
                         if pl_track_id is not None:
-                            for col in self.metadata_col_list:
+                            for col in metadata_col_list:
 
                                 self.db.track_metadata_add(track_id,
                                                            track.get_entries(col['key']),
@@ -689,7 +690,7 @@ class Book_DB(db._DB):
 
 class PlaylistDBI(sqlite_tables.DBI_):
 
-    __init__(self):
+    def __init__(self):
         sqlite_tables.DBI_.__init__(self)
         self.playlist = sqlite_tables.Playlist()
 

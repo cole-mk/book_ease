@@ -145,6 +145,31 @@ class Track_Edit(Track):
         self.col_info = col_info
 
 
+class TrackMDEntry:
+    # this container is the value in a key value pair
+    # sotred inside Track.metadata
 
+    def __init__(self,  id_=None, index=None, entry=None):
+        self.id_ = id_
+        self.index = ent_index
+        self.entry = entry
+
+    def get_id(self):
+        return self.id_
+
+    def set_id(self, id_):
+        self.id_ = id_
+
+    def get_index(self):
+        return self.index
+
+    def set_index(self, index):
+        self.index = index
+
+    def get_entry(self):
+        return self.entry
+
+    def set_entry(self, entry):
+        self.entry = entry
 
 

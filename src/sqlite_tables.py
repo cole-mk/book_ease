@@ -43,7 +43,7 @@ class DBI_:
     Base class for the various DBIs throughout book_ease
     Handles the conection control for single and multi queries
     """
-    __init__(self):
+    def __init__(self):
         self.con = None
 
     def multi_query_begin(self):
