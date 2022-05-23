@@ -266,11 +266,11 @@ class Book_View(Gtk.Box):
     this class displays the book playlist
     """
 
-    def __init__(self, book, book_reader):
+    def __init__(self, book_, book_reader):
         Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self.signal = signal_.Signal_()
         self.signal.add_signal('pinned_state_changed')
-        self.book = book
+        self.book = book_
         self.notebook = self.book.book_reader.book_reader_view.book_reader_notebook
         self.book_reader = book_reader
         self.editing = None
@@ -589,7 +589,7 @@ class Book_View(Gtk.Box):
                     # append entries for each in list of displayed columns
                     for col in self.display_cols:
                         # get first primary entry
-                        id_ = get_pl_row_id()
+                        id_ = track.get_pl_row_id()
                         val = self.book.get_track_entries(id_, col)
                         if val:
                             self.playlist.set_value(cur_row, col['col'], val[0])
