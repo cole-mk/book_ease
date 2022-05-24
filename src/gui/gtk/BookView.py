@@ -141,9 +141,10 @@ class Edit_Row_Dialog:
 
 
     def track_edit_list_tmp_update(self):
+        # build tmp list of TrackMDEntry from col_tv_model data
         val_list = []
-        for i in self.col_tv_model:
-            val_list.append(i[0])
+        for i, row in enumerate(self.col_tv_model):
+            val_list.append(playlist.TrackMDEntry(id_=row[1], index=i, entry=row[0]))
         if len(val_list) > 0:
             # get existing entry or create now one and
             # add it to the track_edit_list_tmp
@@ -203,10 +204,11 @@ class Edit_Row_Dialog:
         track = self.book_view.book.get_track(self.pl_row_id)
         new_values = track.get_entries(self.selected_col['key'])
         for i in book.get_track_alt_entries(self.pl_row_id, self.selected_col):
-            if not i in new_values:
+            # un-include duplicate values
+            if not i in [v.get_entry() for v in new_values]:
                 new_values.append(i)
         for i in new_values:
-            self.new_value_model.append([i])
+            self.new_value_model.append([i.get_entry(), i.get_id()])
 
         # load treeview with entries
         self.col_tv_model.clear()
@@ -218,13 +220,13 @@ class Edit_Row_Dialog:
             if i.col_info == self.selected_col:
                 unsaved_changes = True
                 for x in i.get_entries(self.selected_col['key']):
-                    self.col_tv_model.append([x])
+                    self.col_tv_model.append([x.get_entry(), x.get_id()])
                 break
         # load saved entries from book track
         if not unsaved_changes:
             track = self.book_view.book.get_track(row_id)
             for i in track.get_entries(self.selected_col['key']):
-                self.col_tv_model.append([i])
+                self.col_tv_model.append([i.get_entry(), i.get_id()])
         # set column title
         self.col_tv_c.set_title(col_name)
 
@@ -238,8 +240,9 @@ class Edit_Row_Dialog:
     def on_combo_changed(self, combo, Data=None):
         if combo == self.col_combo:
             #user has selected a column to edit
-            self.set_selected_col(combo.get_active_text())
-            self.set_active_column(combo.get_active_text())
+            txt = combo.get_active_text()
+            self.set_selected_col(txt)
+            self.set_active_column(txt)
 
 
     def col_tv_add_entry(self, entry=None, user_data=None):
@@ -345,7 +348,9 @@ class Book_View(Gtk.Box):
             rend.set_property("text-column",0 ) #0 i['col']
             rend.set_property("editable", True)
             rend.set_property("has-entry", False)
-            rend.set_property("model", Gtk.ListStore(i['g_typ']))
+            # col 0 is playlist.TrackMDEntry.entry(type depends on column);
+            # col 1 is playlist.TrackMDEntry.id_ (int for all columns)
+            rend.set_property("model", Gtk.ListStore(i['g_typ'], int))
             col = Gtk.TreeViewColumn(i['name'])
             col.pack_start(rend, True)
             col.add_attribute(rend, "text", i['col'])
@@ -394,7 +399,7 @@ class Book_View(Gtk.Box):
         # append track entries to combo model
         track = self.book.get_track(pl_row_id)
         for entry in track.get_entries(col['key']):
-            m.append([entry])
+            m.append([entry.get_entry(), entry.get_id()])
 
     def on_edited(self, renderer, path, text, col):
         # propagate changes to self.playlist and end editing
@@ -402,14 +407,20 @@ class Book_View(Gtk.Box):
         model = renderer.get_property('model')
         if self.editing == True :
             val_list = []
-            val_list.append(text)
-            # move selected text to front of list, skip once selected text in list, but do add duplicates
+            # build a partial TrackMDEntry from selected text
+            # and add it to the beginning of the val_list
+            val_list.append(playlist.TrackMDEntry(index=0, entry=text))
+            # move selected TrackMDEntry to front of list, skip once selected text in list, but do add duplicates
             matched = False
-            for i in model:
-                if matched == False and i[0] == text:
+            for i, row in enumerate(model):
+                if matched == False and row[0] == text:
                     matched = True
+                    # complete the selected TrackMDEntry by setting id_
+                    val_list[0].set_id(row[1])
                     continue
-                val_list.append(i[0])
+                # append fully instantiated TrackMDEntry to val_list
+                val_list.append(playlist.TrackMDEntry(id_=row[1], index=len(val_list), entry=row[0]))
+            # send the changes to book
             if len(val_list) > 0:
                 row_id = self.playlist[path][book.pl_row_id['col']]
                 edit = playlist.Track_Edit(col)
@@ -438,7 +449,8 @@ class Book_View(Gtk.Box):
                                 for j, row in enumerate(self.playlist):
                                     if edit.get_pl_row_id() == row[book.pl_row_id['col']]:
                                         itr = self.playlist.get_iter((j,))
-                                        self.playlist.set_value(itr, edit.col_info['col'], edit.get_entries(edit.col_info['key'])[0])
+                                        val = edit.get_entries(edit.col_info['key'])[0].get_entry()
+                                        self.playlist.set_value(itr, edit.col_info['col'], val)
                                         break
 
                             print('response', response)
@@ -595,14 +607,14 @@ class Book_View(Gtk.Box):
                         id_ = track.get_pl_row_id()
                         val = self.book.get_track(id_).get_entries(col['key'])
                         if val:
-                            self.playlist.set_value(cur_row, col['col'], val[0])
+                            self.playlist.set_value(cur_row, col['col'], val[0].get_entry())
 
                     # the utility collumns always have a primary entry
                     self.playlist.set_value(cur_row, book.pl_row_id['col'],
                                    track.get_pl_row_id())
 
                     self.playlist.set_value(cur_row, book.pl_path['col'],
-                                   track.get_entries('path')[0])
+                                   track.get_entries('path')[0].get_entry())
 
     def playlist_set_edit(self, edit):
         # enter/exit editing mode
@@ -680,11 +692,11 @@ class Book_View(Gtk.Box):
                 match = False
                 # make sure meta_val isnt a duplicate
                 for i in title_store:
-                    if i[0] == meta_val:
+                    if i[0] == meta_val.get_entry():
                         match = True
                         break
                 if not match:
-                    title_store.append([meta_val])
+                    title_store.append([meta_val.get_entry()])
 
     def on_clicked(self, widget, user_data=None):
         if type(widget) == Gtk.TreeViewColumn:
