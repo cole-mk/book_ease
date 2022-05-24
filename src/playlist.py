@@ -30,8 +30,8 @@ class Track:
         if file_path is not None:
             self.file_path = file_path
             self._file = file_path.rsplit('/', maxsplit=1).pop()
-            self.metadata['file'] = [self._file]
-            self.metadata['path'] = [file_path]
+            self.metadata['file'] = [TrackMDEntry(id_=pl_row_id, index=0, entry=self._file)]
+            self.metadata['path'] = [TrackMDEntry(id_=pl_row_id, index=0, entry=file_path)]
         self.row_num = row_num
         self.saved = is_saved
         self.pl_row_id = pl_row_id
@@ -63,25 +63,34 @@ class Track:
     def load_metadata_from_file(self):
         metadata = mutagen.File(self.file_path, easy=True)
         for key in metadata:
+            md_entry_list = []
             if key == 'tracknumber':
-                entry_list_f = []
-                for entry in metadata[key]:
-                    entry_list_f.append(self.format_track_num(entry))
-                self.metadata[key] = entry_list_f
+                for i, v in enumerate(metadata[key]):
+                    md_entry = TrackMDEntry(index=i, entry=self.format_track_num(v))
+                    md_entry_list.append(md_entry)
             else:
-                self.metadata[key] = metadata[key]
+                for i, v in enumerate(metadata[key]):
+                    md_entry = TrackMDEntry(index=i, entry=v)
+                    md_entry_list.append(md_entry)
+            self.metadata[key] = md_entry_list
 
     def set_entry(self, key, entries):
+        print('set_entry():', key, entries)
         if type(entries) is not list:
             raise TypeError ( entries, 'is not a list' )
+        for v in entries:
+            if type(v) is not TrackMDEntry:
+                raise TypeError ( entries, 'is not a TrackMDEntry' )
         self.metadata[key] = entries
 
     def get_entries(self, key):
         # return a list of all the entries in trackdata[key] sorted by index
         entries = []
+        print(type(self.metadata), key)
+        #print(self.metadata[key])
         if key is not None and key in self.metadata:
             [entries.append(entry) for entry in self.metadata[key] if entry is not None]
-        self.track_list.sort(key=lambda row: row.row_num)
+        #print(key, entries)
         entries.sort(key=lambda entry: entry.get_index())
         return entries
 
@@ -115,7 +124,7 @@ class Playlist():
 
     def get_track(self, id_):
         for tr in self.track_list:
-            if tr.get_pl_row_id() == row:
+            if tr.get_pl_row_id() == id_:
                return tr
         raise ValueError('track.pl_row_id not found in tracklist')
 
@@ -148,7 +157,7 @@ class TrackMDEntry:
 
     def __init__(self,  id_=None, index=None, entry=None):
         self.id_ = id_
-        self.index = ent_index
+        self.index = index
         self.entry = entry
 
     def get_id(self):

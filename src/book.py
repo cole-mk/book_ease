@@ -688,7 +688,6 @@ class Book_DB(db._DB):
         return ct[0]
 
 
-
 class PlaylistDBI(sqlite_tables.DBI_):
 
     def __init__(self):
@@ -756,3 +755,71 @@ class PlaylistData:
 
     def set_id(self, id_):
         self.id_ = id_
+
+
+class TrackDBI(sqlite_tables.DBI_):
+    # Class to interface the database with the rest of the module.
+    # manage the connections to the database table classes.
+    # manage converting the data to module specific format(Track) for
+    # consumption by the other classes in this module.
+
+    def __init__(self):
+        sqlite_tables.DBI_.__init__(self)
+        # create database table objects
+        self.pl_track = sqlite_tables.PlTrack()
+        self.pl_track_metadata = sqlite_tables.PlTrackMetadata()
+        self.playlist = sqlite_tables.Playlist()
+        self.track = sqlite_tables.Track()
+
+    def save(self, track_list):
+        # save all metadata contained in Track list
+        # get connection
+        con = self._query_begin()
+        for track in track_list:
+            # add entry to track table
+            track_id = self.track.add_row(path=track.get_file_path())
+            if track_id == 0:
+                # track already exists, get id
+                track_id = self.track.get_id_by_path(con, path)
+            # add entry to pl_track table
+            pl_track_num = track.get_row_num()
+            lastrowid = self.pl_track.add(con, self.playlist_id, pl_track_num, track_id)
+            if lastrowid != 0:
+                # track was newly created, save id to Track instance
+                track.set_entry(self.pl_row_id['key'], lastrowid)
+            else:
+                # track already exists, reorder playlist track numbers
+                # in case they were reordered in the view
+                self.pl_track.null_duplicate_track_number(con, playlist_id, track_number)
+                self.pl_track.update_track_number_by_id(con, track_number, id_)
+            # save metadata held in the track
+            pl_track_id = track.get_entries(self.pl_row_id['key'])[0]
+            # i am here
+            for col in metadata_col_list:
+                # get row from table matching id stored in Track
+                #   Note: id exists on a per entry per key basis
+                #   Track entries need to become a list[2]
+                #       adjust Track getters and setters
+                # if get row returns None, then
+                #   Set to Null any relevant matching ent_index
+                #   Insert new row
+                # compare this row with one I create
+                #   if ==,  then pass
+                #   else,   then update
+                if len(entries) > 0:
+                    for ent_index, entry in enumerate(entries):
+                        if entry is None:
+                            continue
+                        # pl_track metadata table
+                        sql = """
+                            INSERT INTO pl_track_metadata(pl_track_id, entry, ent_index, _key)
+                            VALUES (?,?,?,?)
+                            """
+                        cur.execute(sql, (pl_track_id, entry, ent_index, key))
+
+                self.db.track_metadata_add(track_id,
+                                        track.get_entries(col['key']),
+                                        col['key'],
+                                        pl_track_id, cur)
+        # commit and close connection
+        con = self._query_end()

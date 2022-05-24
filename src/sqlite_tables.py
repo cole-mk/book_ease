@@ -264,6 +264,35 @@ class PlTrack:
             """
         con.execute(sql)
 
+    def add(self,con, playlist_id, track_number, track_id) -> 'lastrowid:int':
+        # insert track
+        sql = """
+            INSERT OR IGNORE INTO pl_track(playlist_id, track_number, track_id)
+            VALUES (?,?,?)
+            """
+        cur = con.execute(sql, (playlist_id, track_number, track_id))
+        return cur.lastrowid
+
+    def null_duplicate_track_number(con, playlist_id, track_number):
+    # look for what will be a duplicate track_num and change it to NULL
+        sql = """
+            UPDATE pl_track
+            SET track_number = (?)
+            WHERE playlist_id = (?)
+            AND  track_number = (?)
+            """
+        con.execute(sql, (None, playlist_id, track_number))
+
+    def update_track_number_by_id(con, track_number, id_):
+        # update track
+        sql = """
+            UPDATE pl_track
+            SET track_number = (?)
+            WHERE id = (?)
+            """
+        con.execute(sql, (track_number, id_))
+
+
 class PlTrackMetadata:
     """create database table: pl_track_mmetadata"""
 
@@ -312,16 +341,16 @@ class Track:
     def add_row(self, con, path):
         """
         insert row into table track
-        returns new track_id
+        returns new track_id or 0 if already exists
         """
         sql = """
-              INSERT INTO track(path)
+              INSERT or IGNORE INTO track(path)
               VALUES (?)
               """
         cur = con.execute(sql, (path,))
         return cur.lastrowid
 
-    def get_row_by_path(self, con, path):
+    def get_id_by_path(self, con, path):
         """get row from table track that matches path"""
         sql = """
             SELECT id FROM track
