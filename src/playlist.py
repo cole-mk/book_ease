@@ -77,10 +77,12 @@ class Track:
         self.metadata[key] = entries
 
     def get_entries(self, key):
-        # return a list of all the entries in trackdata[key]
+        # return a list of all the entries in trackdata[key] sorted by index
         entries = []
         if key is not None and key in self.metadata:
             [entries.append(entry) for entry in self.metadata[key] if entry is not None]
+        self.track_list.sort(key=lambda row: row.row_num)
+        entries.sort(key=lambda entry: entry.get_index())
         return entries
 
     def get_file_name(self):
