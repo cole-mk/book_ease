@@ -688,7 +688,7 @@ class Book_View(Gtk.Box):
 
             # append to title_store each val in metadata value list for each p
             pl_row_id = tv_model.get_value(itr, book.pl_row_id['col'])
-            for meta_val in self.book.get_track(pl_row_id).get_entries(book.pl_title):
+            for meta_val in self.book.get_track(pl_row_id).get_entries(book.pl_title['key']):
                 match = False
                 # make sure meta_val isnt a duplicate
                 for i in title_store:
