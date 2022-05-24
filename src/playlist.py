@@ -77,10 +77,12 @@ class Track:
         self.metadata[key] = entries
 
     def get_entries(self, key):
-        # return a list of all the entries in trackdata[key]
+        # return a list of all the entries in trackdata[key] sorted by index
         entries = []
         if key is not None and key in self.metadata:
             [entries.append(entry) for entry in self.metadata[key] if entry is not None]
+        self.track_list.sort(key=lambda row: row.row_num)
+        entries.sort(key=lambda entry: entry.get_index())
         return entries
 
     def get_file_name(self):
@@ -111,16 +113,11 @@ class Playlist():
     def get_track_list(self):
         return self.track_list
 
-    def get_track_entries(self, row, col):
-        track = None
-        entries = []
+    def get_track(self, id_):
         for tr in self.track_list:
             if tr.get_pl_row_id() == row:
-               track = tr
-               break
-        if track:
-            entries = track.get_entries(col['key'])
-        return entries
+               return tr
+        raise ValueError('track.pl_row_id not found in tracklist')
 
     def get_track_alt_entries(self, row, col):
         lst = []

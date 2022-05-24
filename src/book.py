@@ -196,7 +196,7 @@ class Book(playlist.Playlist, signal_.Signal_):
         # set book title from the first track title
         title_list = self.track_list[0].get_entries('title')
         if title_list:
-            self.title = title_list[0]
+            self.title = title_list[0].get_entry()
         # emit book_data_created signal
         self.signal('book_data_created')
 

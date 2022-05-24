@@ -34,12 +34,16 @@ MA 02110-1301, USA.
     <columns>
       <!-- column-name values -->
       <column type="gchararray"/>
+      <!-- column-name id -->
+      <column type="gint"/>
     </columns>
   </object>
   <object class="GtkListStore" id="new_value">
     <columns>
       <!-- column-name value -->
       <column type="gchararray"/>
+      <!-- column-name id -->
+      <column type="gint"/>
     </columns>
   </object>
   <object class="GtkDialog" id="edit_row_dialog">
