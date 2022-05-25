@@ -383,16 +383,16 @@ class PlTrackMetadata:
 
 
 
-class Track:
+class TrackFile:
     """create database table: pltrack"""
 
     def __init__(self):
         self.init_table(create_connection())
 
     def init_table(self, con):
-        """create database table: track"""
+        """create database table: track_file"""
         sql = """
-            CREATE TABLE IF NOT EXISTS track (
+            CREATE TABLE IF NOT EXISTS track_file (
                 id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                 path TEXT UNIQUE NOT NULL
             )
@@ -401,20 +401,20 @@ class Track:
 
     def add_row(self, con, path):
         """
-        insert row into table track
+        insert row into table track_file
         returns new track_id or 0 if already exists
         """
         sql = """
-              INSERT or IGNORE INTO track(path)
+              INSERT or IGNORE INTO track_file(path)
               VALUES (?)
               """
         cur = con.execute(sql, (path,))
         return cur.lastrowid
 
     def get_id_by_path(self, con, path):
-        """get row from table track that matches path"""
+        """get row from table track_file that matches path"""
         sql = """
-            SELECT id FROM track
+            SELECT id FROM track_file
             WHERE path = (?)
             """
         cur = con.execute(sql, (path,))
@@ -422,7 +422,7 @@ class Track:
 
     def get_row_by_id(self, con, id_):
         sql = """
-            SELECT path FROM track
+            SELECT path FROM track_file
             WHERE id = (?)
             """
         cur = con.execute(sql, (id_,))
