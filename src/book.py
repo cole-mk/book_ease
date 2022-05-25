@@ -783,43 +783,48 @@ class TrackDBI(sqlite_tables.DBI_):
                 track_id = self.track.get_id_by_path(con, path)
             # add entry to pl_track table
             pl_track_num = track.get_row_num()
+            # null pl_track_numbers to avoid duplicates in case they were reordered in the view
+            self.pl_track.null_duplicate_track_number(con, playlist_id, track_number)
             lastrowid = self.pl_track.add(con, self.playlist_id, pl_track_num, track_id)
             if lastrowid != 0:
                 # track was newly created, save id to Track instance
                 track.set_entry(self.pl_row_id['key'], lastrowid)
             else:
-                # track already exists, reorder playlist track numbers
-                # in case they were reordered in the view
-                self.pl_track.null_duplicate_track_number(con, playlist_id, track_number)
+                # track already exists, update playlist track numbers
                 self.pl_track.update_track_number_by_id(con, track_number, id_)
-            # save metadata held in the track
-            pl_track_id = track.get_entries(self.pl_row_id['key'])[0]
-            # i am here
-            for col in metadata_col_list:
-                # get row from table matching id stored in Track
-                #   Note: id exists on a per entry per key basis
-                #   Track entries need to become a list[2]
-                #       adjust Track getters and setters
-                # if get row returns None, then
-                #   Set to Null any relevant matching ent_index
-                #   Insert new row
-                # compare this row with one I create
-                #   if ==,  then pass
-                #   else,   then update
-                if len(entries) > 0:
-                    for ent_index, entry in enumerate(entries):
-                        if entry is None:
-                            continue
-                        # pl_track metadata table
-                        sql = """
-                            INSERT INTO pl_track_metadata(pl_track_id, entry, ent_index, _key)
-                            VALUES (?,?,?,?)
-                            """
-                        cur.execute(sql, (pl_track_id, entry, ent_index, key))
 
-                self.db.track_metadata_add(track_id,
-                                        track.get_entries(col['key']),
-                                        col['key'],
-                                        pl_track_id, cur)
+            # save changes in Track.metadata to the db
+            pl_track_id = track.get_pl_row_id()
+            for col in metadata_col_list:
+                #list of TrackMDEntry
+                md_entry_list = track.get_entries(col['key'])
+
+                for md_entry in md_entry_list:
+                    # extract info from TrackMDEntry oject
+                    id_ = md_entry.get_id()
+                    index = md_entry.get_index()
+                    entry = md_entry.get_entry()
+
+                    # find an existing entry that matches id
+                    e_entry = self.pl_track_metadata.get_row_by_id(con, id_)
+                    if not e_entry:
+                        # rotate indices and add new row to table
+                        self.pl_track_metadata.null_duplicate_indices(con, pl_track_id, index, col['key'])
+                        ent_id = self.pl_track_metadata.add_row(con, pl_track_id, entry, index, col['key'])
+                    else:
+                        # only update if there is an actual change
+                        if e_entry['index'] != index:
+                            # rotate indices and update row in table
+                            self.pl_track_metadata.null_duplicate_indices(con, pl_track_id, index, col['key'])
+                            self.pl_track_metadata.update_row(con, id_, entry, index, col['key'])
+                        elif e_entry['entry'] != entry:
+                            # indices already match, simply update row
+                            self.pl_track_metadata.update_row(con, id_, entry, index, col['key'])
+
+                # remove deleted entries from db by looking for null indices
+                # and indices greater than the current max_index
+                max_index = len(md_entry_l) - 1
+                id_list = self.pl_track_metadata.get_ids_by_max_index_or_null(con, max_index, pl_track_id, col['key'])
+                [self.pl_track_metadata.remove_row_by_id(con, row['id']) for row in id_list]
         # commit and close connection
         con = self._query_end()

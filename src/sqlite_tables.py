@@ -309,7 +309,7 @@ class PlTrackMetadata:
                 pl_track_id    INTEGER REFERENCES pl_track (id)
                                 NOT NULL,
                 entry      TEXT NOT NULL,
-                ent_index      INTEGER NOT NULL,
+                index      INTEGER,
                 _key      TEXT NOT NULL,
                 UNIQUE (
                     pl_track_id,
@@ -320,6 +320,67 @@ class PlTrackMetadata:
             )
             """
         con.execute(sql)
+
+    def get_row_by_id(self, con, id_):
+        sql = """
+            SELECT * FROM pl_track_metadata
+            WHERE id = (?)
+            """
+        cur = con.execute(sql, (id_,))
+        return cur.fetchone()
+
+    def null_duplicate_indices(self, con, pl_track_id, index, key):
+        # look for what will be a duplicate index and change it to NULL
+        sql = """
+            UPDATE pl_track_metadata
+            SET index = (?)
+            WHERE index = (?)
+            AND pl_track_id = (?)
+            AND  _key = (?)
+            """
+        con.execute(sql, (None, index, pl_track_id, _key))
+
+    def add_row(self, con, pl_track_id,  entry, index, key):
+        # insert pl_track_metadata entry
+        sql = """
+            INSERT INTO pl_track_metadata(pl_track_id, entry, index, key)
+            VALUES (?,?,?,?)
+            """
+        cur = con.execute(sql, (pl_track_id, entry, index, key))
+        return cur.lastrowid
+
+    def update_row(self, con, id_, entry, index, key):
+        # update pl_track_metadata entry
+        sql = """
+            UPDATE pl_track_metadata
+            SET pl_track_id  = (?)
+            AND entry = (?)
+            AND index = (?)
+            AND key = (?)
+            WHERE id = (?)
+            """
+        con.execute(sql, (pl_track_id, entry, index, key, id_))
+
+    def get_ids_by_max_index_or_null(self, con, max_index, pl_track_id, key) -> '[sqlite3.row, ... ]':
+        # Get the id of any row:key that has and index higher than max_index
+        # or Null value for index
+        sql = """
+            SELECT id FROM pl_track_metadata
+            WHERE pl_track_id
+            AND key = (?)
+            AND index > (?)
+            """
+        cur = con.execute(sql, (pl_track_id, key, index, key))
+        return cur.fetchall()
+
+    def remove_row_by_id(self, con, id_):
+        # Delete row with matching id
+        sql = """
+            DELETE FROM pl_track_metadata
+            WHERE id = (?)
+            """
+        con.execute(sql(id_))
+
 
 
 class Track:
