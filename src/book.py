@@ -769,7 +769,7 @@ class TrackDBI(sqlite_tables.DBI_):
         self.pl_track = sqlite_tables.PlTrack()
         self.pl_track_metadata = sqlite_tables.PlTrackMetadata()
         self.playlist = sqlite_tables.Playlist()
-        self.track = sqlite_tables.Track()
+        self.track_file = sqlite_tables.TrackFile()
 
     def save(self, track_list):
         # save all metadata contained in Track list
@@ -777,10 +777,10 @@ class TrackDBI(sqlite_tables.DBI_):
         con = self._query_begin()
         for track in track_list:
             # add entry to track table
-            track_id = self.track.add_row(path=track.get_file_path())
+            track_id = self.track_file.add_row(path=track.get_file_path())
             if track_id == 0:
                 # track already exists, get id
-                track_id = self.track.get_id_by_path(con, path)
+                track_id = self.track_file.get_id_by_path(con, path)
             # add entry to pl_track table
             pl_track_num = track.get_row_num()
             # null pl_track_numbers to avoid duplicates in case they were reordered in the view
