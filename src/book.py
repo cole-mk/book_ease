@@ -798,40 +798,29 @@ class TrackDBI(sqlite_tables.DBI_):
             for col in metadata_col_list:
                 #list of TrackMDEntry
                 md_entry_list = track.get_entries(col['key'])
+
                 for md_entry in md_entry_list:
+                    # extract info from TrackMDEntry oject
+                    id_ = md_entry.get_id()
+                    index = md_entry.get_index()
+                    entry = md_entry.get_entry()
+
                     # find an existing entry that matches id
-                    e_entry = self.pl_track_metadata.get_row_by_id(con, md_entry.get_id())
+                    e_entry = self.pl_track_metadata.get_row_by_id(con, id_)
                     if not e_entry:
                         # rotate indices and add new row to table
-                        self.pl_track_metadata.null_duplicate_indices(con,
-                                                                      pl_track_id,
-                                                                      md_entry.get_index(),
-                                                                      col['key'])
-                        ent_id = self.pl_track_metadata.add_row(con,
-                                                                pl_track_id,
-                                                                md_entry.get_entry(),
-                                                                md_entry.get_index(),
-                                                                col['key'])
+                        self.pl_track_metadata.null_duplicate_indices(con, pl_track_id, index, col['key'])
+                        ent_id = self.pl_track_metadata.add_row(con, pl_track_id, entry, index, col['key'])
                     else:
-                        if e_entry['index'] != md_entry.get_index():
+                        # only update if there is an actual change
+                        if e_entry['index'] != index:
                             # rotate indices and update row in table
-                            self.pl_track_metadata.null_duplicate_indices(con,
-                                                                          pl_track_id,
-                                                                          md_entry.get_index(),
-                                                                          col['key'])
-                            self.pl_track_metadata.update_row(con,
-                                                              md_entry.get_id(),
-                                                              md_entry.get_entry(),
-                                                              md_entry.get_index(),
-                                                              col['key'])
-
-                        elif e_entry['entry'] != md_entry.get_entry():
+                            self.pl_track_metadata.null_duplicate_indices(con, pl_track_id, index, col['key'])
+                            self.pl_track_metadata.update_row(con, id_, entry, index, col['key'])
+                        elif e_entry['entry'] != entry:
                             # indices already match, simply update row
-                            self.pl_track_metadata.update_row(con,
-                                                              md_entry.get_id(),
-                                                              md_entry.get_entry(),
-                                                              md_entry.get_index(),
-                                                              col['key'])
+                            self.pl_track_metadata.update_row(con, id_, entry, index, col['key'])
+
                 # remove deleted entries from db by looking for null indices
                 # and indices greater than the current max_index
                 max_index = len(md_entry_l) - 1
