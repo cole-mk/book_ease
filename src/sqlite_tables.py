@@ -29,6 +29,8 @@ config_dir = Path.home() / '.config' / 'book_ease'
 db_dir = config_dir / 'data'
 db_dir.mkdir(mode=511, parents=True, exist_ok=True)
 db = db_dir / 'book_ease.db'
+# module wide db connection for multi queries
+module_wide_db_connection = None
 
 def create_connection():
     """ create a sqlite3 connection object and return it"""
@@ -44,7 +46,7 @@ class DBI_:
     Handles the conection control for single and multi queries
     """
     def __init__(self):
-        self.con = None
+        pass
 
     def multi_query_begin(self):
         """
@@ -54,34 +56,34 @@ class DBI_:
         if self.con is not None:
             raise RuntimeError('connection already exists')
         else:
-            self.con = create_connection()
+            sqlite_tables.module_wide_db_connection = create_connection()
 
     def multi_query_end(self):
         """commit and close connection of a multi_query"""
-        if self.con is None:
+        if sqlite_tables.module_wide_db_connection is None:
             raise RuntimeError('connection doesn\'t exist')
         else:
-            self.con.commit()
-            self.con.close()
-            self.con = None
+            sqlite_tables.module_wide_db_connection.commit()
+            sqlite_tables.module_wide_db_connection.close()
+            sqlite_tables.module_wide_db_connection = None
 
-    def _query_begin(self):
+    def _query_begin(self) -> 'sqlite3.Connection':
         """
         get an sqlite connection object
-        returns self.con if a multi_query is in effect.
+        returns module_wide_db_connection if a multi_query is in effect.
         Otherwise, create and return a new connection
         """
-        if self.con is None:
+        if sqlite_tables.module_wide_db_connection is None:
             return create_connection()
         else:
-            return self.con
+            return sqlite_tables.module_wide_db_connection
 
     def _query_end(self, con):
         """
         commit and close connection if a multi_query
         is not in effect.
         """
-        if con is not self.con:
+        if con is not sqlite_tables.module_wide_db_connection:
             con.commit()
             con.close()
 
