@@ -29,6 +29,48 @@ import os
 import sqlite_tables
 
 
+# module wide db connection for multi queries
+module_wide_db_connection = None
+
+def multi_query_begin(self):
+    """
+    create a semi-persistent connection
+    for executing multiple transactions
+    """
+    if module_wide_db_connection is not None:
+        raise RuntimeError('connection already exists')
+    else:
+        module_wide_db_connection = create_connection()
+
+def multi_query_end(self):
+    """commit and close connection of a multi_query"""
+    if module_wide_db_connection is None:
+        raise RuntimeError('connection doesn\'t exist')
+    else:
+        module_wide_db_connection.commit()
+        module_wide_db_connection.close()
+        module_wide_db_connection = None
+
+def _query_begin(self) -> 'sqlite3.Connection':
+    """
+    get an sqlite connection object
+    returns module_wide_db_connection if a multi_query is in effect.
+    Otherwise, create and return a new connection
+    """
+    if module_wide_db_connection is None:
+        return create_connection()
+    else:
+        return module_wide_db_connection
+
+def _query_end(self, con):
+    """
+    commit and close connection if a multi_query
+    is not in effect.
+    """
+    if con is not module_wide_db_connection:
+        con.commit()
+        con.close()
+
 # The Playlist Data Column Setup
 pl_title    = {'name':'Title',         'col':0,
                'g_typ':str,            'editable':True,
@@ -688,20 +730,19 @@ class Book_DB(db._DB):
         return ct[0]
 
 
-class PlaylistDBI(sqlite_tables.DBI_):
+class PlaylistDBI():
 
     def __init__(self):
-        sqlite_tables.DBI_.__init__(self)
         self.playlist = sqlite_tables.Playlist()
 
     def count_duplicates(self, pl_data) -> 'int':
         # get a count of the number of playlist titles associated with this path
         # that have the same title, but exclude playlist_id from the list
-        con = self._query_begin()
+        con = _query_begin()
         count = self.playlist.count_duplicates(pl_data.get_title(),
                                                pl_data.get_path(),
                                                pl_data.get_id())
-        self._query_end(con)
+        _query_end(con)
         return count[0]
 
     def exists_in_path(self, pl_data) -> 'bool':
@@ -713,10 +754,10 @@ class PlaylistDBI(sqlite_tables.DBI_):
     def get_by_path(self, pl_data) -> 'PlaylistData':
         # get playlists associated with path
         playlists = []
-        con = self._query_begin()
+        con = _query_begin()
         # execute query
         pl_list = self.playlist.get_rows_by_path(con, pl_data.get_path())
-        self._query_end(con)
+        _query_end(con)
         # build playlists list
         for pl in pl_list:
             playlist = PlaylistData(title=pl['title'], path=pl['path'], id_=pl['id'])
@@ -725,9 +766,9 @@ class PlaylistDBI(sqlite_tables.DBI_):
 
     def replace(self, pl_data) -> 'playlist_id:int':
         # insert or update playlist
-        con = self._query_begin()
+        con = _query_begin()
         id_ = self.playlist.replace(con, pl_data.get_title(), pl_data.get_path())
-        self._query_end(con)
+        _query_end(con)
         return id_
 
 
@@ -757,14 +798,13 @@ class PlaylistData:
         self.id_ = id_
 
 
-class TrackDBI(sqlite_tables.DBI_):
+class TrackDBI():
     # Class to interface the database with the rest of the module.
     # manage the connections to the database table classes.
     # manage converting the data to module specific format(Track) for
     # consumption by the other classes in this module.
 
     def __init__(self):
-        sqlite_tables.DBI_.__init__(self)
         # create database table objects
         self.pl_track = sqlite_tables.PlTrack()
         self.pl_track_metadata = sqlite_tables.PlTrackMetadata()
@@ -774,15 +814,15 @@ class TrackDBI(sqlite_tables.DBI_):
     def save_track_file(self, track) -> 'int':
         # save to database track_file information held in Track
         # returns track_id
-        con = self._query_begin()
+        con = _query_begin()
         # add entry to track_file table
         track_id = self.track_file.add_row(path=track.get_file_path())
-        self._query_end()
+        _query_end()
         return track_id
 
     def save_pl_track(self, playlist_id, track_file_id, track) -> 'int':
         # add entry to pl_track table
-        con = self._query_begin()
+        con = _query_begin()
         track_num = track.get_row_num()
         # null pl_track_numbers to avoid duplicates in case they were reordered in the view
         self.pl_track.null_duplicate_track_number(con, playlist_id, track_number)
@@ -790,11 +830,12 @@ class TrackDBI(sqlite_tables.DBI_):
         if lastrowid == 0:
             # track already exists, update playlist track numbers
             self.pl_track.update_track_number_by_id(con, track_number, id_)
-        self._query_end()
+        _query_end()
         return lastrowid
 
     def save_track_metadata(self, md_entry, pl_track_id, key):
         # save a TrackMDEntry instance to database
+        con = _query_begin()
         # extract info from TrackMDEntry oject
         id_ = md_entry.get_id()
         index = md_entry.get_index()
@@ -816,13 +857,13 @@ class TrackDBI(sqlite_tables.DBI_):
             elif e_entry['entry'] != entry:
                 # indices already match, simply update row
                 self.pl_track_metadata.update_row(con, id_, entry, index, key)
-        self._query_end()
+        _query_end()
 
 
     def save(self, track, playlist_id):
         # save all metadata contained in Track
         # get connection
-        con = self._query_begin()
+        con = _query_begin()
         # add entry to track_file table
         track_file_id = self.save_track_file(track)
         if track_id == 0:
@@ -850,4 +891,4 @@ class TrackDBI(sqlite_tables.DBI_):
             id_list = self.pl_track_metadata.get_ids_by_max_index_or_null(con, max_index, pl_track_id, col['key'])
             [self.pl_track_metadata.remove_row_by_id(con, row['id']) for row in id_list]
         # commit and close connection
-        con = self._query_end()
+        con = _query_end()

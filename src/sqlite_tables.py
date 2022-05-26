@@ -29,8 +29,6 @@ config_dir = Path.home() / '.config' / 'book_ease'
 db_dir = config_dir / 'data'
 db_dir.mkdir(mode=511, parents=True, exist_ok=True)
 db = db_dir / 'book_ease.db'
-# module wide db connection for multi queries
-module_wide_db_connection = None
 
 def create_connection():
     """ create a sqlite3 connection object and return it"""
@@ -38,54 +36,6 @@ def create_connection():
     con = sqlite3.connect(db, isolation_level=None)
     con.row_factory = sqlite3.Row
     return con
-
-
-class DBI_:
-    """
-    Base class for the various DBIs throughout book_ease
-    Handles the conection control for single and multi queries
-    """
-    def __init__(self):
-        pass
-
-    def multi_query_begin(self):
-        """
-        create a semi-persistent connection
-        for executing multiple transactions
-        """
-        if self.con is not None:
-            raise RuntimeError('connection already exists')
-        else:
-            sqlite_tables.module_wide_db_connection = create_connection()
-
-    def multi_query_end(self):
-        """commit and close connection of a multi_query"""
-        if sqlite_tables.module_wide_db_connection is None:
-            raise RuntimeError('connection doesn\'t exist')
-        else:
-            sqlite_tables.module_wide_db_connection.commit()
-            sqlite_tables.module_wide_db_connection.close()
-            sqlite_tables.module_wide_db_connection = None
-
-    def _query_begin(self) -> 'sqlite3.Connection':
-        """
-        get an sqlite connection object
-        returns module_wide_db_connection if a multi_query is in effect.
-        Otherwise, create and return a new connection
-        """
-        if sqlite_tables.module_wide_db_connection is None:
-            return create_connection()
-        else:
-            return sqlite_tables.module_wide_db_connection
-
-    def _query_end(self, con):
-        """
-        commit and close connection if a multi_query
-        is not in effect.
-        """
-        if con is not sqlite_tables.module_wide_db_connection:
-            con.commit()
-            con.close()
 
 
 class PinnedPlaylists:
