@@ -177,11 +177,6 @@ class Book(playlist.Playlist, signal_.Signal_):
     def set_index(self, index):
         self.index = index
 
-    def get_title_l(self, row):
-        track = self.track_list[row]
-        return track.get_entries(self.title_keys)
-    # initialize the playlist
-
     def book_data_load(self, pl_row):
         # pl_row is row (tuple) from playlist database table (displayed in BookView)
         #TODO: get rid of the g_cols
