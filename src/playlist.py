@@ -75,7 +75,6 @@ class Track:
             self.metadata[key] = md_entry_list
 
     def set_entry(self, key, entries):
-        print('set_entry():', key, entries)
         if type(entries) is not list:
             raise TypeError ( entries, 'is not a list' )
         for v in entries:
@@ -86,11 +85,8 @@ class Track:
     def get_entries(self, key):
         # return a list of all the entries in trackdata[key] sorted by index
         entries = []
-        print(type(self.metadata), key)
-        #print(self.metadata[key])
         if key is not None and key in self.metadata:
             [entries.append(entry) for entry in self.metadata[key] if entry is not None]
-        #print(key, entries)
         entries.sort(key=lambda entry: entry.get_index())
         return entries
 

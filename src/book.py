@@ -125,14 +125,14 @@ class Book(playlist.Playlist, signal_.Signal_):
         playlist.Playlist.__init__(self)
         signal_.Signal_.__init__(self)
         self.index = None
-        self.title = 'New Book'                 #####
-        self.playlist_id = None                 #####
+        self.playlist_data = PlaylistData(title='New Book' ,path=path)
         self.config = config
         self.files = files
         self.book_section = 'books'
-        self.path = path                        #####
         self.book_reader = book_reader
-        self.db = Book_DB()
+        #database interfaces
+        self.track_dbi = TrackDBI
+        self.playlist_dbi = PlaylistDBI
         # track metadata
         self.file_list = file_list
         # playlist_filetypes key has values given in a comma separated list
@@ -157,16 +157,16 @@ class Book(playlist.Playlist, signal_.Signal_):
         cur_pl_list = self.get_cur_pl_list()
         cur_pl_row = None
         for row in cur_pl_list:
-            if row[self.db.cur_pl_id['col']] == self.playlist_id:
+            if row[self.db.cur_pl_id['col']] == self.playlist_data.get_id():
                 cur_pl_row = row
                 break
         if cur_pl_row == None:
-            raise KeyError(self.playlist_id, 'not found in currently saved playlists associated with this path')
+            raise KeyError(self.playlist_data.get_id(), 'not found in currently saved playlists associated with this path')
         return cur_pl_row
 
     def get_playlist_id(self):
         """get this book instance's unique id"""
-        return self.playlist_id
+        return self.playlist_data.get_id()
 
     def get_track_list(self):
         return self.track_list
@@ -186,10 +186,10 @@ class Book(playlist.Playlist, signal_.Signal_):
         # pl_row is row (tuple) from playlist database table (displayed in BookView)
         #TODO: get rid of the g_cols
         self.db.cur_pl_path['col']
-        self.title = pl_row[self.db.cur_pl_title['col']]
-        self.playlist_id = pl_row[self.db.cur_pl_id['col']]
-        self.path = pl_row[self.db.cur_pl_path['col']]
-        track_list = self.db.playlist_get_tracks(self.playlist_id)
+        self.playlist_data.set_title(pl_row[self.db.cur_pl_title['col']])
+        self.playlist_data.set_id(pl_row[self.db.cur_pl_id['col']])
+        self.playlist_data.set_path(pl_row[self.db.cur_pl_path['col']])
+        track_list = self.db.playlist_get_tracks(self.playlist_data.get_id())
         # move track data from database into internal tracklist
         for i, tr in enumerate(track_list):
             file_path = self.db.track_get_path(tr['track_id'])
@@ -218,7 +218,7 @@ class Book(playlist.Playlist, signal_.Signal_):
         i = 0
         for f in self.file_list:
             # populate playlist data
-            file_path = os.path.join(self.path, f[1])
+            file_path = os.path.join(self.playlist_data.get_path(), f[1])
             if not f[self.files.is_dir_pos] and self.book_reader.is_media_file(file_path):
                 track = playlist.Track(file_path)
                 track.load_metadata_from_file()
@@ -238,7 +238,7 @@ class Book(playlist.Playlist, signal_.Signal_):
         # set book title from the first track title
         title_list = self.track_list[0].get_entries('title')
         if title_list:
-            self.title = title_list[0].get_entry()
+            self.playlist_data.set_title(title_list[0].get_entry())
         # emit book_data_created signal
         self.signal('book_data_created')
 
@@ -258,66 +258,58 @@ class Book(playlist.Playlist, signal_.Signal_):
             e_track.set_row_num(track.get_row_num())
 
     def save(self, title):
-        # playlist
-        pl_id = None
-        con = self.db.create_connection()
-        if con is None:
-            return None
-        try:
-            cur = con.cursor()
-            cur.execute("""BEGIN""")
-            # add a incremented suffix to playlist title if there are duplicates
-            suffix = ''
-            ct = 1
-            while self.db.playlist_count_duplicates(title, self.path, self.playlist_id, cur) > 0:
-                title = title.rstrip(suffix)
-                suffix = '_' + str(ct)
-                title = title + suffix
-                ct += 1
-            # set book title to incremented value
-            self.title = title
-            # set playlist title
-            if self.playlist_id is None:
-                # insert the newly created playlist
-                self.playlist_id = self.db.playlist_insert(title, self.path, cur)
-            else:
-                self.db.playlist_update(title, self.path, self.playlist_id, cur)
-            if self.playlist_id is not None:
-                self.title = title
-                # save playlist tracks,tracks and their metadata
-                for track in self.track_list:
-                    track_id = self.db.track_add(path=track.get_file_path(), filename=track.get_file_name(), cur=cur)
-                    pl_track_num = track.get_row_num()
-                    pl_track_id = track.get_pl_row_id()
-                    if track_id is not None:
-                        if not track.is_saved():
-                            pl_track_id = self.db.playlist_track_add(self.playlist_id,
-                                                                     pl_track_num,
-                                                                     track_id,
-                                                                     pl_track_id,
-                                                                     cur)
-                            track.set_saved(True)
-                        else:
-                            pl_track_id = self.db.playlist_track_update(self.playlist_id,
-                                                                        pl_track_num,
-                                                                        track_id,
-                                                                        pl_track_id,
-                                                                        cur)
+        # start a semi-persistent database connection
+        multi_query_begin()
+        # add a incremented suffix to playlist title if there are duplicates
+        suffix = ''
+        ct = 1
+        while self.playlist_dbi.playlist_count_duplicates(self.playlist_data) > 0:
+            title = title.rstrip(suffix)
+            suffix = '_' + str(ct)
+            title = title + suffix
+            ct += 1
+        # set book title to incremented value
+        self.playlist_data.set_title(title)
+        # set playlist title
+        if self.playlist_data.get_id() is None:
+            # insert the newly created playlist
+            self.playlist_data.set_id(self.db.playlist_insert(self.playlist_data, cur))
+        else:
+            self.db.playlist_update(self.playlist_data, cur)
+        if self.playlist_data.get_id() is not None:
+            self.playlist_data.set_title(title)
+            # save playlist tracks,tracks and their metadata
+            for track in self.track_list:
+                track_id = self.db.track_add(path=track.get_file_path(), filename=track.get_file_name(), cur=cur)
+                pl_track_num = track.get_row_num()
+                pl_track_id = track.get_pl_row_id()
+                if track_id is not None:
+                    if not track.is_saved():
+                        pl_track_id = self.db.playlist_track_add(self.playlist_data.get_id(),
+                                                                 pl_track_num,
+                                                                 track_id,
+                                                                 pl_track_id,
+                                                                 cur)
+                        track.set_saved(True)
+                    else:
+                        pl_track_id = self.db.playlist_track_update(self.playlist_data.get_id(),
+                                                                    pl_track_num,
+                                                                    track_id,
+                                                                    pl_track_id,
+                                                                    cur)
 
-                        track.set_pl_row_id(pl_track_id)
-                        if pl_track_id is not None:
-                            for col in metadata_col_list:
+                    track.set_pl_row_id(pl_track_id)
+                    if pl_track_id is not None:
+                        for col in metadata_col_list:
 
-                                self.db.track_metadata_add(track_id,
-                                                           track.get_entries(col['key']),
-                                                           col['key'],
-                                                           pl_track_id, cur)
+                            self.db.track_metadata_add(track_id,
+                                                       track.get_entries(col['key']),
+                                                       col['key'],
+                                                       pl_track_id, cur)
 
-            self.db.playlist_track_remove_deleted(self.playlist_id, len(self.track_list), cur)
-            self.saved_playlist = True
+        self.db.playlist_track_remove_deleted(self.playlist_data.get_id(), len(self.track_list), cur)
+        self.saved_playlist = True
 
-        except sqlite3.Error as e:
-            print('on_playlist_save', e)
         # reload the list of playlist names saved relative to this books directory
         self.db.set_cur_pl_list_by_path(self.book_reader.cur_path, con)
         con.commit()
@@ -706,13 +698,13 @@ class Book_DB(db._DB):
 
         return lastrowid
 
-    def playlist_insert(self, title, path, cur):
+    def playlist_insert(self, playlist_data, cur):
         lastrowid = None
         try:
             cur.execute("INSERT INTO playlist(title, path) VALUES (?,?)", (title, path))
             lastrowid = cur.lastrowid
         except sqlite3.IntegrityError:
-            print("couldn't add", (title, path),"twice")
+            print("couldn't add", playlist_data.get_title(), playlist_data.get_path(),"twice")
         return lastrowid
 
     def playlist_count_duplicates(self, title, path, playlist_id, cur):

@@ -301,7 +301,7 @@ class Book_View(Gtk.Box):
         self.pinned_button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
         self.pinned_button = False
         self.header_box.pack_start(self.pinned_button_box, expand=False, fill=False, padding=0)
-        self.title_label = Gtk.Label(label=self.book.title)
+        self.title_label = Gtk.Label(label=self.book.playlist_data.get_title())
         self.title_label.set_no_show_all(True)
         self.title_label.set_halign(Gtk.Align.END)
         self.header_box.pack_start(self.title_label, expand=True, fill=True, padding=0)
@@ -538,8 +538,8 @@ class Book_View(Gtk.Box):
             self.book.track_list_update(track)
 
         # apply pending changes
-        old_t = self.book.title
-        old_p = self.book.path
+        old_t = self.book.playlist_data.get_title()
+        old_p = self.book.playlist_data.get_path()
         # new book title
         entry = self.title_combo.get_child()
         title = entry.get_text()
@@ -595,7 +595,7 @@ class Book_View(Gtk.Box):
     def book_data_load(self):
         self.playlist.clear()
         playlist = self.book.get_track_list()
-        self.title_label.set_label(self.book.title)
+        self.title_label.set_label(self.book.playlist_data.get_title())
         if playlist:
             if len(playlist) > 0:
                 # do the appending
@@ -740,10 +740,9 @@ class Book_View(Gtk.Box):
             #set default sort order for the playlist
             if not is_sorted:
                 self.sort_by_column(self.default_sort_col[0], self.default_sort_col[1])
-            #self.title_entry.set_text(self.book.title)
-            self.title_label.set_label(self.book.title)
+            self.title_label.set_label(self.book.playlist_data.get_title())
             self.show_all()
-            self.notebook.set_tab_label_text(self, self.book.title[0:8])
+            self.notebook.set_tab_label_text(self, self.book.playlist_data.get_title()[0:8])
             # show editing buttons
             #self.edit_playlist_box.set_no_show_all(False)
             self.playlist_set_edit(True)
