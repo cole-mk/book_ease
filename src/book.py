@@ -252,63 +252,49 @@ class Book(playlist.Playlist, signal_.Signal_):
             [e_track.set_entry(key, track.get_entries(key)) for key in track.get_key_list()]
             e_track.set_row_num(track.get_row_num())
 
-    def save(self, title):
-        # start a semi-persistent database connection
-        multi_query_begin()
+    def get_unique_playlist_title(self, playlist_data) -> 'title:str':
         # add a incremented suffix to playlist title if there are duplicates
         suffix = ''
         ct = 1
-        while self.playlist_dbi.playlist_count_duplicates(self.playlist_data) > 0:
+        while self.playlist_dbi.playlist_count_duplicates(playlist_data) > 0:
             title = title.rstrip(suffix)
             suffix = '_' + str(ct)
             title = title + suffix
             ct += 1
-        # set book title to incremented value
-        self.playlist_data.set_title(title)
-        # set playlist title
-        if self.playlist_data.get_id() is None:
-            # insert the newly created playlist
-            self.playlist_data.set_id(self.db.playlist_insert(self.playlist_data, cur))
-        else:
-            self.db.playlist_update(self.playlist_data, cur)
-        if self.playlist_data.get_id() is not None:
-            self.playlist_data.set_title(title)
-            # save playlist tracks,tracks and their metadata
-            for track in self.track_list:
-                track_id = self.db.track_add(path=track.get_file_path(), filename=track.get_file_name(), cur=cur)
-                pl_track_num = track.get_row_num()
-                pl_track_id = track.get_pl_row_id()
-                if track_id is not None:
-                    if not track.is_saved():
-                        pl_track_id = self.db.playlist_track_add(self.playlist_data.get_id(),
-                                                                 pl_track_num,
-                                                                 track_id,
-                                                                 pl_track_id,
-                                                                 cur)
-                        track.set_saved(True)
-                    else:
-                        pl_track_id = self.db.playlist_track_update(self.playlist_data.get_id(),
-                                                                    pl_track_num,
-                                                                    track_id,
-                                                                    pl_track_id,
-                                                                    cur)
+        return title
 
-                    track.set_pl_row_id(pl_track_id)
-                    if pl_track_id is not None:
-                        for col in metadata_col_list:
 
-                            self.db.track_metadata_add(track_id,
-                                                       track.get_entries(col['key']),
-                                                       col['key'],
-                                                       pl_track_id, cur)
+    def save(self, title):
+        # start a semi-persistent database connection
+        multi_query_begin()
+        # add suffix to book title to ensure uniqueness
+        self.playlist_data.set_title(self.get_unique_playlist_title(self.playlist_data))
+        # save playlist title, storing new id in self.playlist_data
+        self.playlist_data.set_id(self.playlist_dbi.replace(self.playlist_data))
 
+        # save Track objects to database
+        for track in self.track_list:
+            # save the file path that the Track object references
+            track_file_id = self.track_dbi.save_track_file(track)
+            # save the simple Track instance variables
+            pl_row_id = self.track_dbi.save_pl_track(self.playlist_data.get_id(), track_file_id, track)
+            # update pl_row_id in the Track instance
+            track.set_pl_row_id(pl_row_id)
+
+            # save the Track metadata
+            for col in metadata_col_list:
+                for md_entry in track.get_entries(col['key']):
+                    self.track_dbi.save_track_metadata(md_entry, pl_track_id, col['key'])
+                # remove deleted entries from database
+                self.track_dbi.remove_deleted_metadata(len(md_entry_l) - 1, pl_track_id, col['key'])
+        # remove deleted entries from database
         self.db.playlist_track_remove_deleted(self.playlist_data.get_id(), len(self.track_list), cur)
         self.saved_playlist = True
 
         # reload the list of playlist names saved relative to this books directory
         self.db.set_cur_pl_list_by_path(self.book_reader.cur_path, con)
-        con.commit()
-        con.close()
+        # inform DBI module that multi query is finished
+        multi_query_end()
         self.track_list_sort_row_num()
         # notify any listeners that the playlist has been saved
         self.signal('book_saved')
@@ -800,12 +786,17 @@ class TrackDBI():
 
     def save_track_file(self, track) -> 'int':
         # save to database track_file information held in Track
-        # returns track_id
+        # returns track_file_id
         con = _query_begin()
         # add entry to track_file table
-        track_id = self.track_file.add_row(path=track.get_file_path())
-        _query_end()
-        return track_id
+        track_file_id = self.track_file.add_row(path=track.get_file_path())
+        if track_file_id == 0:
+            # track_file already exists, get id
+            # id for file currently does not need to be saved to Track() object
+            # as the lookup is simple and its only used here in this class
+            track_file_id = self.track_file.get_id_by_path(con, track.get_file_path())
+        _query_end(con)
+        return track_file_id
 
     def save_pl_track(self, playlist_id, track_file_id, track) -> 'int':
         # add entry to pl_track table
@@ -813,12 +804,13 @@ class TrackDBI():
         track_num = track.get_row_num()
         # null pl_track_numbers to avoid duplicates in case they were reordered in the view
         self.pl_track.null_duplicate_track_number(con, playlist_id, track_number)
-        lastrowid = self.pl_track.add(con, playlist_id, track_num, track_file_id)
-        if lastrowid == 0:
+        pl_row_id = self.pl_track.add(con, playlist_id, track_num, track_file_id)
+        if pl_row_id == 0:
             # track already exists, update playlist track numbers
-            self.pl_track.update_track_number_by_id(con, track_number, id_)
-        _query_end()
-        return lastrowid
+            pl_row_id = track.get_id()
+            self.pl_track.update_track_number_by_id(con, track_number, pl_row_id)
+        _query_end(con)
+        return pl_row_id
 
     def save_track_metadata(self, md_entry, pl_track_id, key):
         # save a TrackMDEntry instance to database
@@ -844,38 +836,13 @@ class TrackDBI():
             elif e_entry['entry'] != entry:
                 # indices already match, simply update row
                 self.pl_track_metadata.update_row(con, id_, entry, index, key)
-        _query_end()
+        _query_end(con)
 
-
-    def save(self, track, playlist_id):
-        # save all metadata contained in Track
-        # get connection
+    def remove_deleted_metadata(self, max_index, pl_track_id, key):
+        # remove deleted entries from table.pl_track_metadata by looking for null indices
+        # and indices greater than the current max_index
         con = _query_begin()
-        # add entry to track_file table
-        track_file_id = self.save_track_file(track)
-        if track_id == 0:
-            # track_file already exists, get id
-            track_id = self.track_file.get_id_by_path(con, path)
+        id_list = self.pl_track_metadata.get_ids_by_max_index_or_null(con, max_index, pl_track_id, col['key'])
+        [self.pl_track_metadata.remove_row_by_id(con, row['id']) for row in id_list]
+        _query_end(con)
 
-        # add entry to pl_track table
-        pl_track_id = self.save_pl_track(playlist_id, track_file_id, track)
-        if pl_track_id == 0:
-            # track already existed; get pl_track_id from Track instance
-            pl_track_id = track.get_pl_row_id()
-        else:
-            # track was newly created, save id to Track instance
-            track.set_entry(self.pl_row_id['key'], lastrowid)
-
-        # save changes in Track.metadata to the db
-        for col in metadata_col_list:
-            #list of TrackMDEntry
-            md_entry_list = track.get_entries(col['key'])
-            for md_entry in md_entry_list:
-                self.save_track_metadata(md_entry, pl_track_id, col['key'])
-            # remove deleted entries from table.pl_track_metadata by looking for null indices
-            # and indices greater than the current max_index
-            max_index = len(md_entry_l) - 1
-            id_list = self.pl_track_metadata.get_ids_by_max_index_or_null(con, max_index, pl_track_id, col['key'])
-            [self.pl_track_metadata.remove_row_by_id(con, row['id']) for row in id_list]
-        # commit and close connection
-        con = _query_end()
