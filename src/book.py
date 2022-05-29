@@ -270,7 +270,7 @@ class Book(playlist.Playlist, signal_.Signal_):
         # add suffix to book title to ensure uniqueness
         self.playlist_data.set_title(self.get_unique_playlist_title(self.playlist_data))
         # save playlist title, storing new id in self.playlist_data
-        self.playlist_data.set_id(self.playlist_dbi.replace(self.playlist_data))
+        self.playlist_data.set_id(self.playlist_dbi.save(self.playlist_data))
 
         # save Track objects to database
         for track in self.track_list:
@@ -737,7 +737,7 @@ class PlaylistDBI():
             playlists.append(playlist)
         return playlists
 
-    def replace(self, pl_data) -> 'playlist_id:int':
+    def save(self, pl_data) -> 'playlist_id:int':
         # insert or update playlist
         con = _query_begin()
         id_ = self.playlist.replace(con, pl_data.get_title(), pl_data.get_path())
