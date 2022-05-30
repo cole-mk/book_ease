@@ -733,7 +733,7 @@ class PlaylistDBI():
             return True
         return False
 
-    def get_by_path(self, pl_data) -> 'PlaylistData':
+    def get_by_path(self, pl_data) -> '[PlaylistData, ...]':
         # get playlists associated with path
         playlists = []
         con = _query_begin()
