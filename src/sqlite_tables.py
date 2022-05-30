@@ -188,7 +188,7 @@ class Playlist:
 
     def replace(self, con, title, path) -> 'id:int':
         # insert or replace a playlist
-        cur.execute("REPLACE INTO playlist(title, path) VALUES (?,?)", (title, path))
+        cur = con.execute("REPLACE INTO playlist(title, path) VALUES (?,?)", (title, path))
         lastrowid = cur.lastrowid
         return lastrowid
 
@@ -216,7 +216,7 @@ class PlTrack:
             """
         con.execute(sql)
 
-    def add(self,con, playlist_id, track_number, track_id) -> 'lastrowid:int':
+    def add(self, con, playlist_id, track_number, track_id) -> 'lastrowid:int':
         # insert track
         sql = """
             INSERT OR IGNORE INTO pl_track(playlist_id, track_number, track_id)
@@ -225,7 +225,7 @@ class PlTrack:
         cur = con.execute(sql, (playlist_id, track_number, track_id))
         return cur.lastrowid
 
-    def null_duplicate_track_number(con, playlist_id, track_number):
+    def null_duplicate_track_number(self, con, playlist_id, track_number):
     # look for what will be a duplicate track_num and change it to NULL
         sql = """
             UPDATE pl_track
@@ -235,7 +235,7 @@ class PlTrack:
             """
         con.execute(sql, (None, playlist_id, track_number))
 
-    def update_track_number_by_id(con, track_number, id_):
+    def update_track_number_by_id(self, con, track_number, id_):
         # update track
         sql = """
             UPDATE pl_track
@@ -244,6 +244,23 @@ class PlTrack:
             """
         con.execute(sql, (track_number, id_))
 
+    def get_ids_by_max_index_or_null(self, con, max_track_number, playlist_id) -> '[sqlite3.row[int], ... ]':
+        # get list of ids that are greater than max_index or set to NULL
+        sql = """
+            SELECT id FROM pl_track
+            WHERE playlist_id = (?)
+            AND (track_number > (?) OR track_number = NULL)
+            """
+        cur = con.execute(sql, (playlist_id, max_track_number))
+        return cur.fetchall()
+
+    def remove_row_by_id(self, con, id_):
+        # remove row from table pl_track that matches id
+        sql = """
+            DELETE FROM pl_track
+            WHERE id = (?)
+            """
+        con.execute(sql(id_))
 
 class PlTrackMetadata:
     """create database table: pl_track_mmetadata"""
@@ -261,11 +278,11 @@ class PlTrackMetadata:
                 pl_track_id    INTEGER REFERENCES pl_track (id)
                                 NOT NULL,
                 entry      TEXT NOT NULL,
-                index      INTEGER,
+                idx      INTEGER,
                 _key      TEXT NOT NULL,
                 UNIQUE (
                     pl_track_id,
-                    ent_index,
+                    idx,
                     _key
                 )
                 ON CONFLICT ROLLBACK
@@ -285,17 +302,17 @@ class PlTrackMetadata:
         # look for what will be a duplicate index and change it to NULL
         sql = """
             UPDATE pl_track_metadata
-            SET index = (?)
-            WHERE index = (?)
+            SET idx = NULL
+            WHERE idx = (?)
             AND pl_track_id = (?)
             AND  _key = (?)
             """
-        con.execute(sql, (None, index, pl_track_id, _key))
+        con.execute(sql, (index, pl_track_id, key))
 
     def add_row(self, con, pl_track_id,  entry, index, key):
         # insert pl_track_metadata entry
         sql = """
-            INSERT INTO pl_track_metadata(pl_track_id, entry, index, key)
+            INSERT INTO pl_track_metadata(pl_track_id, entry, idx, _key)
             VALUES (?,?,?,?)
             """
         cur = con.execute(sql, (pl_track_id, entry, index, key))
@@ -307,22 +324,22 @@ class PlTrackMetadata:
             UPDATE pl_track_metadata
             SET pl_track_id  = (?)
             AND entry = (?)
-            AND index = (?)
-            AND key = (?)
+            AND idx = (?)
+            AND _key = (?)
             WHERE id = (?)
             """
         con.execute(sql, (pl_track_id, entry, index, key, id_))
 
-    def get_ids_by_max_index_or_null(self, con, max_index, pl_track_id, key) -> '[sqlite3.row, ... ]':
+    def get_ids_by_max_index_or_null(self, con, max_index, pl_track_id, key) -> '[sqlite3.row[int], ... ]':
         # Get the id of any row:key that has and index higher than max_index
         # or Null value for index
         sql = """
             SELECT id FROM pl_track_metadata
-            WHERE pl_track_id
-            AND key = (?)
-            AND index > (?)
+            WHERE pl_track_id = (?)
+            AND _key = (?)
+            AND idx > (?)
             """
-        cur = con.execute(sql, (pl_track_id, key, index, key))
+        cur = con.execute(sql, (pl_track_id, key, max_index))
         return cur.fetchall()
 
     def remove_row_by_id(self, con, id_):
