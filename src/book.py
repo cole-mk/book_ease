@@ -158,16 +158,9 @@ class Book(playlist.Playlist, signal_.Signal_):
     def get_cur_pl_list(self):
         return self.playlist_dbi.get_by_path()
 
-    def get_cur_pl_row(self):
-        cur_pl_list = self.get_cur_pl_list()
-        cur_pl_row = None
-        for row in cur_pl_list:
-            if row[self.db.cur_pl_id['col']] == self.playlist_data.get_id():
-                cur_pl_row = row
-                break
-        if cur_pl_row == None:
-            raise KeyError(self.playlist_data.get_id(), 'not found in currently saved playlists associated with this path')
-        return cur_pl_row
+    def get_playlist_data(self) -> 'PlaylistData':
+        # get playlist data attached to this Book instance
+        return self.playlist_data
 
     def get_playlist_id(self):
         """get this book instance's unique id"""
@@ -182,13 +175,25 @@ class Book(playlist.Playlist, signal_.Signal_):
     def set_index(self, index):
         self.index = index
 
-    def book_data_load(self, pl_row):
-        # pl_row is row (tuple) from playlist database table (displayed in BookView)
-        #TODO: get rid of the g_cols
+    def assert_playlist_exists(self, playlist_data):
+        # assert that playlist actually exists before trying to load
+        # raising exception f not found
+        found_playlist = None
+        for pl in self.get_cur_pl_list():
+            if pl.get_id() == playlist_data.get_id():
+                found_playlist = pl
+                break
+        if found_playlist == None:
+            raise KeyError(self.playlist_data.get_id(), 'not found in currently saved playlists associated with this path')
+
+    def book_data_load(self, playlist_data):
+        # load a saved playlist from the database
         self.db.cur_pl_path['col']
-        self.playlist_data.set_title(pl_row[self.db.cur_pl_title['col']])
-        self.playlist_data.set_id(pl_row[self.db.cur_pl_id['col']])
-        self.playlist_data.set_path(pl_row[self.db.cur_pl_path['col']])
+
+        # check that playlist actually exists before trying to load
+        self.assert_playlist_exists(playlist_data)
+        self.playlist_data = playlist_data
+
         track_list = self.db.playlist_get_tracks(self.playlist_data.get_id())
         # move track data from database into internal tracklist
         for i, tr in enumerate(track_list):
