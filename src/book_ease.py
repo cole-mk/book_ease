@@ -533,7 +533,7 @@ class BookReader_:
         self.playlist_file = self.config['book_reader']['playlist_file']
         self.book_reader_dir = self.config['book_reader']['book_reader_dir']
         # playlists database helper
-        self.db = BookReader_DB()
+        self.playlist_dbi = book.PlaylistDBI()
 
         # pinned playlists that will be displayed bookReader_View
         self.pinned_books =  pinned_books.PinnedBooks_C()
@@ -602,8 +602,7 @@ class BookReader_:
         # Do in View: Is there a playlist for the directory open in the bookreader view(is there an open book)
         # deal with the cache complication I created on day 1
         self.cur_path = get_cur_path()
-        self.db.set_cur_pl_list_by_path(self.cur_path)
-        playlists_in_path = self.db.cur_pl_list
+        playlists_in_path = self.playlist_dbi.get_by_path(book.PlaylistData(path=self.cur_path))
         if len(playlists_in_path) > 0:
             self.book_reader_view.on_has_book(has_book=True, playlists_in_path=playlists_in_path)
         else:
