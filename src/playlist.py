@@ -25,22 +25,22 @@ import mutagen
 
 
 class Track:
-    def __init__(self, file_path=None, row_num=None, is_saved=False, pl_row_id=None):
+    def __init__(self, file_path=None, row_num=None, is_saved=False, pl_track_id=None):
         self.metadata = {}
         if file_path is not None:
             self.file_path = file_path
             self._file = file_path.rsplit('/', maxsplit=1).pop()
-            self.metadata['file'] = [TrackMDEntry(id_=pl_row_id, index=0, entry=self._file)]
-            self.metadata['path'] = [TrackMDEntry(id_=pl_row_id, index=0, entry=file_path)]
+            self.metadata['file'] = [TrackMDEntry(id_=pl_track_id, index=0, entry=self._file)]
+            self.metadata['path'] = [TrackMDEntry(id_=pl_track_id, index=0, entry=file_path)]
         self.row_num = row_num
         self.saved = is_saved
-        self.pl_row_id = pl_row_id
+        self.pl_track_id = pl_track_id
 
-    def get_pl_row_id(self) -> 'int or None':
-        return self.pl_row_id
+    def get_pl_track_id(self) -> 'int or None':
+        return self.pl_track_id
 
-    def set_pl_row_id(self, pl_row_id):
-        self.pl_row_id = pl_row_id
+    def set_pl_track_id(self, pl_track_id):
+        self.pl_track_id = pl_track_id
 
     def is_saved(self):
         return self.saved
@@ -120,15 +120,15 @@ class Playlist():
 
     def get_track(self, id_):
         for tr in self.track_list:
-            if tr.get_pl_row_id() == id_:
+            if tr.get_pl_track_id() == id_:
                return tr
-        raise ValueError('track.pl_row_id not found in tracklist')
+        raise ValueError('track.pl_track_id not found in tracklist')
 
     def get_track_alt_entries(self, row, col):
         lst = []
         track = None
         for tr in self.track_list:
-            if tr.get_pl_row_id() == row:
+            if tr.get_pl_track_id() == row:
                track = tr
                break
         if track != None:

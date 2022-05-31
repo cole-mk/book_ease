@@ -107,10 +107,10 @@ pl_file     = {'name':'File',      'col':5,
                'table':'track',    'field':'filename',
                'key':'file',       'alt_keys':[None]}
 
-pl_row_id   = {'name':'pl_row_id',     'col':6,
+pl_track_id   = {'name':'pl_track_id',     'col':6,
                'g_typ':int,            'editable':True ,
                'table':None,           'field':None,
-               'key':'pl_row_id',      'alt_keys':[None]}
+               'key':'pl_track_id',      'alt_keys':[None]}
 
 pl_path      = {'name':'pl_path',  'col':7,
                'g_typ':str,        'editable':False ,
@@ -200,7 +200,7 @@ class Book(playlist.Playlist, signal_.Signal_):
             self.track_list.append(tr)
             # populate track metadata
             for col in metadata_col_list:
-                entry_list = self.track_dbi.get_metadata_list(col['key'], tr.get_pl_row_id())
+                entry_list = self.track_dbi.get_metadata_list(col['key'], tr.get_pl_track_id())
                 tr.set_entry(col['key'], entry_list)
 
         self.saved_playlist = True
@@ -219,7 +219,7 @@ class Book(playlist.Playlist, signal_.Signal_):
             if not f[self.files.is_dir_pos] and self.book_reader.is_media_file(file_path):
                 track = playlist.Track(file_path)
                 track.load_metadata_from_file()
-                track.set_pl_row_id(i)
+                track.set_pl_track_id(i)
                 # do the appending
                 self.track_list.append(track)
                 i+=1
@@ -243,7 +243,7 @@ class Book(playlist.Playlist, signal_.Signal_):
         # find existing track
         e_track = None
         for tr in self.track_list:
-            if tr.get_pl_row_id() == track.get_pl_row_id():
+            if tr.get_pl_track_id() == track.get_pl_track_id():
                 e_track = tr
                 break
         if e_track == None:
@@ -280,17 +280,19 @@ class Book(playlist.Playlist, signal_.Signal_):
             # save the file path that the Track object references
             track_file_id = self.track_dbi.save_track_file(track)
             # save the simple Track instance variables
-            pl_row_id = self.track_dbi.save_pl_track(self.playlist_data.get_id(), track_file_id, track)
-            # update pl_row_id in the Track instance
-            track.set_pl_row_id(pl_row_id)
+            pl_track_id = self.track_dbi.save_pl_track(self.playlist_data.get_id(), track_file_id, track)
+            # update pl_track_id in the Track instance
+            track.set_pl_track_id(pl_track_id)
 
             # save the Track metadata
             for col in metadata_col_list:
                 md_entry_l = track.get_entries(col['key'])
                 for md_entry in md_entry_l:
-                    self.track_dbi.save_track_metadata(md_entry, pl_row_id, col['key'])
+                    self.track_dbi.save_track_metadata(md_entry, pl_track_id, col['key'])
                 # remove deleted entries from database
-                self.track_dbi.remove_deleted_metadata(len(md_entry_l) - 1, pl_row_id, col['key'])
+                self.track_dbi.remove_deleted_metadata(len(md_entry_l) - 1, pl_track_id, col['key'])
+            # set track saved state
+            track.set_saved(True)
         # remove deleted entries from database
         self.track_dbi.remove_deleted_pl_tracks(self.playlist_data.get_id(), len(self.track_list))
         self.saved_playlist = True
@@ -409,13 +411,13 @@ class TrackDBI():
         track_num = track.get_row_num()
         # null pl_track_numbers to avoid duplicates in case they were reordered in the view
         self.pl_track.null_duplicate_track_number(con, playlist_id, track_num)
-        pl_row_id = self.pl_track.add(con, playlist_id, track_num, track_file_id)
-        if pl_row_id == 0:
+        pl_track_id = self.pl_track.add(con, playlist_id, track_num, track_file_id)
+        if pl_track_id == 0:
             # track already exists, update playlist track numbers
-            pl_row_id = track.get_id()
-            self.pl_track.update_track_number_by_id(con, track_number, pl_row_id)
+            pl_track_id = track.get_pl_track_id()
+            self.pl_track.update_track_number_by_id(con, track_number, pl_track_id)
         _query_end(con)
-        return pl_row_id
+        return pl_track_id
 
     def save_track_metadata(self, md_entry, pl_track_id, key):
         # save a TrackMDEntry instance to database
@@ -468,7 +470,7 @@ class TrackDBI():
             path = self.track_file.get_row_by_id(con, tr['track_id'])['path']
             track = playlist.Track(file_path=path)
             track.set_row_num(tr['track_number'])
-            track.set_pl_row_id(tr['playlist_id'])
+            track.set_pl_track_id(tr['playlist_id'])
             track_list.append(track)
         _query_end(con)
         return track_list
