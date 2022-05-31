@@ -27,6 +27,7 @@ import sqlite3
 import re
 import os
 import sqlite_tables
+import mutagen
 
 
 # module wide db connection for multi queries
@@ -217,8 +218,9 @@ class Book(playlist.Playlist, signal_.Signal_):
             # populate playlist data
             file_path = os.path.join(self.playlist_data.get_path(), f[1])
             if not f[self.files.is_dir_pos] and self.book_reader.is_media_file(file_path):
-                track = playlist.Track(file_path)
-                track.load_metadata_from_file()
+                track = TrackFI.get_track(file_path)
+                #track = playlist.Track(file_path)
+                #track.load_metadata_from_file()
                 track.set_pl_track_id(i)
                 # do the appending
                 self.track_list.append(track)
@@ -486,4 +488,44 @@ class TrackDBI():
             md_entry.set_entry(row['entry'])
             md_list.append(md_entry)
         return md_list
+
+
+class TrackFI:
+    """
+    Track File Interface
+    factory class to populate Track objects with data pulled from audio files
+    """
+
+    def __init__(self):
+        pass
+
+    def get_track(path) -> 'Track':
+        """create and return a track populated with file data and metadata"""
+        track = playlist.Track(file_path=path)
+        # populate Track.metadata
+        TrackFI.load_metadata(track)
+        return track
+
+    def format_track_num(track) -> 'track_num:str':
+        """
+        remove denominator from track numbers
+        that are given in the metadata as fractionals
+        eg 1/12
+        """
+        return track.split('/')[0]
+
+    def load_metadata(track):
+        """load passed in Track instance with media file metadata"""
+        metadata = mutagen.File(track.get_file_path(), easy=True)
+        for key in metadata:
+            md_entry_list = []
+            if key == 'tracknumber':
+                for i, v in enumerate(metadata[key]):
+                    md_entry = playlist.TrackMDEntry(index=i, entry=TrackFI.format_track_num(v))
+                    md_entry_list.append(md_entry)
+            else:
+                for i, v in enumerate(metadata[key]):
+                    md_entry = playlist.TrackMDEntry(index=i, entry=v)
+                    md_entry_list.append(md_entry)
+            track.set_entry(key, md_entry_list)
 
