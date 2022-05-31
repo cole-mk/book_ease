@@ -156,7 +156,7 @@ class Book(playlist.Playlist, signal_.Signal_):
 
     # get list of playlists associated with current path
     def get_cur_pl_list(self):
-        return self.playlist_dbi.get_by_path()
+        return self.playlist_dbi.get_by_path(self.playlist_data)
 
     def get_playlist_data(self) -> 'PlaylistData':
         # get playlist data attached to this Book instance
@@ -188,29 +188,21 @@ class Book(playlist.Playlist, signal_.Signal_):
 
     def book_data_load(self, playlist_data):
         # load a saved playlist from the database
-        self.db.cur_pl_path['col']
 
         # check that playlist actually exists before trying to load
         self.assert_playlist_exists(playlist_data)
         self.playlist_data = playlist_data
 
-        track_list = self.db.playlist_get_tracks(self.playlist_data.get_id())
-        # move track data from database into internal tracklist
-        for i, tr in enumerate(track_list):
-            file_path = self.db.track_get_path(tr['track_id'])
-            track = playlist.Track(file_path)
-            track.set_pl_row_id(tr['id'])
-            track.set_saved(True)
-            track.set_row_num(tr['track_number'])
-            self.track_list.append(track)
-            # move the track attributes(metadata) from db to tracklist
+        # retrieve a list of tracks belonging to this playlist
+        # edit those tracks and append them to self.track_list
+        for tr in self.track_dbi.get_track_list_by_pl_id(self.playlist_data.get_id()):
+            tr.set_saved(True)
+            self.track_list.append(tr)
+            # populate track metadata
             for col in metadata_col_list:
-                entries = self.db.track_metadata_get(tr['id'], col['key'])
-                tr_entries_list = []
-                for entry in entries:
-                    tr_entries_list.append(entry['entry'])
-                track.set_entry(col['key'], tr_entries_list)
-        # playlist is now a saved playlist
+                entry_list = self.track_dbi.get_metadata_list(col['key'], tr.get_pl_row_id())
+                tr.set_entry(col['key'], entry_list)
+
         self.saved_playlist = True
         # sort playlist by  row_num
         self.track_list_sort_row_num()
@@ -262,24 +254,24 @@ class Book(playlist.Playlist, signal_.Signal_):
             [e_track.set_entry(key, track.get_entries(key)) for key in track.get_key_list()]
             e_track.set_row_num(track.get_row_num())
 
-    def get_unique_playlist_title(self, playlist_data) -> 'title:str':
-        # add a incremented suffix to playlist title if there are duplicates
-        title = playlist_data.get_title()
+    def set_unique_playlist_title(self, playlist_data) -> 'title:str':
+        # add a incremented suffix to self.playlist_data.title if there are duplicates
         suffix = ''
         ct = 1
         while self.playlist_dbi.count_duplicates(playlist_data) > 0:
-            title = title.rstrip(suffix)
+            title = playlist_data.get_title().rstrip(suffix)
             suffix = '_' + str(ct)
-            title = title + suffix
+            playlist_data.set_title(title + suffix)
             ct += 1
-        return title
+        return playlist_data
 
 
     def save(self, title):
+        self.playlist_data.set_title(title)
         # start a semi-persistent database connection
         multi_query_begin()
         # add suffix to book title to ensure uniqueness
-        self.playlist_data.set_title(self.get_unique_playlist_title(self.playlist_data))
+        self.set_unique_playlist_title(self.playlist_data)
         # save playlist title, storing new id in self.playlist_data
         self.playlist_data.set_id(self.playlist_dbi.save(self.playlist_data))
 
@@ -736,7 +728,7 @@ class PlaylistDBI():
             return True
         return False
 
-    def get_by_path(self, pl_data) -> 'PlaylistData':
+    def get_by_path(self, pl_data) -> '[PlaylistData, ...]':
         # get playlists associated with path
         playlists = []
         con = _query_begin()
@@ -752,7 +744,11 @@ class PlaylistDBI():
     def save(self, pl_data) -> 'playlist_id:int':
         # insert or update playlist
         con = _query_begin()
-        id_ = self.playlist.replace(con, pl_data.get_title(), pl_data.get_path())
+        id_ = pl_data.get_id()
+        if self.playlist.get_row(con, id_) is None:
+            id_ = self.playlist.insert(con, pl_data.get_title(), pl_data.get_path())
+        else:
+            self.playlist.update(con, pl_data.get_title(), pl_data.get_path(), id_)
         _query_end(con)
         return id_
 
@@ -806,7 +802,7 @@ class TrackDBI():
             # track_file already exists, get id
             # id for file currently does not need to be saved to Track() object
             # as the lookup is simple and its only used here in this class
-            track_file_id = self.track_file.get_id_by_path(con, track.get_file_path())
+            track_file_id = self.track_file.get_id_by_path(con, track.get_file_path())['id']
         _query_end(con)
         return track_file_id
 
@@ -841,7 +837,7 @@ class TrackDBI():
             id_ = self.pl_track_metadata.add_row(con, pl_track_id, entry, index, key)
         else:
             # only update if there is an actual change
-            if e_entry['index'] != index:
+            if e_entry['idx'] != index:
                 # rotate indices and update row in table
                 self.pl_track_metadata.null_duplicate_indices(con, pl_track_id, index, key)
                 self.pl_track_metadata.update_row(con, id_, entry, index, key)
@@ -863,7 +859,35 @@ class TrackDBI():
         # pl_track.track_number entries are a one based index
         con = _query_begin()
         id_list = self.pl_track.get_ids_by_max_index_or_null(con, max_index, playlist_id)
-        print('remove_deleted_pl_tracks', id_list)
         [self.pl_track.remove_row_by_id(con, row['id']) for row in id_list]
         _query_end(con)
+
+    def get_track_list_by_pl_id(self, playlist_id) -> 'playlist.Track':
+        # create list of Track objects
+        track_list = []
+        con = _query_begin()
+        # create Track instances and populate the simple instance variables
+        for tr in self.pl_track.get_rows_by_playlist_id(con, playlist_id):
+            path = self.track_file.get_row_by_id(con, tr['track_id'])['path']
+            track = playlist.Track(file_path=path)
+            track.set_row_num(tr['track_number'])
+            track.set_pl_row_id(tr['playlist_id'])
+            track_list.append(track)
+        _query_end(con)
+        return track_list
+
+    def get_metadata_list(self, key, pl_track_id):
+        # create a list of TrackMDEntry by searching for pl_track_id
+        md_list = []
+        con = _query_begin()
+
+        # find an existing entry that matches pl_track_id
+        entry_l = self.pl_track_metadata.get_rows(con, key, pl_track_id)
+        for row in entry_l:
+            md_entry = playlist.TrackMDEntry()
+            md_entry.set_id(row['id'])
+            md_entry.set_index(row['idx'])
+            md_entry.set_entry(row['entry'])
+            md_list.append(md_entry)
+        return md_list
 

@@ -365,9 +365,9 @@ class BookReader_View:
         self.book_reader = book_reader
 
         # add gui keys to helpers for accessing playlist data stored in db
-        self.cur_pl_id = {'col':0, 'col_name':'id', 'g_typ':int, 'g_col':0}
-        self.cur_pl_title  = {'col':1, 'col_name':'title', 'g_typ':str, 'g_col':1}
-        self.cur_pl_path  = {'col':2, 'col_name':'path', 'g_typ':str, 'g_col':2}
+        self.cur_pl_id = {'col':0, 'col_name':'id', 'g_type':int, 'g_col':0}
+        self.cur_pl_title  = {'col':1, 'col_name':'title', 'g_type':str, 'g_col':1}
+        self.cur_pl_path  = {'col':2, 'col_name':'path', 'g_type':str, 'g_col':2}
         self.cur_pl_helper_l = [self.cur_pl_id, self.cur_pl_title, self.cur_pl_path]
         self.cur_pl_helper_l.sort(key=lambda col: col['col'])
 
@@ -446,10 +446,10 @@ class BookReader_View:
                     cols = map(lambda x: x['col'], self.cur_pl_helper_l)
                     pl_row = model.get(itr, *cols)
                     # extract playlist data from row
-                    playlist_data = playlistData()
-                    playlist_data.set_id(pl_row[self.cur_pl_id['col'])
-                    playlist_data.set_path(pl_row[self.cur_pl_path['col'])
-                    playlist_data.set_title(pl_row[self.cur_pl_title['col'])
+                    playlist_data = book.PlaylistData()
+                    playlist_data.set_id(pl_row[self.cur_pl_id['col']])
+                    playlist_data.set_path(pl_row[self.cur_pl_path['col']])
+                    playlist_data.set_title(pl_row[self.cur_pl_title['col']])
                     self.book_reader.open_existing_book(playlist_data)
 
     def on_has_new_media(self, has_new_media, user_data=None):
@@ -467,9 +467,9 @@ class BookReader_View:
         if  has_book:
             for playlst_data in playlists_in_path:
                 itr = model.append()
-                model.set_value(itr, self.cur_pl_id, playlst_data.get_id())
-                model.set_value(itr, self.cur_pl_title, playlst_data.get_title())
-                model.set_value(itr, self.cur_pl_path, playlst_data.get_path())
+                model.set_value(itr, self.cur_pl_id['col'], playlst_data.get_id())
+                model.set_value(itr, self.cur_pl_title['col'], playlst_data.get_title())
+                model.set_value(itr, self.cur_pl_path['col'], playlst_data.get_path())
             # display option to open existing playlist
             self.has_book_box.set_no_show_all(False)
             self.has_book_box.show_all()
@@ -628,7 +628,7 @@ class BookReader_:
         book_view = BookView.Book_View(bk, self)
         bk.connect('book_data_loaded', book_view.on_book_data_ready_th, is_sorted=True)
         bk.connect('book_saved', book_view.book_data_load_th)
-        bk.page = self.book_reader_view.append_book(book_view, bk.title)
+        bk.page = self.book_reader_view.append_book(book_view, bk.playlist_data.get_title())
         # load the playlist metadata in background
         #load_book_data_th = Thread(target=bk.book_data_load, args={row})
         #load_book_data_th.setDaemon(True)

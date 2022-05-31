@@ -192,6 +192,24 @@ class Playlist:
         lastrowid = cur.lastrowid
         return lastrowid
 
+    def insert(self, con, title, path) -> 'lastrowid:int':
+        sql = """
+            INSERT INTO playlist(title, path)
+            VALUES (?,?)
+            """
+        cur = con.execute(sql,(title, path))
+        return cur.lastrowid
+
+    def update(self, con, title, path, id_):
+        sql = """
+            UPDATE playlist
+            SET title = ?,
+                path = ?
+            WHERE id = ?
+            """
+        con.execute(sql, (title, path, id_))
+
+
 
 class PlTrack:
     """database accessor for table pl_track"""
@@ -260,7 +278,16 @@ class PlTrack:
             DELETE FROM pl_track
             WHERE id = (?)
             """
-        con.execute(sql(id_))
+        con.execute(sql, (id_,))
+
+    def get_rows_by_playlist_id(self, con, playlist_id):
+        # get all rows that match playlist_id
+        sql = """
+            SELECT * FROM pl_track
+            where playlist_id = (?)
+            """
+        cur = con.execute(sql, (playlist_id,))
+        return cur.fetchall()
 
 class PlTrackMetadata:
     """create database table: pl_track_mmetadata"""
@@ -297,6 +324,16 @@ class PlTrackMetadata:
             """
         cur = con.execute(sql, (id_,))
         return cur.fetchone()
+
+    def get_rows(self, con, key, pl_track_id):
+        sql = """
+            SELECT * FROM pl_track_metadata
+            WHERE _key = (?)
+            AND pl_track_id = (?)
+            """
+        cur = con.execute(sql, (key, pl_track_id))
+        return cur.fetchall()
+
 
     def null_duplicate_indices(self, con, pl_track_id, index, key):
         # look for what will be a duplicate index and change it to NULL
@@ -391,7 +428,7 @@ class TrackFile:
 
     def get_row_by_id(self, con, id_):
         sql = """
-            SELECT path FROM track_file
+            SELECT * FROM track_file
             WHERE id = (?)
             """
         cur = con.execute(sql, (id_,))
