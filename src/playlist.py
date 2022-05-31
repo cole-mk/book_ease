@@ -21,8 +21,6 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 
-import mutagen
-
 
 class Track:
     def __init__(self, file_path=None, number=None, is_saved=False, pl_track_id=None):
@@ -60,20 +58,6 @@ class Track:
             key_list.append(key)
         return key_list
 
-    def load_metadata_from_file(self):
-        metadata = mutagen.File(self.file_path, easy=True)
-        for key in metadata:
-            md_entry_list = []
-            if key == 'tracknumber':
-                for i, v in enumerate(metadata[key]):
-                    md_entry = TrackMDEntry(index=i, entry=self.format_track_num(v))
-                    md_entry_list.append(md_entry)
-            else:
-                for i, v in enumerate(metadata[key]):
-                    md_entry = TrackMDEntry(index=i, entry=v)
-                    md_entry_list.append(md_entry)
-            self.metadata[key] = md_entry_list
-
     def set_entry(self, key, entries):
         if type(entries) is not list:
             raise TypeError ( entries, 'is not a list' )
@@ -95,9 +79,6 @@ class Track:
 
     def get_file_path(self):
         return self.file_path
-
-    def format_track_num(self, track):
-        return track.split('/')[0]
 
 
 class Playlist():
