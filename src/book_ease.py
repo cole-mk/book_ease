@@ -365,12 +365,11 @@ class BookReader_View:
         self.book_reader = book_reader
 
         # add gui keys to helpers for accessing playlist data stored in db
-        self.book_reader.db.cur_pl_id['g_typ'] = int
-        self.book_reader.db.cur_pl_id['g_col'] = 0
-        self.book_reader.db.cur_pl_title['g_typ'] = str
-        self.book_reader.db.cur_pl_title['g_col'] = 1
-        self.book_reader.db.cur_pl_path['g_typ'] = str
-        self.book_reader.db.cur_pl_path['g_col'] = 2
+        self.cur_pl_id = {'col':0, 'col_name':'id', 'g_typ':int, 'g_col':0}
+        self.cur_pl_title  = {'col':1, 'col_name':'title', 'g_typ':str, 'g_col':1}
+        self.cur_pl_path  = {'col':2, 'col_name':'path', 'g_typ':str, 'g_col':2}
+        self.cur_pl_helper_l = [self.cur_pl_id, self.cur_pl_title, self.cur_pl_path]
+        self.cur_pl_helper_l.sort(key=lambda col: col['col'])
 
         self.outer_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
 
@@ -404,14 +403,17 @@ class BookReader_View:
         #self.open_book_btn.show()
         self.has_book_box.pack_start(self.open_book_btn, expand=False, fill=False, padding=0)
         self.has_book_box.set_child_packing(child=self.open_book_btn, expand=False, fill=False, padding=0, pack_type=Gtk.PackType.END)
-        self.cur_pl_list = Gtk.ListStore(self.book_reader.db.cur_pl_id['g_typ'],
-                                         self.book_reader.db.cur_pl_title['g_typ'],
-                                         self.book_reader.db.cur_pl_path['g_typ'])
+
+        # extract list of g_types from self.cur_pl_helper_l that was previously sorted by col number
+        # use list to initialize self.cur_pl_list, our model for displayling
+        # all playlists associated ith the current path
+        g_types = map(lambda x: x['g_type'], self.cur_pl_helper_l)
+        self.cur_pl_list = Gtk.ListStore(*g_types)
 
         self.has_book_combo = Gtk.ComboBox.new_with_model(self.cur_pl_list)
         renderer_text = Gtk.CellRendererText()
         self.has_book_combo.pack_start(renderer_text, True)
-        self.has_book_combo.add_attribute(renderer_text, "text", self.book_reader.db.cur_pl_title['g_col'])
+        self.has_book_combo.add_attribute(renderer_text, "text", self.cur_pl_title['g_col'])
         self.has_book_combo.set_active(0)
         self.has_book_box.pack_start(self.has_book_combo, expand=False, fill=False, padding=0)
         self.has_book_box.set_child_packing(child=self.has_book_combo, expand=False, fill=False, padding=0, pack_type=Gtk.PackType.END)
@@ -440,9 +442,15 @@ class BookReader_View:
                     model = self.has_book_combo.get_model()
                     sel = self.has_book_combo.get_active()
                     itr = model.get_iter((sel,))
-                    cols = map(lambda x: x['col'], self.book_reader.db.cur_pl_helper_l)
+                    # get entire row from model
+                    cols = map(lambda x: x['col'], self.cur_pl_helper_l)
                     pl_row = model.get(itr, *cols)
-                    self.book_reader.open_existing_book(pl_row)
+                    # extract playlist data from row
+                    playlist_data = playlistData()
+                    playlist_data.set_id(pl_row[self.cur_pl_id['col'])
+                    playlist_data.set_path(pl_row[self.cur_pl_path['col'])
+                    playlist_data.set_title(pl_row[self.cur_pl_title['col'])
+                    self.book_reader.open_existing_book(playlist_data)
 
     def on_has_new_media(self, has_new_media, user_data=None):
         if has_new_media:
@@ -457,9 +465,11 @@ class BookReader_View:
         model = self.has_book_combo.get_model()
         model.clear()
         if  has_book:
-            for row in playlists_in_path:
-                col = self.book_reader.db.cur_pl_title['col']
-                model.append(tuple(row))
+            for playlst_data in playlists_in_path:
+                itr = model.append()
+                model.set_value(itr, self.cur_pl_id, playlst_data.get_id())
+                model.set_value(itr, self.cur_pl_title, playlst_data.get_title())
+                model.set_value(itr, self.cur_pl_path, playlst_data.get_path())
             # display option to open existing playlist
             self.has_book_box.set_no_show_all(False)
             self.has_book_box.show_all()
