@@ -25,15 +25,22 @@ import mutagen
 
 
 class Track:
-    def __init__(self, file_path=None, row_num=None, is_saved=False):
-        self.track_data = {}
+    def __init__(self, file_path=None, row_num=None, is_saved=False, pl_row_id=None):
+        self.metadata = {}
         if file_path is not None:
             self.file_path = file_path
             self._file = file_path.rsplit('/', maxsplit=1).pop()
-            self.track_data['file'] = [self._file]
-            self.track_data['path'] = [file_path]
+            self.metadata['file'] = [TrackMDEntry(id_=pl_row_id, index=0, entry=self._file)]
+            self.metadata['path'] = [TrackMDEntry(id_=pl_row_id, index=0, entry=file_path)]
         self.row_num = row_num
         self.saved = is_saved
+        self.pl_row_id = pl_row_id
+
+    def get_pl_row_id(self) -> 'int or None':
+        return self.pl_row_id
+
+    def set_pl_row_id(self, pl_row_id):
+        self.pl_row_id = pl_row_id
 
     def is_saved(self):
         return self.saved
@@ -46,37 +53,43 @@ class Track:
 
     def get_row_num(self):
         return self.row_num
-    
+
     def get_key_list(self):
         key_list = []
-        for key in self.track_data:
+        for key in self.metadata:
             key_list.append(key)
         return key_list
-    
+
     def load_metadata_from_file(self):
         metadata = mutagen.File(self.file_path, easy=True)
         for key in metadata:
+            md_entry_list = []
             if key == 'tracknumber':
-                entry_list_f = []
-                for entry in metadata[key]:
-                    entry_list_f.append(self.format_track_num(entry))
-                self.track_data[key] = entry_list_f
+                for i, v in enumerate(metadata[key]):
+                    md_entry = TrackMDEntry(index=i, entry=self.format_track_num(v))
+                    md_entry_list.append(md_entry)
             else:
-                self.track_data[key] = metadata[key]     
+                for i, v in enumerate(metadata[key]):
+                    md_entry = TrackMDEntry(index=i, entry=v)
+                    md_entry_list.append(md_entry)
+            self.metadata[key] = md_entry_list
 
     def set_entry(self, key, entries):
         if type(entries) is not list:
             raise TypeError ( entries, 'is not a list' )
-        self.track_data[key] = entries
-        
-            
+        for v in entries:
+            if type(v) is not TrackMDEntry:
+                raise TypeError ( entries, 'is not a TrackMDEntry' )
+        self.metadata[key] = entries
+
     def get_entries(self, key):
-        # return a list of all the entries in trackdata[key]
+        # return a list of all the entries in trackdata[key] sorted by index
         entries = []
-        if key is not None and key in self.track_data:
-            [entries.append(entry) for entry in self.track_data[key] if entry is not None]
+        if key is not None and key in self.metadata:
+            [entries.append(entry) for entry in self.metadata[key] if entry is not None]
+        entries.sort(key=lambda entry: entry.get_index())
         return entries
-        
+
     def get_file_name(self):
         return self._file
 
@@ -88,7 +101,7 @@ class Track:
 
 
 class Playlist():
-    
+
     def __init__(self):
         self.track_list = []
         self.saved_playlist = False
@@ -105,22 +118,17 @@ class Playlist():
     def get_track_list(self):
         return self.track_list
 
-    def get_track_entries(self, row, col):
-        track = None
-        entries = []
+    def get_track(self, id_):
         for tr in self.track_list:
-            if tr.get_entries(self.pl_row_id['key'])[0] == row:
-               track = tr
-               break
-        if track:
-            entries = track.get_entries(col['key'])
-        return entries
+            if tr.get_pl_row_id() == id_:
+               return tr
+        raise ValueError('track.pl_row_id not found in tracklist')
 
     def get_track_alt_entries(self, row, col):
         lst = []
         track = None
         for tr in self.track_list:
-            if tr.get_entries(self.pl_row_id['key'])[0] == row:
+            if tr.get_pl_row_id() == row:
                track = tr
                break
         if track != None:
@@ -132,13 +140,38 @@ class Playlist():
         self.track_list.sort(key=lambda row: row.row_num)
 
 class Track_Edit(Track):
-    
+
     def __init__(self, col_info):
         super().__init__()
         # The description column(python map obj) created in the book obj
         self.col_info = col_info
 
 
+class TrackMDEntry:
+    # this container is the value in a key value pair
+    # sotred inside Track.metadata
 
+    def __init__(self,  id_=None, index=None, entry=None):
+        self.id_ = id_
+        self.index = index
+        self.entry = entry
+
+    def get_id(self):
+        return self.id_
+
+    def set_id(self, id_):
+        self.id_ = id_
+
+    def get_index(self):
+        return self.index
+
+    def set_index(self, index):
+        self.index = index
+
+    def get_entry(self):
+        return self.entry
+
+    def set_entry(self, entry):
+        self.entry = entry
 
 

@@ -38,58 +38,15 @@ def create_connection():
     return con
 
 
-class _SqliteDB:
-    """
-    Database accessor base class:
-    stores the common database path information
-
-    Note: all exceptions are to be propogated to an upper layer
-        except for init_table, usually called from __init__
-        in the child class
-    """
-
+class PinnedPlaylists:
+    """database accessor for table pinned_playlists"""
     def __init__(self):
-        """
-        initialize the DB class by setting the db file
-        create list to store playlists stored in the "pwd"
-        """
-        # create the database table used by child class
-        con = create_connection()
-        try:
-            with con:
-                self.init_table(con)
-        except sqlite3.OperationalError:
-            # table already exists
-            pass
-        con.close()
-
-
-    def init_table(self):
-        """
-        routine to initialize database tables
-        This is an informal interface implemented
-        as a pass function in this base class
-        """
-        pass
-
-
-class PinnedPlaylists(_SqliteDB):
-    """
-    database accessor for table pinned_playlists
-
-    init_table(self, con)
-        create database table: pinned_playlists
-
-    get_pinned_playlists(self, con=None):
-        retreive entire list of pinned playlists returning sqlite3 row object
-    """
-    def __init__(self):
-        _SqliteDB.__init__(self)
+        self.init_table(create_connection())
 
     def init_table(self, con):
         """create database table: pinned_playlists"""
         sql = """
-                CREATE TABLE pinned_playlists (
+                CREATE TABLE IF NOT EXISTS pinned_playlists (
                     id INTEGER PRIMARY KEY ON CONFLICT ROLLBACK AUTOINCREMENT NOT NULL,
                     playlist_id  INTEGER REFERENCES playlist (id)  ON DELETE CASCADE
                                          UNIQUE ON CONFLICT ROLLBACK NOT NULL
@@ -148,24 +105,16 @@ class PinnedPlaylists(_SqliteDB):
         cur = con.execute(sql, (playlist_id,))
 
 
-class Playlist(_SqliteDB):
-    """
-    database accessor for table playlist
-
-    init_table(self, con)
-        create database table: playlist
-
-    get_title_by_id(self, id_, con)
-        search for playlist title by id
-    """
+class Playlist:
+    # database accessor for table playlist
 
     def __init__(self):
-        _SqliteDB.__init__(self)
+        self.init_table(create_connection())
 
     def init_table(self, con):
-        """create database table: playlist"""
+        #create database table: playlist
         sql = '''
-                CREATE TABLE playlist (
+                CREATE TABLE IF NOT EXISTS playlist (
                     id INTEGER PRIMARY KEY ON CONFLICT ROLLBACK AUTOINCREMENT NOT NULL,
                     title       TEXT NOT NULL,
                     path        TEXT NOT NULL,
@@ -178,11 +127,8 @@ class Playlist(_SqliteDB):
                 '''
         con.execute(sql)
 
-    def get_rows(self, con, playlist_ids):
-        """
-        search for playlists by list of ids
-        return all rows encapsulated in sqlite row objects
-        """
+    def get_rows(self, con, playlist_ids) -> 'list of sqlite3.row':
+        # search for playlists by list of ids
         rows = []
         sql = """
             SELECT * FROM playlist
@@ -194,11 +140,8 @@ class Playlist(_SqliteDB):
             rows.append(row)
         return rows
 
-    def get_row(self, con, id_):
-        """
-        search for playlist by id
-        return entire row encapsulated in sqlite row object
-        """
+    def get_row(self, con, id_) -> 'sqlite3.row':
+        # search for playlist by id
         sql = """
             SELECT * FROM playlist
             WHERE id = (?)
@@ -207,11 +150,19 @@ class Playlist(_SqliteDB):
         row = cur.fetchone()
         return row
 
-    def get_title_by_id(self, id_, con):
-        """
-        search for playlist title by id
-        return title encapsulated in sqlite row
-        """
+    def get_rows_by_path(self, con, path) -> 'list of sqlite3.row':
+        # search for playlists by path
+        rows = []
+        sql = """
+            SELECT * FROM playlist
+            WHERE path = (?)
+            """
+        cur = con.execute(sql, (path,))
+        [rows.append(row) for row in cur.fetchall()]
+        return rows
+
+    def get_title_by_id(self, id_, con) -> 'sqlite3.row':
+        # search for playlist title by id
         sql = '''
             SELECT title FROM playlists
             WHERE id = (?)
@@ -220,17 +171,56 @@ class Playlist(_SqliteDB):
         row = cur.fetchone()
         return row
 
+    def count_duplicates(self, title, path, playlist_id, con) -> 'sqlite3.row':
+        #get a count of the number of playlist titles associated with this path
+        #that have the same title, but exclude playlist_id from the list
+        if playlist_id == None:
+            playlist_id = 'NULL'
 
-class PlTrack(_SqliteDB):
+        sql = """
+            SELECT COUNT(*) FROM playlist
+            WHERE title = (?)
+            AND path = (?)
+            AND id != (?)
+            """
+        cur = con.execute(sql, (title, path, playlist_id))
+        return cur.fetchone()
+
+    def replace(self, con, title, path) -> 'id:int':
+        # insert or replace a playlist
+        cur = con.execute("REPLACE INTO playlist(title, path) VALUES (?,?)", (title, path))
+        lastrowid = cur.lastrowid
+        return lastrowid
+
+    def insert(self, con, title, path) -> 'lastrowid:int':
+        sql = """
+            INSERT INTO playlist(title, path)
+            VALUES (?,?)
+            """
+        cur = con.execute(sql,(title, path))
+        return cur.lastrowid
+
+    def update(self, con, title, path, id_):
+        sql = """
+            UPDATE playlist
+            SET title = ?,
+                path = ?
+            WHERE id = ?
+            """
+        con.execute(sql, (title, path, id_))
+
+
+
+class PlTrack:
     """database accessor for table pl_track"""
 
     def __init__(self):
-        _SqliteDB.__init__(self)
+        self.init_table(create_connection())
 
     def init_table(self, con):
         """create database table: pl_track"""
         sql = """
-            CREATE TABLE pl_track (
+            CREATE TABLE IF NOT EXISTS pl_track (
                 id INTEGER PRIMARY KEY ON CONFLICT ROLLBACK AUTOINCREMENT NOT NULL,
                 playlist_id  INTEGER REFERENCES playlist (id)
                                     NOT NULL,
@@ -244,27 +234,82 @@ class PlTrack(_SqliteDB):
             """
         con.execute(sql)
 
-class PlTrackMetadata(_SqliteDB):
+    def add(self, con, playlist_id, track_number, track_id) -> 'lastrowid:int':
+        # insert track
+        sql = """
+            INSERT OR IGNORE INTO pl_track(playlist_id, track_number, track_id)
+            VALUES (?,?,?)
+            """
+        cur = con.execute(sql, (playlist_id, track_number, track_id))
+        return cur.lastrowid
+
+    def null_duplicate_track_number(self, con, playlist_id, track_number):
+    # look for what will be a duplicate track_num and change it to NULL
+        sql = """
+            UPDATE pl_track
+            SET track_number = (?)
+            WHERE playlist_id = (?)
+            AND  track_number = (?)
+            """
+        con.execute(sql, (None, playlist_id, track_number))
+
+    def update_track_number_by_id(self, con, track_number, id_):
+        # update track
+        sql = """
+            UPDATE pl_track
+            SET track_number = (?)
+            WHERE id = (?)
+            """
+        con.execute(sql, (track_number, id_))
+
+    def get_ids_by_max_index_or_null(self, con, max_track_number, playlist_id) -> '[sqlite3.row[int], ... ]':
+        # get list of ids that are greater than max_index or set to NULL
+        sql = """
+            SELECT id FROM pl_track
+            WHERE playlist_id = (?)
+            AND (track_number > (?) OR track_number = NULL)
+            """
+        cur = con.execute(sql, (playlist_id, max_track_number))
+        return cur.fetchall()
+
+    def remove_row_by_id(self, con, id_):
+        # remove row from table pl_track that matches id
+        sql = """
+            DELETE FROM pl_track
+            WHERE id = (?)
+            """
+        con.execute(sql, (id_,))
+
+    def get_rows_by_playlist_id(self, con, playlist_id):
+        # get all rows that match playlist_id
+        sql = """
+            SELECT * FROM pl_track
+            where playlist_id = (?)
+            """
+        cur = con.execute(sql, (playlist_id,))
+        return cur.fetchall()
+
+class PlTrackMetadata:
     """create database table: pl_track_mmetadata"""
 
     def __init__(self):
-        _SqliteDB.__init__(self)
+        self.init_table(create_connection())
 
     def init_table(self, con):
         """create database table: pl_track_metadata"""
         sql = """
-            CREATE TABLE  pl_track_metadata (
+            CREATE TABLE IF NOT EXISTS pl_track_metadata (
                 id          INTEGER PRIMARY KEY ON CONFLICT ROLLBACK AUTOINCREMENT
                                 UNIQUE
                                 NOT NULL,
                 pl_track_id    INTEGER REFERENCES pl_track (id)
                                 NOT NULL,
                 entry      TEXT NOT NULL,
-                ent_index      INTEGER NOT NULL,
+                idx      INTEGER,
                 _key      TEXT NOT NULL,
                 UNIQUE (
                     pl_track_id,
-                    ent_index,
+                    idx,
                     _key
                 )
                 ON CONFLICT ROLLBACK
@@ -272,39 +317,110 @@ class PlTrackMetadata(_SqliteDB):
             """
         con.execute(sql)
 
+    def get_row_by_id(self, con, id_):
+        sql = """
+            SELECT * FROM pl_track_metadata
+            WHERE id = (?)
+            """
+        cur = con.execute(sql, (id_,))
+        return cur.fetchone()
 
-class Track(_SqliteDB):
+    def get_rows(self, con, key, pl_track_id):
+        sql = """
+            SELECT * FROM pl_track_metadata
+            WHERE _key = (?)
+            AND pl_track_id = (?)
+            """
+        cur = con.execute(sql, (key, pl_track_id))
+        return cur.fetchall()
+
+
+    def null_duplicate_indices(self, con, pl_track_id, index, key):
+        # look for what will be a duplicate index and change it to NULL
+        sql = """
+            UPDATE pl_track_metadata
+            SET idx = NULL
+            WHERE idx = (?)
+            AND pl_track_id = (?)
+            AND  _key = (?)
+            """
+        con.execute(sql, (index, pl_track_id, key))
+
+    def add_row(self, con, pl_track_id,  entry, index, key):
+        # insert pl_track_metadata entry
+        sql = """
+            INSERT INTO pl_track_metadata(pl_track_id, entry, idx, _key)
+            VALUES (?,?,?,?)
+            """
+        cur = con.execute(sql, (pl_track_id, entry, index, key))
+        return cur.lastrowid
+
+    def update_row(self, con, id_, entry, index, key):
+        # update pl_track_metadata entry
+        sql = """
+            UPDATE pl_track_metadata
+            SET pl_track_id  = (?)
+            AND entry = (?)
+            AND idx = (?)
+            AND _key = (?)
+            WHERE id = (?)
+            """
+        con.execute(sql, (pl_track_id, entry, index, key, id_))
+
+    def get_ids_by_max_index_or_null(self, con, max_index, pl_track_id, key) -> '[sqlite3.row[int], ... ]':
+        # Get the id of any row:key that has and index higher than max_index
+        # or Null value for index
+        sql = """
+            SELECT id FROM pl_track_metadata
+            WHERE pl_track_id = (?)
+            AND _key = (?)
+            AND idx > (?)
+            """
+        cur = con.execute(sql, (pl_track_id, key, max_index))
+        return cur.fetchall()
+
+    def remove_row_by_id(self, con, id_):
+        # Delete row with matching id
+        sql = """
+            DELETE FROM pl_track_metadata
+            WHERE id = (?)
+            """
+        con.execute(sql(id_))
+
+
+
+class TrackFile:
     """create database table: pltrack"""
 
     def __init__(self):
-        _SqliteDB.__init__(self)
+        self.init_table(create_connection())
 
     def init_table(self, con):
-        """create database table: track"""
+        """create database table: track_file"""
         sql = """
-                CREATE TABLE track (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                    path TEXT UNIQUE NOT NULL,
-                )
-                """
+            CREATE TABLE IF NOT EXISTS track_file (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                path TEXT UNIQUE NOT NULL
+            )
+            """
         con.execute(sql)
 
     def add_row(self, con, path):
         """
-        insert row into table track
-        returns new track_id
+        insert row into table track_file
+        returns new track_id or 0 if already exists
         """
         sql = """
-              INSERT INTO track(path)
+              INSERT or IGNORE INTO track_file(path)
               VALUES (?)
               """
         cur = con.execute(sql, (path,))
         return cur.lastrowid
 
-    def get_row_by_path(self, con, path):
-        """get row from table track that matches path"""
+    def get_id_by_path(self, con, path):
+        """get row from table track_file that matches path"""
         sql = """
-            SELECT id FROM track
+            SELECT id FROM track_file
             WHERE path = (?)
             """
         cur = con.execute(sql, (path,))
@@ -312,7 +428,7 @@ class Track(_SqliteDB):
 
     def get_row_by_id(self, con, id_):
         sql = """
-            SELECT path FROM track
+            SELECT * FROM track_file
             WHERE id = (?)
             """
         cur = con.execute(sql, (id_,))
