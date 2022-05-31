@@ -237,7 +237,7 @@ class PlTrack:
     def add(self, con, playlist_id, track_number, track_id) -> 'lastrowid:int':
         # insert track
         sql = """
-            INSERT OR IGNORE INTO pl_track(playlist_id, track_number, track_id)
+            INSERT INTO pl_track(playlist_id, track_number, track_id)
             VALUES (?,?,?)
             """
         cur = con.execute(sql, (playlist_id, track_number, track_id))
@@ -267,7 +267,7 @@ class PlTrack:
         sql = """
             SELECT id FROM pl_track
             WHERE playlist_id = (?)
-            AND (track_number > (?) OR track_number = NULL)
+            AND (track_number > (?) OR track_number is NULL)
             """
         cur = con.execute(sql, (playlist_id, max_track_number))
         return cur.fetchall()

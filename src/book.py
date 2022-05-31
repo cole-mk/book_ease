@@ -391,31 +391,27 @@ class TrackDBI():
         self.playlist = sqlite_tables.Playlist()
         self.track_file = sqlite_tables.TrackFile()
 
-    def save_track_file(self, track) -> 'int':
+    def save_track_file(self, track) -> 'track_file_id:int':
         # save to database track_file information held in Track
         # returns track_file_id
         con = _query_begin()
         # add entry to track_file table
-        track_file_id = self.track_file.add_row(con, path=track.get_file_path())
-        if track_file_id == 0:
-            # track_file already exists, get id
-            # id for file currently does not need to be saved to Track() object
-            # as the lookup is simple and its only used here in this class
-            track_file_id = self.track_file.get_id_by_path(con, track.get_file_path())['id']
+        self.track_file.add_row(con, path=track.get_file_path())
+        track_file_id = self.track_file.get_id_by_path(con, track.get_file_path())['id']
         _query_end(con)
         return track_file_id
 
     def save_pl_track(self, playlist_id, track_file_id, track) -> 'int':
         # add entry to pl_track table
         con = _query_begin()
-        track_num = track.get_number()
+        track_number = track.get_number()
         # null pl_track_numbers to avoid duplicates in case they were reordered in the view
-        self.pl_track.null_duplicate_track_number(con, playlist_id, track_num)
-        pl_track_id = self.pl_track.add(con, playlist_id, track_num, track_file_id)
-        if pl_track_id == 0:
-            # track already exists, update playlist track numbers
+        self.pl_track.null_duplicate_track_number(con, playlist_id, track_number)
+        if track.is_saved():
             pl_track_id = track.get_pl_track_id()
             self.pl_track.update_track_number_by_id(con, track_number, pl_track_id)
+        else:
+            pl_track_id = self.pl_track.add(con, playlist_id, track_number, track_file_id)
         _query_end(con)
         return pl_track_id
 
@@ -458,6 +454,7 @@ class TrackDBI():
         # pl_track.track_number entries are a one based index
         con = _query_begin()
         id_list = self.pl_track.get_ids_by_max_index_or_null(con, max_index, playlist_id)
+        print('remove_deleted_pl_tracks id_list', id_list)
         [self.pl_track.remove_row_by_id(con, row['id']) for row in id_list]
         _query_end(con)
 
