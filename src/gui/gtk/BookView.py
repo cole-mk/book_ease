@@ -531,9 +531,9 @@ class Book_View(Gtk.Box):
         populate track data objects with the tracks stored in the edited playlist
         """
         # add row numbers to track  list
-        for row_num, row in enumerate(self.playlist):
+        for number, row in enumerate(self.playlist):
             track = playlist.Track()
-            track.set_row_num(row_num)
+            track.set_number(number)
             track.set_pl_track_id(row[book.pl_track_id['col']])
             self.book.track_list_update(track)
 

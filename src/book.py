@@ -204,8 +204,8 @@ class Book(playlist.Playlist, signal_.Signal_):
                 tr.set_entry(col['key'], entry_list)
 
         self.saved_playlist = True
-        # sort playlist by  row_num
-        self.track_list_sort_row_num()
+        # sort playlist by  number
+        self.track_list_sort_number()
         # notify listeners that book data has been loaded
         self.signal('book_data_loaded')
 
@@ -252,7 +252,7 @@ class Book(playlist.Playlist, signal_.Signal_):
         else:
             # modify existing track
             [e_track.set_entry(key, track.get_entries(key)) for key in track.get_key_list()]
-            e_track.set_row_num(track.get_row_num())
+            e_track.set_number(track.get_number())
 
     def set_unique_playlist_title(self, playlist_data) -> 'title:str':
         # add a incremented suffix to self.playlist_data.title if there are duplicates
@@ -300,7 +300,7 @@ class Book(playlist.Playlist, signal_.Signal_):
         # reload the list of playlist names saved relative to this books directory
         # inform DBI module that multi query is finished
         multi_query_end()
-        self.track_list_sort_row_num()
+        self.track_list_sort_number()
         # notify any listeners that the playlist has been saved
         self.signal('book_saved')
 
@@ -408,7 +408,7 @@ class TrackDBI():
     def save_pl_track(self, playlist_id, track_file_id, track) -> 'int':
         # add entry to pl_track table
         con = _query_begin()
-        track_num = track.get_row_num()
+        track_num = track.get_number()
         # null pl_track_numbers to avoid duplicates in case they were reordered in the view
         self.pl_track.null_duplicate_track_number(con, playlist_id, track_num)
         pl_track_id = self.pl_track.add(con, playlist_id, track_num, track_file_id)
@@ -469,7 +469,7 @@ class TrackDBI():
         for tr in self.pl_track.get_rows_by_playlist_id(con, playlist_id):
             path = self.track_file.get_row_by_id(con, tr['track_id'])['path']
             track = playlist.Track(file_path=path)
-            track.set_row_num(tr['track_number'])
+            track.set_number(tr['track_number'])
             track.set_pl_track_id(tr['playlist_id'])
             track_list.append(track)
         _query_end(con)

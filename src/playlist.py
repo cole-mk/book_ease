@@ -25,14 +25,14 @@ import mutagen
 
 
 class Track:
-    def __init__(self, file_path=None, row_num=None, is_saved=False, pl_track_id=None):
+    def __init__(self, file_path=None, number=None, is_saved=False, pl_track_id=None):
         self.metadata = {}
         if file_path is not None:
             self.file_path = file_path
             self._file = file_path.rsplit('/', maxsplit=1).pop()
             self.metadata['file'] = [TrackMDEntry(id_=pl_track_id, index=0, entry=self._file)]
             self.metadata['path'] = [TrackMDEntry(id_=pl_track_id, index=0, entry=file_path)]
-        self.row_num = row_num
+        self.number = number
         self.saved = is_saved
         self.pl_track_id = pl_track_id
 
@@ -48,11 +48,11 @@ class Track:
     def set_saved(self, is_saved):
         self.saved = is_saved
 
-    def set_row_num(self, row_num):
-        self.row_num = row_num
+    def set_number(self, number):
+        self.number = number
 
-    def get_row_num(self):
-        return self.row_num
+    def get_number(self):
+        return self.number
 
     def get_key_list(self):
         key_list = []
@@ -136,8 +136,8 @@ class Playlist():
                 [lst.append(entry) for entry in track.get_entries(key) if entry]
         return lst
 
-    def track_list_sort_row_num(self):
-        self.track_list.sort(key=lambda row: row.row_num)
+    def track_list_sort_number(self):
+        self.track_list.sort(key=lambda row: row.number)
 
 class Track_Edit(Track):
 
