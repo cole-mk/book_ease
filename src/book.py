@@ -300,7 +300,6 @@ class Book(playlist.Playlist, signal_.Signal_):
         self.saved_playlist = True
 
         # reload the list of playlist names saved relative to this books directory
-        #self.db.set_cur_pl_list_by_path(self.book_reader.cur_path, con)
         # inform DBI module that multi query is finished
         multi_query_end()
         self.track_list_sort_row_num()

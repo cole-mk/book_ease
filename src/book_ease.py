@@ -673,7 +673,6 @@ class BookReader_:
             # clear the tracklist and reload from DB
             pl_row = bk.get_cur_pl_row()
             bk.clear_track_list()
-            bk.db.set_cur_pl_list_by_path(bk.path)
             bk.book_data_load(pl_row)
         else:
             # close the playlist
