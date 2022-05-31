@@ -156,8 +156,7 @@ class Book(playlist.Playlist, signal_.Signal_):
 
     # get list of playlists associated with current path
     def get_cur_pl_list(self):
-        return []
-        #return self.db.get_cur_pl_list()
+        return self.playlist_dbi.get_by_path()
 
     def get_cur_pl_row(self):
         cur_pl_list = self.get_cur_pl_list()
