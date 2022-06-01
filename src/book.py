@@ -220,21 +220,14 @@ class Book(playlist.Playlist, signal_.Signal_):
             file_path = os.path.join(self.playlist_data.get_path(), f[1])
             if not f[self.files.is_dir_pos] and self.book_reader.is_media_file(file_path):
                 track = TrackFI.get_track(file_path)
-                #track = playlist.Track(file_path)
-                #track.load_metadata_from_file()
                 track.set_pl_track_id(i)
                 # do the appending
                 self.track_list.append(track)
                 i+=1
-                # check for alt values if this entry is empty
+                # load alt values if this entry is empty
                 for col in pl_saved_col_list:
                     if not track.get_entries(col['key']):
-                        #has_entry = False
-                        for k in col['alt_keys']:
-                            val = track.get_entries(k)
-                            if val:
-                               track.set_entry(col['key'], val)
-                               break
+                        TrackFI.set_alt_entry_list(track, col['key'], col['alt_keys'])
         # set book title from the first track title
         title_list = self.track_list[0].get_entries('title')
         if title_list:
@@ -531,4 +524,23 @@ class TrackFI:
                     md_entry = playlist.TrackMDEntry(index=i, entry=v)
                     md_entry_list.append(md_entry)
             track.set_entry(key, md_entry_list)
+
+    def set_alt_entry_list(track, key_, alt_keys):
+        """
+        search track for alternate key:entry_list.
+        create list of new TracmMDEntry populated
+        with data copied from and alt_key:entry_list.
+        assign this list of new data to Track.metadata[key_].
+        This function is used when one of the displayed columns
+        has no data to present to the user
+        """
+        for k in alt_keys:
+            val = track.get_entries(k)
+            if val:
+                alt_entry_list = []
+                for v in val:
+                    alt_entry = playlist.TrackMDEntry(index=v.get_index(), entry=v.get_entry())
+                    alt_entry_list.append(alt_entry)
+                track.set_entry(key_, alt_entry_list)
+                break
 
