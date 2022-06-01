@@ -56,13 +56,6 @@ def multi_query_end():
         __db_connection.close()
         __db_connection = None
 
-def multi_query_rollback():
-    """rollback and close connection of a multi_query"""
-    global __db_connection
-    __db_connection.rollback()
-    __db_connection.close()
-    __db_connection = None
-
 def query_begin() -> 'sqlite3.Connection':
     """
     get an sqlite connection object
@@ -278,45 +271,41 @@ class Book(playlist.Playlist, signal_.Signal_):
 
     def save(self, title):
         self.playlist_data.set_title(title)
-        try:
-            # start a semi-persistent database connection
-            multi_query_begin()
-            # add suffix to book title to ensure uniqueness
-            self.set_unique_playlist_title(self.playlist_data)
-            # save playlist title, storing new id in self.playlist_data
-            self.playlist_data.set_id(self.playlist_dbi.save(self.playlist_data))
+        # start a semi-persistent database connection
+        multi_query_begin()
+        # add suffix to book title to ensure uniqueness
+        self.set_unique_playlist_title(self.playlist_data)
+        # save playlist title, storing new id in self.playlist_data
+        self.playlist_data.set_id(self.playlist_dbi.save(self.playlist_data))
 
-            # save Track objects to database
-            for track in self.track_list:
-                # save the file path that the Track object references
-                track_file_id = self.track_dbi.save_track_file(track)
-                # save the simple Track instance variables
-                pl_track_id = self.track_dbi.save_pl_track(self.playlist_data.get_id(), track_file_id, track)
-                # update pl_track_id in the Track instance
-                track.set_pl_track_id(pl_track_id)
+        # save Track objects to database
+        for track in self.track_list:
+            # save the file path that the Track object references
+            track_file_id = self.track_dbi.save_track_file(track)
+            # save the simple Track instance variables
+            pl_track_id = self.track_dbi.save_pl_track(self.playlist_data.get_id(), track_file_id, track)
+            # update pl_track_id in the Track instance
+            track.set_pl_track_id(pl_track_id)
 
-                # save the Track metadata
-                for col in metadata_col_list:
-                    md_entry_l = track.get_entries(col['key'])
-                    for md_entry in md_entry_l:
-                        self.track_dbi.save_track_metadata(md_entry, pl_track_id, col['key'])
-                    # remove deleted entries from database
-                    self.track_dbi.remove_deleted_metadata(len(md_entry_l) - 1, pl_track_id, col['key'])
-                # set track saved state
-                track.set_saved(True)
-            # remove deleted entries from database
-            self.track_dbi.remove_deleted_pl_tracks(self.playlist_data.get_id(), len(self.track_list))
-            self.saved_playlist = True
+            # save the Track metadata
+            for col in metadata_col_list:
+                md_entry_l = track.get_entries(col['key'])
+                for md_entry in md_entry_l:
+                    self.track_dbi.save_track_metadata(md_entry, pl_track_id, col['key'])
+                # remove deleted entries from database
+                self.track_dbi.remove_deleted_metadata(len(md_entry_l) - 1, pl_track_id, col['key'])
+            # set track saved state
+            track.set_saved(True)
+        # remove deleted entries from database
+        self.track_dbi.remove_deleted_pl_tracks(self.playlist_data.get_id(), len(self.track_list))
+        self.saved_playlist = True
 
-            # reload the list of playlist names saved relative to this books directory
-            # inform DBI module that multi query is finished
-            multi_query_end()
-            self.track_list_sort_number()
-            # notify any listeners that the playlist has been saved
-            self.signal('book_saved')
-        except sqlite3.Error as e:
-            # rollback all changes made during this function call
-            multi_query_rollback()
+        # reload the list of playlist names saved relative to this books directory
+        # inform DBI module that multi query is finished
+        multi_query_end()
+        self.track_list_sort_number()
+        # notify any listeners that the playlist has been saved
+        self.signal('book_saved')
 
 
 class PlaylistDBI():
