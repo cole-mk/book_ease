@@ -291,7 +291,8 @@ class Book(playlist.Playlist, signal_.Signal_):
             for col in metadata_col_list:
                 md_entry_l = track.get_entries(col['key'])
                 for md_entry in md_entry_l:
-                    self.track_dbi.save_track_metadata(md_entry, pl_track_id, col['key'])
+                    id_ = self.track_dbi.save_track_metadata(md_entry, pl_track_id, col['key'])
+                    md_entry.set_id(id_)
                 # remove deleted entries from database
                 self.track_dbi.remove_deleted_metadata(len(md_entry_l) - 1, pl_track_id, col['key'])
             # set track saved state
@@ -443,6 +444,7 @@ class TrackDBI():
                 # indices already match, simply update row
                 self.pl_track_metadata.update_row(con, id_, entry, index, key)
         query_end(con)
+        return id_
 
     def remove_deleted_metadata(self, max_index, pl_track_id, key):
         # remove deleted entries from table.pl_track_metadata by looking for null indices
