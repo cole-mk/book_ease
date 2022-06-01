@@ -220,8 +220,6 @@ class Book(playlist.Playlist, signal_.Signal_):
             file_path = os.path.join(self.playlist_data.get_path(), f[1])
             if not f[self.files.is_dir_pos] and self.book_reader.is_media_file(file_path):
                 track = TrackFI.get_track(file_path)
-                #track = playlist.Track(file_path)
-                #track.load_metadata_from_file()
                 track.set_pl_track_id(i)
                 # do the appending
                 self.track_list.append(track)
