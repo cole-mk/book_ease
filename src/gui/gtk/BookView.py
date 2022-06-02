@@ -203,9 +203,9 @@ class Edit_Row_Dialog:
         self.new_value_model.clear()
         track = self.book_view.book.get_track(self.pl_track_id)
         new_values = track.get_entries(self.selected_col['key'])
-        for i in book.get_track_alt_entries(self.pl_track_id, self.selected_col):
+        for i in track.get_entry_lists_new(self.selected_col['alt_keys']):
             # un-include duplicate values
-            if not i in [v.get_entry() for v in new_values]:
+            if not i.get_entry() in [v.get_entry() for v in new_values]:
                 new_values.append(i)
         for i in new_values:
             self.new_value_model.append([i.get_entry(), i.get_id()])

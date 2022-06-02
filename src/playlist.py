@@ -80,6 +80,18 @@ class Track:
     def get_file_path(self):
         return self.file_path
 
+    def get_entry_lists_new(self, keys_):
+        """
+        get list of copies of Track entries
+        from passed in keys list
+        """
+        entry_list = []
+        for k in keys_:
+            e_list = self.get_entries(k)
+            for e in e_list:
+                entry_list.append(e.copy())
+        return entry_list
+
 
 class Playlist():
 
@@ -104,18 +116,6 @@ class Playlist():
             if tr.get_pl_track_id() == id_:
                return tr
         raise ValueError('track.pl_track_id not found in tracklist')
-
-    def get_track_alt_entries(self, row, col):
-        lst = []
-        track = None
-        for tr in self.track_list:
-            if tr.get_pl_track_id() == row:
-               track = tr
-               break
-        if track != None:
-            for key in col['alt_keys']:
-                [lst.append(entry) for entry in track.get_entries(key) if entry]
-        return lst
 
     def track_list_sort_number(self):
         self.track_list.sort(key=lambda row: row.number)
@@ -155,4 +155,6 @@ class TrackMDEntry:
     def set_entry(self, entry):
         self.entry = entry
 
+    def copy(self):
+        return TrackMDEntry(index=self.get_index(), entry=self.get_entry())
 
