@@ -231,7 +231,7 @@ class Book(playlist.Playlist, signal_.Signal_):
                     if not track.get_entries(col['key']):
                         alt_entries = track.get_entry_lists_new(col['alt_keys'])
                         if alt_entries:
-                            track.set_entry(col['key'], [alt_entries[0]])
+                            track.set_entry(col['key'], alt_entries[:1])
 
         # set book title from the first track title
         title_list = self.track_list[0].get_entries('title')
