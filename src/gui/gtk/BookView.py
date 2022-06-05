@@ -749,3 +749,48 @@ class Book_View(Gtk.Box):
             self.edit_playlist_box.show()
             #self.edit_playlist_box.set_no_show_all(True)
             #self.cancel_button.show()
+
+
+class Book_V(Gtk.Box):
+    """
+    Book_V is a container for displaying the different
+    components that comprise a book view
+    """
+    def __init__(self):
+        builder = Gtk.Builder()
+        builder.add_from_file("book.glade")
+
+        # the topmost box in the glade file; add it to self
+        self.book_v_box = builder.get_object('book_v_box')
+        self.pack_start(book_v_box, expand=False, fill=False, padding=0)
+
+        # the components of a book view
+        self.header_row_box = builder.get_object('header_row_box')
+        self.control_button_v_box = builder.get_object('control_button_v_box')
+        self.title_v_box = builder.get_object('title_v_box')
+        self.pinned_v_box = builder.get_object('pinned_v_box')
+        self.playlist_v_box = builder.get_object('playlist_v_box')
+
+
+class Book_VI:
+    """
+    Book_VI is a controller for Book_V
+    """
+    def __init__(self):
+        self.book_v = Book_V()
+        self.book_v.show_all()
+
+    def get_view(self):
+        return self.book_v
+
+    def add_control_button_v(self, control_button_v):
+        self.book_v.control_button_v_box.pack_start(control_button_v, expand=True, fill=True, padding=0)
+
+    def add_title_v(self, title_v):
+        self.book_v.title_v_box.pack_start(title_v, expand=True, fill=True, padding=0)
+
+    def add_pinned_v(self, pinned_v):
+        self.book_v.pinned_v_box.pack_start(pinned_v, expand=True, fill=True, padding=0)
+
+    def add_playlist_v(self, playlist_v):
+        self.book_v.playlist_v_box.pack_start(playlist_v, expand=True, fill=True, padding=0)

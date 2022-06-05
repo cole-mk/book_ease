@@ -530,3 +530,12 @@ class TrackFI:
                     md_entry = playlist.TrackMDEntry(index=i, entry=v)
                     md_entry_list.append(md_entry)
             track.set_entry(key, md_entry_list)
+
+
+class Book_C:
+
+    def __init__(self):
+        self.book_vi = BookView.Book_VI()
+
+    def get_view(self):
+        return self.book_vi
