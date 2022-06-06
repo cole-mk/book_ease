@@ -24,6 +24,7 @@
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
+from pathlib import Path
 import playlist
 import signal_
 import book
@@ -757,12 +758,14 @@ class Book_V(Gtk.Box):
     components that comprise a book view
     """
     def __init__(self):
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL, spacing=0)
         builder = Gtk.Builder()
-        builder.add_from_file("book.glade")
+        glade_path = Path().cwd() / 'gui' / 'gtk' / 'book.glade'
+        builder.add_from_file(str(glade_path))
 
         # the topmost box in the glade file; add it to self
         self.book_v_box = builder.get_object('book_v_box')
-        self.pack_start(book_v_box, expand=False, fill=False, padding=0)
+        self.pack_start(self.book_v_box, expand=False, fill=False, padding=0)
 
         # the components of a book view
         self.header_row_box = builder.get_object('header_row_box')

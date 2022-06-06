@@ -28,7 +28,7 @@ import re
 import os
 import sqlite_tables
 import mutagen
-
+from gui.gtk import BookView
 
 # module wide db connection for multi queries
 __db_connection = None
@@ -212,7 +212,7 @@ class Book(playlist.Playlist, signal_.Signal_):
         self.signal('book_data_loaded')
 
     # initialize the playlist
-    def create_book_data(self, callback=None, **kwargs):
+    def create_book_data(self):
         #dont enumerate filelist, we nee more control over i
         i = 0
         for f in self.file_list:
@@ -534,8 +534,47 @@ class TrackFI:
 
 class Book_C:
 
-    def __init__(self):
+    def __init__(self, path, file_list, config, files, book_reader):
+        # the view
         self.book_vi = BookView.Book_VI()
+        # the model
+        self.book = Book(path, file_list, config, files, book_reader)
+        # allow BookReader to track Book_C's positiion in its books list
+        self.index = None
+        self.book.connect('book_data_created', self.on_book_data_ready, is_sorted=False)
+        # bk.connect('book_saved', book_view.book_data_load_th)
+        # bk.connect('book_data_loaded', book_view.on_book_data_ready_th, is_sorted=True)
 
+        # The pinnedPlaylist callbacks need to be comunicated to BookReader.book_updated
+
+        # bk.connect('book_saved', self.book_updated, index=index)
+        # connect the book_data_loaded to the add book_updated callback
+        # bk.connect('book_data_loaded', self.book_updated, index=index)
     def get_view(self):
-        return self.book_vi
+        return self.book_vi.get_view()
+
+    def get_playlist_id(self):
+        """get this book instance's unique id"""
+        return self.book.get_playlist_id()
+
+    def set_index(self, index):
+        """save position in BookReader.books"""
+        self.index = index
+
+    def get_index(self):
+        """return position in BookReader.books"""
+        return self.index
+
+    def open_new_playlist(self):
+        """Create a new playlist from media files"""
+        self.book.create_book_data()
+
+    def get_title(self):
+        return self.book.get_playlist_data().get_title()
+
+    def open_existing_playlist(self):
+        """open a previously saved book"""
+        self.book.book_data_load()
+
+    def on_book_data_ready(self, is_sorted):
+        pass

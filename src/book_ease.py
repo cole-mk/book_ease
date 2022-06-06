@@ -542,6 +542,7 @@ class BookReader_:
         return False
 
     def book_updated(self, index):
+        """callback from Book allowing BookReader to update the pinned playlist module"""
         book, view = self.get_book(index)
         cur_pl_list=book.get_cur_pl_list()
         self.book_reader_view.on_has_book(has_book=True, playlists_in_path=cur_pl_list)
@@ -589,43 +590,38 @@ class BookReader_:
                 break
         self.book_reader_view.on_has_new_media(has_new_media)
 
-    def append_book(self, book, view):
+    def append_book(self, book):
+        """append book to list of opened books"""
         index = len(self.books)
         book.set_index(index)
-        self.books.append((book, view))
+        self.books.append(book)
         return index
 
     def open_existing_book(self, pl_row):
-        bk = book.Book(self.cur_path, None, self.config, self.files, self)
-        book_view = BookView.Book_View(bk, self)
-        bk.connect('book_data_loaded', book_view.on_book_data_ready_th, is_sorted=True)
-        bk.connect('book_saved', book_view.book_data_load_th)
-        bk.page = self.book_reader_view.append_book(book_view, bk.playlist_data.get_title())
+        bk = book.Book_C(self.cur_path, None, self.config, self.files, self)
+        bk.page = self.book_reader_view.append_book(bk.get_view, bk.get_title())
+        index = self.append_book(bk)
+        # load the playlist metadata
+        bk.open_existing_playlist(pl_row)
         # load the playlist metadata in background
         #load_book_data_th = Thread(target=bk.book_data_load, args={row})
         #load_book_data_th.setDaemon(True)
         #load_book_data_th.start()
-        index = self.append_book(bk, book_view)
-        bk.connect('book_saved', self.book_updated, index=index)
-        # connect the book_data_loaded to the add book_updated callback
-        bk.connect('book_data_loaded', self.book_updated, index=index)
-        bk.book_data_load(pl_row)
 
     def open_new_book(self):
         fl = self.files.get_file_list_new()
         self.files.populate_file_list(fl, self.cur_path)
-        bk = book.Book(self.cur_path, fl, self.config, self.files, self)
-        book_view = BookView.Book_View(bk, self)
-        bk.connect('book_data_created', book_view.on_book_data_ready_th, is_sorted=False)
-        bk.connect('book_saved', book_view.book_data_load_th)
-        bk.page = self.book_reader_view.append_book(book_view, bk.playlist_data.get_title())
-        # load the playlist metadata in background
-        create_book_data_th = Thread(target=bk.create_book_data, args={book_view.on_book_data_ready_th})
-        create_book_data_th.setDaemon(True)
-        create_book_data_th.start()
-        index = self.append_book(bk, book_view)
-        bk.connect('book_saved', self.book_updated, index=index)
+        bk = book.Book_C(self.cur_path, fl, self.config, self.files, self)
+        index = self.append_book(bk)
+        bk.page = self.book_reader_view.append_book(bk.get_view(), bk.get_title())
+        # clear book_reader_view.has_new_media flag
         self.book_reader_view.on_has_new_media(False)
+        # load the playlist metadata
+        bk.open_new_playlist()
+        # load the playlist metadata in background
+        #create_book_data_th = Thread(target=bk.open_new_playlist)
+        #create_book_data_th.setDaemon(True)
+        #create_book_data_th.start()
 
     def is_media_file(self, file):
         for i in self.f_type_re:
