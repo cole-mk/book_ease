@@ -797,3 +797,19 @@ class Book_VI:
 
     def add_playlist_v(self, playlist_v):
         self.book_v.playlist_v_box.pack_start(playlist_v, expand=True, fill=True, padding=0)
+
+
+class Title_V(Gtk.Box):
+
+    def __init__(self):
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        glade_path = Path().cwd() / 'gui' / 'gtk' / 'book.glade'
+        builder.add_from_file(str(glade_path))
+
+        # the topmost box in the glade file; add it to self
+        self.title_v_box = builder.get_object('title_v_box')
+        self.pack_start(self.title_v_box, expand=False, fill=False, padding=0)
+        # The title label, displayed when book is not in editing mode
+        self.title_label = builder.get_object('title_label')
+        # The title combo, displayed when book is in editing mode
+        self.title_combo = builder.get_object('title_combo')
