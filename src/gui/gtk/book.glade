@@ -78,13 +78,13 @@
       </packing>
     </child>
   </object>
-  <object class="GtkBox" id="title_v_bo">
+  <object class="GtkBox" id="title_view">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
     <child>
       <object class="GtkComboBox" id="title_combo">
-        <property name="visible">True</property>
         <property name="can_focus">False</property>
+        <property name="no_show_all">True</property>
       </object>
       <packing>
         <property name="expand">False</property>
@@ -96,6 +96,8 @@
       <object class="GtkLabel" id="title_label">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
+        <property name="no_show_all">True</property>
+        <property name="label" translatable="yes">DSDASAdsadsasdaDSA</property>
         <property name="selectable">True</property>
       </object>
       <packing>

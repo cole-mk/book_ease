@@ -28,7 +28,7 @@ from pathlib import Path
 import playlist
 import signal_
 import book
-
+import pdb
 
 class Edit_Row_Dialog:
 
@@ -781,7 +781,7 @@ class Book_VI:
     """
     def __init__(self):
         self.book_v = Book_V()
-        self.book_v.show_all()
+        #self.book_v.show_all()
 
     def get_view(self):
         return self.book_v
@@ -804,12 +804,24 @@ class Title_V(Gtk.Box):
     def __init__(self):
         Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL, spacing=0)
         glade_path = Path().cwd() / 'gui' / 'gtk' / 'book.glade'
+        builder = Gtk.Builder()
         builder.add_from_file(str(glade_path))
 
         # the topmost box in the glade file; add it to self
-        self.title_v_box = builder.get_object('title_v_box')
-        self.pack_start(self.title_v_box, expand=False, fill=False, padding=0)
+        self.title_view = builder.get_object('title_view')
+        self.title_combo = builder.get_object('title_combo')
+        self.title_label = builder.get_object('title_label')
+        self.pack_start(self.title_view, expand=False, fill=False, padding=0)
         # The title label, displayed when book is not in editing mode
         self.title_label = builder.get_object('title_label')
         # The title combo, displayed when book is in editing mode
         self.title_combo = builder.get_object('title_combo')
+
+class Title_VI:
+
+    def __init__(self, book):
+        # create the Gtk view
+        self.title_v = Title_V()
+
+    def get_view(self):
+        return self.title_v

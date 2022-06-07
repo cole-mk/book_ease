@@ -535,13 +535,20 @@ class TrackFI:
 class Book_C:
 
     def __init__(self, path, file_list, config, files, book_reader):
-        # the view
+        # the main view
         self.book_vi = BookView.Book_VI()
         # the model
         self.book = Book(path, file_list, config, files, book_reader)
         # allow BookReader to track Book_C's positiion in its books list
         self.index = None
+
+        # instantiate the outermost view
+        self.book_vi = BookView.Book_VI()
+        # instantiate the component views
+        self.title_vi = BookView.Title_VI(self.book)
+        self.book_vi.add_title_v(self.title_vi.get_view())
         self.book.connect('book_data_created', self.on_book_data_ready, is_sorted=False)
+
         # bk.connect('book_saved', book_view.book_data_load_th)
         # bk.connect('book_data_loaded', book_view.on_book_data_ready_th, is_sorted=True)
 
@@ -550,6 +557,7 @@ class Book_C:
         # bk.connect('book_saved', self.book_updated, index=index)
         # connect the book_data_loaded to the add book_updated callback
         # bk.connect('book_data_loaded', self.book_updated, index=index)
+
     def get_view(self):
         return self.book_vi.get_view()
 
