@@ -545,8 +545,12 @@ class Book_C:
         # instantiate the outermost view
         self.book_vi = BookView.Book_VI()
         # instantiate the component views
+        self.component_views = []
+        # title view
         self.title_vi = BookView.Title_VI(self.book)
+        self.component_views.append(self.title_vi)
         self.book_vi.add_title_v(self.title_vi.get_view())
+
         self.book.connect('book_data_created', self.on_book_data_ready, is_sorted=False)
 
         # bk.connect('book_saved', book_view.book_data_load_th)
