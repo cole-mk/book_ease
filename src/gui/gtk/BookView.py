@@ -25,6 +25,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
 from pathlib import Path
+import abc
 import playlist
 import signal_
 import book
@@ -752,6 +753,34 @@ class Book_View(Gtk.Box):
             #self.cancel_button.show()
 
 
+class VI_Interface(metaclass=abc.ABCMeta):
+
+    @classmethod
+    def __subclasshook__(cls, subclass):
+        return (hasattr(subclass, 'load_book_data') and
+                callable(subclass.load_book_data) and
+                hasattr(subclass, 'begin_edit_mode') and
+                callable(subclass.begin_edit_mode) and
+                hasattr(subclass, 'begin_display_mode') and
+                callable(subclass.begin_display_mode) or
+                NotImplemented)
+
+    @abc.abstractmethod
+    def load_book_data(self):
+        """Load in the data set"""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def begin_edit_mode():
+        """Extract text from the data set"""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def begin_display_mode():
+        """Extract text from the data set"""
+        raise NotImplementedError
+
+
 class Book_V(Gtk.Box):
     """
     Book_V is a container for displaying the different
@@ -775,13 +804,22 @@ class Book_V(Gtk.Box):
         self.playlist_v_box = builder.get_object('playlist_v_box')
 
 
-class Book_VI:
+class Book_VI(VI_Interface):
     """
     Book_VI is a controller for Book_V
     """
     def __init__(self):
         self.book_v = Book_V()
         #self.book_v.show_all()
+
+    def load_book_data(self):
+        pass
+
+    def begin_edit_mode(self):
+        pass
+
+    def begin_display_mode(self):
+        pass
 
     def get_view(self):
         return self.book_v
@@ -817,7 +855,8 @@ class Title_V(Gtk.Box):
         # The title combo, displayed when book is in editing mode
         self.title_combo = builder.get_object('title_combo')
 
-class Title_VI:
+
+class Title_VI(VI_Interface):
 
     def __init__(self, book):
         # create the Gtk view
@@ -825,3 +864,12 @@ class Title_VI:
 
     def get_view(self):
         return self.title_v
+
+    def load_book_data(self):
+        pass
+
+    def begin_edit_mode(self):
+        pass
+
+    def begin_display_mode(self):
+        pass
