@@ -589,4 +589,11 @@ class Book_C:
         self.book.book_data_load()
 
     def on_book_data_ready(self, is_sorted):
-        pass
+        """
+        model is finished creating the book data from scraping the media files
+        load the book into the view
+        """
+        # tell components to load their data from the book
+        [cv.load_book_data() for cv in self.component_views]
+        # tell components to enter editing mode
+        [cv.begin_edit_mode() for cv in self.component_views]
