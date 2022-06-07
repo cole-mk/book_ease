@@ -859,6 +859,7 @@ class Title_V(Gtk.Box):
 class Title_VI(VI_Interface):
 
     def __init__(self, book):
+        self.book = book
         # create the Gtk view
         self.title_v = Title_V()
 
@@ -866,10 +867,22 @@ class Title_VI(VI_Interface):
         return self.title_v
 
     def load_book_data(self):
-        pass
+        """get title from book and load it into the view"""
+        # get title from book
+        book_title = self.book.get_playlist_data().get_title()
+        # load title into the title combo box thats shown during editing mode
+        entry = self.title_v.title_combo.get_child()
+        #print(entry.get_child())
+        entry.set_text(book_title)
+        # load the title into the title label thats shown during display mode
+        self.title_v.title_label.set_label(book_title)
+        self.title_v.title_label.show()
+        self.title_v.title_combo.show()
 
     def begin_edit_mode(self):
-        pass
+        self.title_v.title_combo.show()
+        self.title_v.title_label.hide()
 
     def begin_display_mode(self):
-        pass
+        self.title_v.title_combo.hide()
+        self.title_v.title_label.show()
