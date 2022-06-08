@@ -759,6 +759,8 @@ class VI_Interface(metaclass=abc.ABCMeta):
     def __subclasshook__(cls, subclass):
         return (hasattr(subclass, 'load_book_data') and
                 callable(subclass.load_book_data) and
+                hasattr(subclass, 'get_view') and
+                callable(subclass.get_view) and
                 hasattr(subclass, 'begin_edit_mode') and
                 callable(subclass.begin_edit_mode) and
                 hasattr(subclass, 'close') and
@@ -785,6 +787,11 @@ class VI_Interface(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def close():
         """cleanup and close the gui"""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_view():
+        """retrieve the view from the VI classes"""
         raise NotImplementedError
 
 
