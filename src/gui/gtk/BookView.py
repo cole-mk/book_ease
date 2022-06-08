@@ -857,13 +857,11 @@ class Title_V(Gtk.Box):
 
         # the topmost box in the glade file; add it to self
         self.title_view = builder.get_object('title_view')
-        self.title_combo = builder.get_object('title_combo')
-        self.title_label = builder.get_object('title_label')
         self.pack_start(self.title_view, expand=False, fill=False, padding=0)
-        # The title label, displayed when book is not in editing mode
+        # The label used to display the title of the book
         self.title_label = builder.get_object('title_label')
-        # The title combo, displayed when book is in editing mode
-        self.title_combo = builder.get_object('title_combo')
+        # The entry that allows the user to change the title of the book
+        self.title_entry = builder.get_object('title_entry')
 
 
 class Title_VI(VI_Interface):
@@ -880,21 +878,19 @@ class Title_VI(VI_Interface):
         """get title from book and load it into the view"""
         # get title from book
         book_title = self.book.get_playlist_data().get_title()
-        # load title into the title combo box thats shown during editing mode
-        entry = self.title_v.title_combo.get_child()
-        #print(entry.get_child())
-        entry.set_text(book_title)
+        # load existing title into entry widget
+        self.title_v.title_entry.set_text(book_title)
+        self.title_v.title_entry.set_max_width_chars(40)
         # load the title into the title label thats shown during display mode
+        self.title_v.title_label.set_max_width_chars(40)
         self.title_v.title_label.set_label(book_title)
-        self.title_v.title_label.show()
-        self.title_v.title_combo.show()
 
     def begin_edit_mode(self):
-        self.title_v.title_combo.show()
+        self.title_v.title_entry.show()
         self.title_v.title_label.hide()
 
     def begin_display_mode(self):
-        self.title_v.title_combo.hide()
+        self.title_v.title_entry.hide()
         self.title_v.title_label.show()
 
     def close(self):
