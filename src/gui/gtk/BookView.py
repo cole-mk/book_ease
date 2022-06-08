@@ -761,6 +761,8 @@ class VI_Interface(metaclass=abc.ABCMeta):
                 callable(subclass.load_book_data) and
                 hasattr(subclass, 'begin_edit_mode') and
                 callable(subclass.begin_edit_mode) and
+                hasattr(subclass, 'close') and
+                callable(subclass.close) and
                 hasattr(subclass, 'begin_display_mode') and
                 callable(subclass.begin_display_mode) or
                 NotImplemented)
@@ -772,12 +774,17 @@ class VI_Interface(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def begin_edit_mode():
-        """Extract text from the data set"""
+        """switch to editing mode"""
         raise NotImplementedError
 
     @abc.abstractmethod
     def begin_display_mode():
-        """Extract text from the data set"""
+        """switch to display mode"""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def close():
+        """cleanup and close the gui"""
         raise NotImplementedError
 
 
@@ -836,6 +843,9 @@ class Book_VI(VI_Interface):
     def add_playlist_v(self, playlist_v):
         self.book_v.playlist_v_box.pack_start(playlist_v, expand=True, fill=True, padding=0)
 
+    def close(self):
+        pass
+
 
 class Title_V(Gtk.Box):
 
@@ -886,3 +896,6 @@ class Title_VI(VI_Interface):
     def begin_display_mode(self):
         self.title_v.title_combo.hide()
         self.title_v.title_label.show()
+
+    def close(self):
+        pass
