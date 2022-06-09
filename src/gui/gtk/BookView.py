@@ -902,3 +902,45 @@ class Title_VI(VI_Interface):
 
     def close(self):
         pass
+
+
+class ControlBtn_V(Gtk.Box):
+
+    def __init__(self):
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        glade_path = Path().cwd() / 'gui' / 'gtk' / 'book.glade'
+        builder = Gtk.Builder()
+        builder.add_from_file(str(glade_path))
+        # the view container holding the control buttons
+        self.control_btn_view = builder.get_object('control_btn_view')
+        self.pack_start(self.control_btn_view, expand=False, fill=False, padding=0)
+        self.save_button = builder.get_object('save_button')
+        self.cancel_button = builder.get_object('cancel_button')
+        self.edit_button = builder.get_object('edit_button')
+
+
+class ControlBtn_VI(VI_Interface):
+
+    def __init__(self, book):
+        self.book = book
+        self.control_btn_v = ControlBtn_V()
+
+    def get_view(self):
+        return self.control_btn_v
+
+    def load_book_data(self):
+        pass
+
+    def begin_edit_mode(self):
+        self.control_btn_v.save_button.show()
+        self.control_btn_v.cancel_button.show()
+        self.control_btn_v.edit_button.hide()
+
+    def begin_display_mode(self):
+        self.control_btn_v.save_button.hide()
+        self.control_btn_v.cancel_button.hide()
+        self.control_btn_v.edit_button.show()
+
+    def close(self):
+        pass
+

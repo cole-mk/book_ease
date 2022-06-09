@@ -550,6 +550,10 @@ class Book_C:
         self.title_vi = BookView.Title_VI(self.book)
         self.component_views.append(self.title_vi)
         self.book_vi.add_title_v(self.title_vi.get_view())
+        # control button view
+        self.control_btn_vi = BookView.ControlBtn_VI(self.book)
+        self.component_views.append(self.control_btn_vi)
+        self.book_vi.add_control_button_v(self.control_btn_vi.get_view())
 
         self.book.connect('book_data_created', self.on_book_data_ready, is_sorted=False)
 
