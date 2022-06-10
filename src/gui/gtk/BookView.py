@@ -944,3 +944,36 @@ class ControlBtn_VI(VI_Interface):
     def close(self):
         pass
 
+
+class  Playlist_V(Gtk.Box):
+
+    def __init__(self):
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        glade_path = Path().cwd() / 'gui' / 'gtk' / 'book.glade'
+        builder = Gtk.Builder()
+        builder.add_from_file(str(glade_path))
+        self.pack_start(builder.get_object('playlist_view_box'), expand=False, fill=False, padding=0)
+        # display the playlist in a gtk treeview
+        self.playlist_view = builder.get_object('playlist_view')
+
+
+class Playlist_VI(VI_Interface):
+
+    def __init__(self, book):
+        self.playlist_v = Playlist_V()
+        self.book = book
+
+    def get_view(self):
+        return self.playlist_v
+
+    def load_book_data(self):
+        pass
+
+    def begin_edit_mode(self):
+        pass
+
+    def begin_display_mode(self):
+        pass
+
+    def close(self):
+        self.playlist_v.destroy()
