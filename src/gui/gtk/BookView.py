@@ -27,7 +27,7 @@ from gi.repository import Gtk, Gdk, GLib
 import playlist
 import signal_
 import book
-import vi_interface
+import book_view_interface
 import pdb
 
 
@@ -579,14 +579,6 @@ class Book_View(Gtk.Box):
     def book_data_load_th(self, **kwargs):
         GLib.idle_add(self.book_data_load, priority=GLib.PRIORITY_DEFAULT)
 
-    def add_pinned_button(self, pinned_button):
-        """
-        display a button to control wether or not a playlist is bookmarked
-        pinned_button: a PinnedButton_V object
-        """
-        self.pinned_button_box.pack_start(pinned_button, expand=False, fill=False, padding=0)
-        self.pinned_button = True
-
     def has_pinned_button(self):
         """
         determine if BookView has already had a PinnedButton_V
@@ -759,7 +751,7 @@ class Book_V:
     components that comprise a book view
     """
     def __init__(self):
-        builder = vi_interface.get_builder()
+        builder = book_view_interface.get_builder()
 
         # the topmost box in the glade file; add it to self
         self.book_v_box = builder.get_object('book_v_box')
@@ -772,14 +764,14 @@ class Book_V:
         self.pinned_v_box.destroy()
 
 
-class Book_VI(vi_interface.VI_Interface):
+class Book_VC(book_view_interface.BookView_Interface):
     """
-    Book_VI is a controller for Book_V
+    Book_VC is a controller for Book_V
     """
     def __init__(self):
         self.book_v = Book_V()
 
-    def load_book_data(self):
+    def update(self):
         pass
 
     def begin_edit_mode(self):
@@ -791,9 +783,6 @@ class Book_VI(vi_interface.VI_Interface):
     def get_view(self):
         return self.book_v.book_v_box
 
-    def add_pinned_v(self, pinned_v):
-        self.book_v.pinned_v_box.pack_start(pinned_v, expand=True, fill=True, padding=0)
-
     def close(self):
         self.book_v.close()
 
@@ -801,7 +790,7 @@ class Book_VI(vi_interface.VI_Interface):
 class Title_V:
 
     def __init__(self):
-        builder = vi_interface.get_builder()
+        builder = book_view_interface.get_builder()
 
         # the topmost box in the glade file; add it to self
         self.title_view = builder.get_object('title_v_box')
@@ -811,7 +800,7 @@ class Title_V:
         self.title_entry = builder.get_object('title_entry')
 
 
-class Title_VI(vi_interface.VI_Interface):
+class Title_VC(book_view_interface.BookView_Interface):
 
     def __init__(self, book):
         self.book = book
@@ -821,7 +810,7 @@ class Title_VI(vi_interface.VI_Interface):
     def get_view(self):
         return self.title_v.title_view
 
-    def load_book_data(self):
+    def update(self):
         """get title from book and load it into the view"""
         # get title from book
         book_title = self.book.get_playlist_data().get_title()
@@ -844,19 +833,16 @@ class Title_VI(vi_interface.VI_Interface):
         pass
 
 
-class ControlBtn_V: #(Gtk.Box)
+class ControlBtn_V:
 
     def __init__(self):
-        builder = vi_interface.get_builder()
-        # the view container holding the control buttons
-        #self.control_btn_view = builder.get_object('control_btn_view')
-        #self.pack_start(self.control_btn_view, expand=False, fill=False, padding=0)
+        builder = book_view_interface.get_builder()
         self.save_button = builder.get_object('save_button')
         self.cancel_button = builder.get_object('cancel_button')
         self.edit_button = builder.get_object('edit_button')
 
 
-class ControlBtn_VI(vi_interface.VI_Interface):
+class ControlBtn_VC(book_view_interface.BookView_Interface):
 
     def __init__(self, book):
         self.book = book
@@ -865,7 +851,7 @@ class ControlBtn_VI(vi_interface.VI_Interface):
     def get_view(self):
         pass
 
-    def load_book_data(self):
+    def update(self):
         pass
 
     def begin_edit_mode(self):
@@ -886,12 +872,12 @@ class ControlBtn_VI(vi_interface.VI_Interface):
 class  Playlist_V:
 
     def __init__(self):
-        builder = vi_interface.get_builder()
+        builder = book_view_interface.get_builder()
         # display the playlist in a gtk treeview
         self.playlist_view = builder.get_object('playlist_view')
 
 
-class Playlist_VI(vi_interface.VI_Interface):
+class Playlist_VC(book_view_interface.BookView_Interface):
 
     def __init__(self, book):
         self.playlist_v = Playlist_V()
@@ -900,7 +886,7 @@ class Playlist_VI(vi_interface.VI_Interface):
     def get_view(self):
         pass
 
-    def load_book_data(self):
+    def update(self):
         pass
 
     def begin_edit_mode(self):

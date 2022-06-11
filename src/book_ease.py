@@ -541,19 +541,6 @@ class BookReader_:
             return True
         return False
 
-    def book_updated(self, index):
-        """callback from Book allowing BookReader to update the pinned playlist module"""
-        book, view = self.get_book(index)
-        cur_pl_list=book.get_cur_pl_list()
-        self.book_reader_view.on_has_book(has_book=True, playlists_in_path=cur_pl_list)
-        # add the pinned button to the bookview if this is the first time its been saved
-        if not view.has_pinned_button():
-            pinned_button = self.pinned_books.get_pinned_button_new(book.get_playlist_id())
-            view.add_pinned_button(pinned_button)
-        else:
-            # tell pinned_books to update
-            self.pinned_books.on_book_updated(book.get_playlist_id())
-
     def get_book(self, index):
         return self.books[index]
 

@@ -20,7 +20,7 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
-from gui.gtk.pinned_books_view import PinnedBooks_V, PinnedButton_V, PinnedButton_VI
+from gui.gtk.pinned_books_view import PinnedBooks_V, PinnedButton_V, PinnedButton_VC
 import signal_
 import sqlite_tables
 import singleton_
@@ -85,11 +85,12 @@ class PinnedBooks_C(signal_.Signal_):
         create a new PinnedButton_V, a container for a CheckButton
         returns the view object
         """
-        btn_vi = PinnedButton_VI(book)
+        btn_vi = PinnedButton_VC(book)
         # set checkbutton state
         if self.is_pinned(book.get_playlist_id()):
             btn_vi.set_checked(True)
         btn_vi.signal_.connect('toggled', self.toggle)
+        btn_vi.signal_.connect('book_updated', self.on_book_updated)
         self.pinned_button_model.add_button(btn_vi)
         return btn_vi
 

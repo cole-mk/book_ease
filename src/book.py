@@ -30,6 +30,7 @@ import sqlite_tables
 import mutagen
 from gui.gtk import BookView
 from gui.gtk import pinned_books_view
+import book_view_interface
 
 # module wide db connection for multi queries
 __db_connection = None
@@ -537,30 +538,29 @@ class Book_C:
 
     def __init__(self, path, file_list, config, files, book_reader):
         # the main view
-        self.book_vi = BookView.Book_VI()
+        self.book_vc = BookView.Book_VC()
         # the model
         self.book = Book(path, file_list, config, files, book_reader)
         # allow BookReader to track Book_C's position in its books list
         self.index = None
 
-        # instantiate the outermost view
-        self.book_vi = BookView.Book_VI()
+        # instantiate the component_views observable and the component view controllers
+        self.component_views = signal_.Signal_()
+        # register the signals
+        [self.component_views.add_signal(handle) for handle in book_view_interface.api_]
 
-        # instantiate the component views
-        self.component_views = []
         # title view
-        self.title_vi = BookView.Title_VI(self.book)
-        self.component_views.append(self.title_vi)
+        self.title_vc = BookView.Title_VC(self.book)
+        self.connect_component(self.title_vc)
         # control button view
-        self.control_btn_vi = BookView.ControlBtn_VI(self.book)
-        self.component_views.append(self.control_btn_vi)
+        self.control_btn_vc = BookView.ControlBtn_VC(self.book)
+        self.connect_component(self.control_btn_vc)
         # playlist view
-        self.playlist_vi = BookView.Playlist_VI(self.book)
-        self.component_views.append(self.playlist_vi)
+        self.playlist_vc = BookView.Playlist_VC(self.book)
+        self.connect_component(self.playlist_vc)
         # pinned button view
-        pinned_button_vi = book_reader.pinned_books.get_pinned_button_new(self.book)
-        self.component_views.append(pinned_button_vi)
-        self.book_vi.add_pinned_v(pinned_button_vi.get_view())
+        pinned_button_vc = book_reader.pinned_books.get_pinned_button_new(self.book)
+        self.connect_component(pinned_button_vc)
 
         self.book.connect('book_data_created', self.on_book_data_ready, is_sorted=False)
 
@@ -574,7 +574,7 @@ class Book_C:
         # bk.connect('book_data_loaded', self.book_updated, index=index)
 
     def get_view(self):
-        return self.book_vi.get_view()
+        return self.book_vc.get_view()
 
     def get_playlist_id(self):
         """get this book instance's unique id"""
@@ -605,14 +605,21 @@ class Book_C:
         load the book into the view
         """
         # tell components to load their data from the book
-        [cv.load_book_data() for cv in self.component_views]
-        # tell components to enter editing mode
-        [cv.begin_edit_mode() for cv in self.component_views]
+        self.component_views.signal('update')
+        if self.book.is_saved():
+            # tell components to enter display mode
+            self.component_views.signal('begin_display_mode')
+        else:
+            # tell components to enter editing mode
+            self.component_views.signal('begin_edit_mode')
 
-    def add_pinned_button(self, pinned_button_v):
-        pinned_button_vi = pinned_books_view.PinnedButton_VI()
-        pinned_button_vi.set_view(pinned_button_v)
-        self.component_views.append(pinned_button_vi)
-        self.book_vi.add_pinned_v(pinned_button_v)
+    def connect_component(self, view_vc):
+        """
+        connect a view controller's functions to signals
+        as they are defined in the book_view_interface.api_
+        """
+        api_ = book_view_interface.api_
+        [self.component_views.connect(handle, api_[handle](view_vc)) for handle in api_]
+
 
 

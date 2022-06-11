@@ -24,7 +24,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
 import signal_
-import vi_interface
+import book_view_interface
 
 
 class PinnedBooks_V(Gtk.Box):
@@ -101,7 +101,7 @@ class PinnedBooks_V(Gtk.Box):
                 model.remove(row.iter)
 
 
-class PinnedButton_V(Gtk.Box):
+class PinnedButton_V():
     """
     display a Gtk.CheckButton to control wether or not a book is pinned
     """
@@ -111,15 +111,11 @@ class PinnedButton_V(Gtk.Box):
         Initialize a Gtk.CheckButton and encapsulate it in a Gtk.Box
         playlist_id: the id of the book that this button is associated with
         """
-        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL, spacing=0)
-        self.pinned_button = Gtk.CheckButton(label='pin')
-        self.pack_start(self.pinned_button, expand=False, fill=False, padding=0)
-        self.set_no_show_all(True)
-        self.pinned_button.set_no_show_all(True)
-        self.pinned_button.show()
+        builder = book_view_interface.get_builder()
+        self.pinned_button = builder.get_object('pinned_button')
 
 
-class PinnedButton_VI(vi_interface.VI_Interface):
+class PinnedButton_VC(book_view_interface.BookView_Interface):
 
     def __init__(self, book):
         self.book = book
@@ -127,25 +123,28 @@ class PinnedButton_VI(vi_interface.VI_Interface):
         self.view.pinned_button.connect('toggled', self.on_button_toggled)
         self.signal_ = signal_.Signal_()
         self.signal_.add_signal('toggled')
+        self.signal_.add_signal('book_updated')
 
     def set_view(self, pinned_button_v):
         self.view = pinned_button_v
 
     def get_view(self):
-        return self.view
+        return self.view.pinned_button
 
-    def load_book_data(self):
-        pass
+    def update(self):
+        """if book is saved, tell PinnedBooks_C to update list of pinned books"""
+        if self.book.is_saved():
+            self.signal_.signal('book_updated', playlist_id=self.book.get_playlist_id())
 
     def begin_edit_mode(self):
-        self.view.hide()
+        self.view.pinned_button.hide()
 
     def begin_display_mode(self):
         if self.book.is_saved():
-            self.view.show()
+            self.view.pinned_button.show()
 
     def close(self):
-        self.view.destroy()
+        self.view.pinned_button.destroy()
 
     def on_button_toggled(self, btn):
         """
