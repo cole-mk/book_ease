@@ -615,8 +615,8 @@ class Book_C:
 
     def connect_component(self, view_vc):
         """
-        connect a view controller's functions to signals
-        as they are defined in the book_view_interface.api_
+        connect a view controller's functions to all signals
+        defined in the book_view_interface.api_
         """
         api_ = book_view_interface.api_
         [self.component_views.connect(handle, api_[handle](view_vc)) for handle in api_]
