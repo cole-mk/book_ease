@@ -24,6 +24,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
 import signal_
+import vi_interface
 
 
 class PinnedBooks_V(Gtk.Box):
@@ -105,32 +106,58 @@ class PinnedButton_V(Gtk.Box):
     display a Gtk.CheckButton to control wether or not a book is pinned
     """
 
-    def __init__(self, playlist_id):
+    def __init__(self):
         """
         Initialize a Gtk.CheckButton and encapsulate it in a Gtk.Box
         playlist_id: the id of the book that this button is associated with
         """
         Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL, spacing=0)
-        self.signal_ = signal_.Signal_()
-        self.playlist_id = playlist_id
-        self.signal_.add_signal('toggled')
         self.pinned_button = Gtk.CheckButton(label='pin')
-        self.pinned_button.connect('toggled', self.on_button_toggled)
         self.pack_start(self.pinned_button, expand=False, fill=False, padding=0)
-        self.show_all()
+        self.set_no_show_all(True)
+        self.pinned_button.set_no_show_all(True)
+        self.pinned_button.show()
+
+
+class PinnedButton_VI(vi_interface.VI_Interface):
+
+    def __init__(self, book):
+        self.book = book
+        self.view = PinnedButton_V()
+        self.view.pinned_button.connect('toggled', self.on_button_toggled)
+        self.signal_ = signal_.Signal_()
+        self.signal_.add_signal('toggled')
+
+    def set_view(self, pinned_button_v):
+        self.view = pinned_button_v
+
+    def get_view(self):
+        return self.view
+
+    def load_book_data(self):
+        pass
+
+    def begin_edit_mode(self):
+        self.view.hide()
+
+    def begin_display_mode(self):
+        if self.book.is_saved():
+            self.view.show()
+
+    def close(self):
+        self.view.destroy()
 
     def on_button_toggled(self, btn):
         """
         callback function registered with with Gtk
         handles signaling of pinned_button state changed
         """
-        if btn is self.pinned_button:
-            self.signal_.signal('toggled', playlist_id=self.get_playlist_id())
+        self.signal_.signal('toggled', playlist_id=self.book.get_playlist_id())
 
     def get_playlist_id(self):
         """get the id of the book that this button is associated with"""
-        return self.playlist_id
+        return self.book.get_playlist_id()
 
     def set_checked(self, checked):
-        """set the state of the pinned_buttin. wether it's checked or not'"""
-        self.pinned_button.set_active(checked)
+        """set the state of the pinned_buttin. wether it's checked or not"""
+        self.view.pinned_button.set_active(checked)

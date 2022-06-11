@@ -29,6 +29,7 @@ import os
 import sqlite_tables
 import mutagen
 from gui.gtk import BookView
+from gui.gtk import pinned_books_view
 
 # module wide db connection for multi queries
 __db_connection = None
@@ -539,25 +540,27 @@ class Book_C:
         self.book_vi = BookView.Book_VI()
         # the model
         self.book = Book(path, file_list, config, files, book_reader)
-        # allow BookReader to track Book_C's positiion in its books list
+        # allow BookReader to track Book_C's position in its books list
         self.index = None
 
         # instantiate the outermost view
         self.book_vi = BookView.Book_VI()
+
         # instantiate the component views
         self.component_views = []
         # title view
         self.title_vi = BookView.Title_VI(self.book)
         self.component_views.append(self.title_vi)
-        self.book_vi.add_title_v(self.title_vi.get_view())
         # control button view
         self.control_btn_vi = BookView.ControlBtn_VI(self.book)
         self.component_views.append(self.control_btn_vi)
-        self.book_vi.add_control_button_v(self.control_btn_vi.get_view())
         # playlist view
         self.playlist_vi = BookView.Playlist_VI(self.book)
         self.component_views.append(self.playlist_vi)
-        self.book_vi.add_playlist_v(self.playlist_vi.get_view())
+        # pinned button view
+        pinned_button_vi = book_reader.pinned_books.get_pinned_button_new(self.book)
+        self.component_views.append(pinned_button_vi)
+        self.book_vi.add_pinned_v(pinned_button_vi.get_view())
 
         self.book.connect('book_data_created', self.on_book_data_ready, is_sorted=False)
 
@@ -605,3 +608,11 @@ class Book_C:
         [cv.load_book_data() for cv in self.component_views]
         # tell components to enter editing mode
         [cv.begin_edit_mode() for cv in self.component_views]
+
+    def add_pinned_button(self, pinned_button_v):
+        pinned_button_vi = pinned_books_view.PinnedButton_VI()
+        pinned_button_vi.set_view(pinned_button_v)
+        self.component_views.append(pinned_button_vi)
+        self.book_vi.add_pinned_v(pinned_button_v)
+
+
