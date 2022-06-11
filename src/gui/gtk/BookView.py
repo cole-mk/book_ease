@@ -24,12 +24,12 @@
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
-from pathlib import Path
-import abc
 import playlist
 import signal_
 import book
+import book_view_interface
 import pdb
+
 
 class Edit_Row_Dialog:
 
@@ -579,14 +579,6 @@ class Book_View(Gtk.Box):
     def book_data_load_th(self, **kwargs):
         GLib.idle_add(self.book_data_load, priority=GLib.PRIORITY_DEFAULT)
 
-    def add_pinned_button(self, pinned_button):
-        """
-        display a button to control wether or not a playlist is bookmarked
-        pinned_button: a PinnedButton_V object
-        """
-        self.pinned_button_box.pack_start(pinned_button, expand=False, fill=False, padding=0)
-        self.pinned_button = True
-
     def has_pinned_button(self):
         """
         determine if BookView has already had a PinnedButton_V
@@ -753,80 +745,33 @@ class Book_View(Gtk.Box):
             #self.cancel_button.show()
 
 
-class VI_Interface(metaclass=abc.ABCMeta):
-
-    @classmethod
-    def __subclasshook__(cls, subclass):
-        return (hasattr(subclass, 'load_book_data') and
-                callable(subclass.load_book_data) and
-                hasattr(subclass, 'get_view') and
-                callable(subclass.get_view) and
-                hasattr(subclass, 'begin_edit_mode') and
-                callable(subclass.begin_edit_mode) and
-                hasattr(subclass, 'close') and
-                callable(subclass.close) and
-                hasattr(subclass, 'begin_display_mode') and
-                callable(subclass.begin_display_mode) or
-                NotImplemented)
-
-    @abc.abstractmethod
-    def load_book_data(self):
-        """Load in the data set"""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def begin_edit_mode():
-        """switch to editing mode"""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def begin_display_mode():
-        """switch to display mode"""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def close():
-        """cleanup and close the gui"""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def get_view():
-        """retrieve the view from the VI classes"""
-        raise NotImplementedError
-
-
-class Book_V(Gtk.Box):
+class Book_V:
     """
     Book_V is a container for displaying the different
     components that comprise a book view
     """
     def __init__(self):
-        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL, spacing=0)
-        builder = Gtk.Builder()
-        glade_path = Path().cwd() / 'gui' / 'gtk' / 'book.glade'
-        builder.add_from_file(str(glade_path))
+        builder = book_view_interface.get_builder()
 
         # the topmost box in the glade file; add it to self
         self.book_v_box = builder.get_object('book_v_box')
-        self.pack_start(self.book_v_box, expand=False, fill=False, padding=0)
 
         # the components of a book view
-        self.header_row_box = builder.get_object('header_row_box')
-        self.control_button_v_box = builder.get_object('control_button_v_box')
-        self.title_v_box = builder.get_object('title_v_box')
         self.pinned_v_box = builder.get_object('pinned_v_box')
-        self.playlist_v_box = builder.get_object('playlist_v_box')
+
+    def close(self):
+        self.book_v_box.destroy()
+        self.pinned_v_box.destroy()
 
 
-class Book_VI(VI_Interface):
+class Book_VC(book_view_interface.BookView_Interface):
     """
-    Book_VI is a controller for Book_V
+    Book_VC is a controller for Book_V
     """
     def __init__(self):
         self.book_v = Book_V()
-        #self.book_v.show_all()
 
-    def load_book_data(self):
+    def update(self):
         pass
 
     def begin_edit_mode(self):
@@ -836,42 +781,26 @@ class Book_VI(VI_Interface):
         pass
 
     def get_view(self):
-        return self.book_v
-
-    def add_control_button_v(self, control_button_v):
-        self.book_v.control_button_v_box.pack_start(control_button_v, expand=True, fill=True, padding=0)
-
-    def add_title_v(self, title_v):
-        self.book_v.title_v_box.pack_start(title_v, expand=True, fill=True, padding=0)
-
-    def add_pinned_v(self, pinned_v):
-        self.book_v.pinned_v_box.pack_start(pinned_v, expand=True, fill=True, padding=0)
-
-    def add_playlist_v(self, playlist_v):
-        self.book_v.playlist_v_box.pack_start(playlist_v, expand=True, fill=True, padding=0)
+        return self.book_v.book_v_box
 
     def close(self):
-        pass
+        self.book_v.close()
 
 
-class Title_V(Gtk.Box):
+class Title_V:
 
     def __init__(self):
-        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL, spacing=0)
-        glade_path = Path().cwd() / 'gui' / 'gtk' / 'book.glade'
-        builder = Gtk.Builder()
-        builder.add_from_file(str(glade_path))
+        builder = book_view_interface.get_builder()
 
         # the topmost box in the glade file; add it to self
-        self.title_view = builder.get_object('title_view')
-        self.pack_start(self.title_view, expand=False, fill=False, padding=0)
+        self.title_view = builder.get_object('title_v_box')
         # The label used to display the title of the book
         self.title_label = builder.get_object('title_label')
         # The entry that allows the user to change the title of the book
         self.title_entry = builder.get_object('title_entry')
 
 
-class Title_VI(VI_Interface):
+class Title_VC(book_view_interface.BookView_Interface):
 
     def __init__(self, book):
         self.book = book
@@ -879,9 +808,9 @@ class Title_VI(VI_Interface):
         self.title_v = Title_V()
 
     def get_view(self):
-        return self.title_v
+        return self.title_v.title_view
 
-    def load_book_data(self):
+    def update(self):
         """get title from book and load it into the view"""
         # get title from book
         book_title = self.book.get_playlist_data().get_title()
@@ -902,3 +831,69 @@ class Title_VI(VI_Interface):
 
     def close(self):
         pass
+
+
+class ControlBtn_V:
+
+    def __init__(self):
+        builder = book_view_interface.get_builder()
+        self.save_button = builder.get_object('save_button')
+        self.cancel_button = builder.get_object('cancel_button')
+        self.edit_button = builder.get_object('edit_button')
+
+
+class ControlBtn_VC(book_view_interface.BookView_Interface):
+
+    def __init__(self, book):
+        self.book = book
+        self.control_btn_v = ControlBtn_V()
+
+    def get_view(self):
+        pass
+
+    def update(self):
+        pass
+
+    def begin_edit_mode(self):
+        print('ctrl btn begin_edit_mode')
+        self.control_btn_v.save_button.show()
+        self.control_btn_v.cancel_button.show()
+        self.control_btn_v.edit_button.hide()
+
+    def begin_display_mode(self):
+        self.control_btn_v.save_button.hide()
+        self.control_btn_v.cancel_button.hide()
+        self.control_btn_v.edit_button.show()
+
+    def close(self):
+        pass
+
+
+class  Playlist_V:
+
+    def __init__(self):
+        builder = book_view_interface.get_builder()
+        # display the playlist in a gtk treeview
+        self.playlist_view = builder.get_object('playlist_view')
+
+
+class Playlist_VC(book_view_interface.BookView_Interface):
+
+    def __init__(self, book):
+        self.playlist_v = Playlist_V()
+        self.book = book
+
+    def get_view(self):
+        pass
+
+    def update(self):
+        pass
+
+    def begin_edit_mode(self):
+        pass
+
+    def begin_display_mode(self):
+        pass
+
+    def close(self):
+        self.playlist_v.destroy()
