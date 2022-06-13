@@ -802,8 +802,8 @@ class Title_V:
 
 class Title_VC(book_view_interface.BookView_Interface):
 
-    def __init__(self, book):
-        self.book = book
+    def __init__(self, book_):
+        self.book = book_
         # create the Gtk view
         self.title_v = Title_V()
 
@@ -844,8 +844,8 @@ class ControlBtn_V:
 
 class ControlBtn_VC(book_view_interface.BookView_Interface):
 
-    def __init__(self, book):
-        self.book = book
+    def __init__(self, book_):
+        self.book = book_
         self.control_btn_v = ControlBtn_V()
 
     def get_view(self):
@@ -879,9 +879,9 @@ class  Playlist_V:
 
 class Playlist_VC(book_view_interface.BookView_Interface):
 
-    def __init__(self, book):
+    def __init__(self, book_):
         self.playlist_v = Playlist_V()
-        self.book = book
+        self.book = book_
 
     def get_view(self):
         pass
