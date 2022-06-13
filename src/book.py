@@ -82,44 +82,36 @@ def query_end(con):
 
 # The Playlist Data Column Setup
 pl_title    = {'name':'Title',         'col':0,
-               'g_typ':str,            'editable':True,
-               'table':'track_title',  'field':'title',
-               'key':'title',  'alt_keys':['album']}
+               'g_typ':str,            'key':'title',
+               'alt_keys':['album']}
 
 pl_author   = {'name':'Author',            'col':1,
-               'g_typ':str,                'editable':True ,
-               'table':'track_author',     'field':'author',
-               'key':'author',             'alt_keys':['artist', 'performer', 'composer']}
+               'g_typ':str,                'key':'author',
+               'alt_keys':['artist', 'performer', 'composer']}
 
 pl_read_by  = {'name':'Read by',           'col':2,
-               'g_typ':str,                'editable':True ,
-               'table':'track_read_by',    'field':'read_by',
-               'key':'performer',          'alt_keys':['author', 'artist', 'composer']}
+               'g_typ':str,                'key':'performer',
+               'alt_keys':['author', 'artist', 'composer']}
 
 pl_length   = {'name':'Length',            'col':3,
-               'g_typ':str,                'editable':True ,
-               'table':'track_length',     'field':'length',
-               'key':'length',             'alt_keys':[None]}
+               'g_typ':str,                'key':'length',
+               'alt_keys':[None]}
 
 pl_track    = {'name':'Track',             'col':4,
-               'g_typ':str,                'editable':True ,
-               'table':'track_number',     'field':'number',
-               'key':'tracknumber',        'alt_keys':[None]}
+               'g_typ':str,                'key':'tracknumber',
+               'alt_keys':[None]}
 
 pl_file     = {'name':'File',      'col':5,
-               'g_typ':str,        'editable':False,
-               'table':'track',    'field':'filename',
-               'key':'file',       'alt_keys':[None]}
+               'g_typ':str,        'key':'file',
+               'alt_keys':[None]}
 
 pl_track_id   = {'name':'pl_track_id',     'col':6,
-               'g_typ':int,            'editable':True ,
-               'table':None,           'field':None,
-               'key':'pl_track_id',      'alt_keys':[None]}
+               'g_typ':int,            'key':'pl_track_id',
+               'alt_keys':[None]}
 
 pl_path      = {'name':'pl_path',  'col':7,
-               'g_typ':str,        'editable':False ,
-               'table':'track',    'field':'path',
-               'key':None,         'alt_keys':[None]}
+               'g_typ':str,        'key':None,
+               'alt_keys':[None]}
 
 pl_saved_col_list = [pl_title,  pl_author, pl_read_by,
                      pl_length, pl_track,  pl_file, pl_path]
