@@ -113,9 +113,6 @@ pl_path      = {'name':'pl_path',  'col':7,
                'g_typ':str,        'key':None,
                'alt_keys':[None]}
 
-pl_saved_col_list = [pl_title,  pl_author, pl_read_by,
-                     pl_length, pl_track,  pl_file, pl_path]
-
 metadata_col_list =[pl_title,  pl_author, pl_read_by,
                     pl_length, pl_track]
 
@@ -221,7 +218,7 @@ class Book(playlist.Playlist, signal_.Signal_):
                 i+=1
 
                 # load alt values if this entry is empty
-                for col in pl_saved_col_list:
+                for col in metadata_col_list:
                     if not track.get_entries(col['key']):
                         alt_entries = track.get_entry_lists_new(col['alt_keys'])
                         if alt_entries:
