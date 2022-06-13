@@ -28,8 +28,8 @@ class Track:
         if file_path is not None:
             self.file_path = file_path
             self._file = file_path.rsplit('/', maxsplit=1).pop()
-            self.metadata['file'] = [TrackMDEntry(id_=pl_track_id, index=0, entry=self._file)]
-            self.metadata['path'] = [TrackMDEntry(id_=pl_track_id, index=0, entry=file_path)]
+            self.metadata['file'] = [TrackMDEntry(id_=None, index=0, entry=self._file)]
+            self.metadata['path'] = [TrackMDEntry(id_=None, index=0, entry=file_path)]
         self.number = number
         self.saved = is_saved
         self.pl_track_id = pl_track_id
