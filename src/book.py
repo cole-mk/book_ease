@@ -93,7 +93,7 @@ md_read_by  = {'name':'Read by',           'col':2,
                'g_typ':str,                'key':'performer',
                'alt_keys':['author', 'artist', 'composer']}
 
-pl_length   = {'name':'Length',            'col':3,
+md_length   = {'name':'Length',            'col':3,
                'g_typ':str,                'key':'length',
                'alt_keys':[None]}
 
@@ -114,7 +114,7 @@ pl_path      = {'name':'pl_path',  'col':7,
                'alt_keys':[None]}
 
 metadata_col_list =[md_title,  md_author, md_read_by,
-                    pl_length, pl_track]
+                    md_length, pl_track]
 
 
 # TODO: file_list can be removed from the constructor all together. create_book can get it from self.files
