@@ -109,7 +109,7 @@ pl_track_id   = {'name':'pl_track_id',     'col':6,
                'g_typ':int,            'key':'pl_track_id',
                'alt_keys':[None]}
 
-pl_track_path      = {'name':'pl_path',  'col':7,
+track_path      = {'name':'pl_path',  'col':7,
                'g_typ':str,        'key':None,
                'alt_keys':[None]}
 
