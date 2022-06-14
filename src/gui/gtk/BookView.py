@@ -342,7 +342,7 @@ class Book_View(Gtk.Box):
                              book.md_author,
                              book.md_read_by,
                              book.md_length,
-                             book.pl_file]
+                             book.track_file]
 
         self.col_to_renderer_map = {}
         for i in self.display_cols:
@@ -384,7 +384,7 @@ class Book_View(Gtk.Box):
                              book.md_read_by    ['g_typ'],
                              book.md_length     ['g_typ'],
                              book.md_track_number      ['g_typ'],
-                             book.pl_file       ['g_typ'],
+                             book.track_file       ['g_typ'],
                              book.pl_track_id   ['g_typ'],
                              book.pl_path       ['g_typ'])
 
