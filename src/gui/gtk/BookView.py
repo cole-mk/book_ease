@@ -895,11 +895,15 @@ class Playlist_VC(book_view_interface.BookView_Interface):
         )
         # unique id's for each row in the playlist model
         self.row_id_iter = itertools.count()
-        # each track metadata entry is a list. This list is used to hold
+        # generate the playlist model for display
+        self.playlist = self.get_playlist_new()
+        # each track metadata entry is a list. This secondary_metadata list is used to hold
         # track metadata beyond the first entry in each track's metadata list
         # that gets displayed in the playlist view. The secondary_metadata
         # will be used to populate combo box popups on demand when the user
-        # wants to see more than just the first metadata entry.
+        # wants to see or edit more than just the first metadata entry. Entries will
+        # come in the form of a tuple (FK->playlist_row_id, TrackMDEntry)
+        # *FK = foreign key
         self.secondary_metadata = []
 
     def get_view(self):
@@ -921,10 +925,10 @@ class Playlist_VC(book_view_interface.BookView_Interface):
         """create a new model for the playlist"""
         # sort the displayed columns by g_col number
         sorted_playlist_columns = sorted(self.playlist_columns, key=lambda x: x['g_col'])
-        # get a tuple of the g_typ's from each of the columns
-        playlist_col_types = tuple(map(lambda x: x['g_typ'], sorted_playlist_columns))
+        # get a list of the g_typ's from each of the columns
+        playlist_col_types = map(lambda x: x['g_typ'], sorted_playlist_columns)
         # create the playlist model
-        return Gtk.ListStore(playlist_col_types)
+        return Gtk.ListStore(*playlist_col_types)
 
     def genereate_row_id(self) -> 'row_id:int':
         """generate a unique row id for the playlist"""
