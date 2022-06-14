@@ -20,53 +20,39 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
-import book_columns
+from book_columns import *
 
 # The playlist metadata column setup
-md_title                = book_columns.md_title
-md_title.update(        {'name':'Title',          'col':0, 'g_typ':str})
+md_title.update(        {'col':0, 'g_typ':str, 'name':'Title'})
 
-md_author               = book_columns.md_author
-md_author.update(       {'name':'Author',         'col':1, 'g_typ':str})
+md_author.update(       {'col':1, 'g_typ':str, 'name':'Author'})
 
-md_read_by              = book_columns.md_read_by
-md_read_by.update(      {'name':'Read by',        'col':2, 'g_typ':str})
+md_read_by.update(      {'col':2, 'g_typ':str, 'name':'Read by'})
 
-md_length               = book_columns.md_length
-md_length.update(       {'name':'Length',         'col':3, 'g_typ':str})
+md_length.update(       {'col':3, 'g_typ':str, 'name':'Length'})
 
-md_track_number         = book_columns.md_track_number
-md_track_number.update( {'name':'Track',          'col':4, 'g_typ':str})
-
-metadata_col_list       = book_columns.metadata_col_list
+md_track_number.update( {'col':4, 'g_typ':str, 'name':'Track'})
 
 
 # The track column setup
-track_file              = book_columns.track_file
-track_file.update(      {'name':'File',           'col':5, 'g_typ':str})
+track_file.update(      {'col':5, 'g_typ':str, 'name':'File'})
 
-track_path              = book_columns.track_path
-track_path.update(      {'name':'pl_path',        'col':7, 'g_typ':str})
-
-track_col_list          = book_columns.track_col_list
+track_path.update(      {'col':7, 'g_typ':str, 'name':'pl_path'})
 
 
 # The pl_track column setup
-pl_track_id             = book_columns.pl_track_id
-pl_track_id.update(     {'name':'pl_track_id',    'col':6, 'g_typ':int})
-
-pl_track_col_list       = book_columns.pl_track_col_list
+pl_track_id.update(     {'col':6, 'g_typ':int, 'name':'pl_track_id'})
 
 
 # The IDs for the metadata data columns
-md_title_id             = {'col':8,  'g_typ':int}
+md_title_id           = {'col':8,  'g_typ':int}
 
-md_author_id            = {'col':9,  'g_typ':int}
+md_author_id          = {'col':9,  'g_typ':int}
 
-md_read_by_id           = {'col':10, 'g_typ':int}
+md_read_by_id         = {'col':10, 'g_typ':int}
 
-md_length_id            = {'col':11, 'g_typ':int}
+md_length_id          = {'col':11, 'g_typ':int}
 
-md_track_number_id      = {'col':12, 'g_typ':int}
+md_track_number_id    = {'col':12, 'g_typ':int}
 
-metadata_id_col_list    = (md_title_id, md_author_id, md_read_by_id, md_length_id, md_track_number_id)
+metadata_id_col_list  = (md_title_id, md_author_id, md_read_by_id, md_length_id, md_track_number_id)
