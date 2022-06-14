@@ -880,10 +880,12 @@ class  Playlist_V:
 
 
 class Playlist_VC(book_view_interface.BookView_Interface):
+    """Controller for the treeview that displays a playlist"""
 
     def __init__(self, book_):
         self.playlist_v = Playlist_V()
         self.book = book_
+        # the column definitions that will be used to describe the playlist model data
         self.playlist_columns = (
             *book_view_columns.pl_track_col_list,
             *book_view_columns.track_col_list,
@@ -891,7 +893,14 @@ class Playlist_VC(book_view_interface.BookView_Interface):
             *book_view_columns.metadata_id_col_list,
             book_view_columns.playlist_row_id
         )
+        # unique id's for each row in the playlist model
         self.row_id_iter = itertools.count()
+        # each track metadata entry is a list. This list is used to hold
+        # track metadata beyond the first entry in each track's metadata list
+        # that gets displayed in the playlist view. The secondary_metadata
+        # will be used to populate combo box popups on demand when the user
+        # wants to see more than just the first metadata entry.
+        self.secondary_metadata = []
 
     def get_view(self):
         pass
