@@ -33,6 +33,9 @@ md_length       = {'key':'length',      'alt_keys':[None]}
 
 md_track_number = {'key':'tracknumber', 'alt_keys':[None]}
 
+metadata_col_list = (md_title,  md_author, md_read_by, md_length, md_track_number)
+
+
 # The track column setup
 track_file      = {'key':'file',        'alt_keys':[None]}
 
