@@ -43,6 +43,8 @@ track_path          = {'key':None,          'alt_keys':[None]}
 
 track_col_list      = (track_file, track_path)
 
+
 # The pl_track column setup
 pl_track_id         = {'key':'pl_track_id', 'alt_keys':[None]}
+
 pl_track_col_list   = (pl_track_id,)

@@ -40,6 +40,7 @@ md_track_number.update( {'name':'Track',          'col':4, 'g_typ':str})
 
 metadata_col_list       = book_columns.metadata_col_list
 
+
 # The track column setup
 track_file              = book_columns.track_file
 track_file.update(      {'name':'File',           'col':5, 'g_typ':str})
@@ -49,11 +50,13 @@ track_path.update(      {'name':'pl_path',        'col':7, 'g_typ':str})
 
 track_col_list          = book_columns.track_col_list
 
+
 # The pl_track column setup
 pl_track_id             = book_columns.pl_track_id
 pl_track_id.update(     {'name':'pl_track_id',    'col':6, 'g_typ':int})
 
 pl_track_col_list       = book_columns.pl_track_col_list
+
 
 # The IDs for the metadata data columns
 md_title_id             = {'col':8,  'g_typ':int}
