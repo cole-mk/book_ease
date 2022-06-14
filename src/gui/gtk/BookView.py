@@ -24,6 +24,7 @@
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
+import itertools
 import playlist
 import signal_
 import book
@@ -887,8 +888,10 @@ class Playlist_VC(book_view_interface.BookView_Interface):
             *book_view_columns.pl_track_col_list,
             *book_view_columns.track_col_list,
             *book_view_columns.metadata_col_list,
-            *book_view_columns.metadata_id_col_list
+            *book_view_columns.metadata_id_col_list,
+            book_view_columns.playlist_row_id
         )
+        self.row_id_iter = itertools.count()
 
     def get_view(self):
         pass
@@ -913,3 +916,7 @@ class Playlist_VC(book_view_interface.BookView_Interface):
         playlist_col_types = tuple(map(lambda x: x['g_typ'], sorted_playlist_columns))
         # create the playlist model
         return Gtk.ListStore(playlist_col_types)
+
+    def genereate_row_id(self) -> 'row_id:int':
+        """generate a unique row id for the playlist"""
+        return next(self.row_id_iter)
