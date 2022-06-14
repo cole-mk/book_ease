@@ -857,7 +857,6 @@ class ControlBtn_VC(book_view_interface.BookView_Interface):
         pass
 
     def begin_edit_mode(self):
-        print('ctrl btn begin_edit_mode')
         self.control_btn_v.save_button.show()
         self.control_btn_v.cancel_button.show()
         self.control_btn_v.edit_button.hide()
@@ -893,10 +892,13 @@ class Playlist_VC(book_view_interface.BookView_Interface):
             *book_view_columns.metadata_id_col_list,
             book_view_columns.playlist_row_id
         )
+
         # unique id's for each row in the playlist model
         self.row_id_iter = itertools.count()
+
         # generate the playlist model for display
         self.playlist = self.get_playlist_new()
+
         # each track metadata entry is a list. This secondary_metadata list is used to hold
         # track metadata beyond the first entry in each track's metadata list
         # that gets displayed in the playlist view. The secondary_metadata
