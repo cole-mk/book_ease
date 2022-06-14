@@ -31,6 +31,7 @@ import mutagen
 from gui.gtk import BookView
 from gui.gtk import pinned_books_view
 import book_view_interface
+import book_columns
 
 # module wide db connection for multi queries
 __db_connection = None
@@ -80,41 +81,8 @@ def query_end(con):
         con.commit()
         con.close()
 
-# The Playlist Data Column Setup
-md_title    = {'name':'Title',         'col':0,
-               'g_typ':str,            'key':'title',
-               'alt_keys':['album']}
-
-md_author   = {'name':'Author',            'col':1,
-               'g_typ':str,                'key':'author',
-               'alt_keys':['artist', 'performer', 'composer']}
-
-md_read_by  = {'name':'Read by',           'col':2,
-               'g_typ':str,                'key':'performer',
-               'alt_keys':['author', 'artist', 'composer']}
-
-md_length   = {'name':'Length',            'col':3,
-               'g_typ':str,                'key':'length',
-               'alt_keys':[None]}
-
-md_track_number    = {'name':'Track',             'col':4,
-               'g_typ':str,                'key':'tracknumber',
-               'alt_keys':[None]}
-
-track_file     = {'name':'File',      'col':5,
-               'g_typ':str,        'key':'file',
-               'alt_keys':[None]}
-
-pl_track_id   = {'name':'pl_track_id',     'col':6,
-               'g_typ':int,            'key':'pl_track_id',
-               'alt_keys':[None]}
-
-track_path      = {'name':'pl_path',  'col':7,
-               'g_typ':str,        'key':None,
-               'alt_keys':[None]}
-
-metadata_col_list =[md_title,  md_author, md_read_by,
-                    md_length, md_track_number]
+metadata_col_list =[book_columns.md_title,  book_columns.md_author, book_columns.md_read_by,
+                    book_columns.md_length, book_columns.md_track_number]
 
 
 # TODO: file_list can be removed from the constructor all together. create_book can get it from self.files
