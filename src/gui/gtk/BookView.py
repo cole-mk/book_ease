@@ -883,6 +883,12 @@ class Playlist_VC(book_view_interface.BookView_Interface):
     def __init__(self, book_):
         self.playlist_v = Playlist_V()
         self.book = book_
+        self.playlist_columns = (
+            *book_view_columns.pl_track_col_list,
+            *book_view_columns.track_col_list,
+            *book_view_columns.metadata_col_list,
+            *book_view_columns.metadata_id_col_list
+        )
 
     def get_view(self):
         pass
@@ -898,3 +904,12 @@ class Playlist_VC(book_view_interface.BookView_Interface):
 
     def close(self):
         self.playlist_v.destroy()
+
+    def get_playlist_new(self):
+        """create a new model for the playlist"""
+        # sort the displayed columns by g_col number
+        sorted_playlist_columns = sorted(self.playlist_columns, key=lambda x: x['g_col'])
+        # get a tuple of the g_typ's from each of the columns
+        playlist_col_types = tuple(map(lambda x: x['g_typ'], sorted_playlist_columns))
+        # create the playlist model
+        return Gtk.ListStore(playlist_col_types)
