@@ -38,6 +38,8 @@ md_length       = {'name':'Length',         'col':3, 'g_typ':str}
 md_track_number = book_columns.md_track_number
 md_track_number = {'name':'Track',          'col':4, 'g_typ':str}
 
+metadata_col_list = book_columns.metadata_col_list
+
 # The track column setup
 track_file      = book_columns.track_file
 track_file      = {'name':'File',           'col':5, 'g_typ':str}
