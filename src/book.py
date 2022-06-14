@@ -89,7 +89,7 @@ md_author   = {'name':'Author',            'col':1,
                'g_typ':str,                'key':'author',
                'alt_keys':['artist', 'performer', 'composer']}
 
-pl_read_by  = {'name':'Read by',           'col':2,
+md_read_by  = {'name':'Read by',           'col':2,
                'g_typ':str,                'key':'performer',
                'alt_keys':['author', 'artist', 'composer']}
 
@@ -113,7 +113,7 @@ pl_path      = {'name':'pl_path',  'col':7,
                'g_typ':str,        'key':None,
                'alt_keys':[None]}
 
-metadata_col_list =[md_title,  md_author, pl_read_by,
+metadata_col_list =[md_title,  md_author, md_read_by,
                     pl_length, pl_track]
 
 

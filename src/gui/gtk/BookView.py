@@ -340,7 +340,7 @@ class Book_View(Gtk.Box):
         self.display_cols = [book.pl_track,
                              book.md_title,
                              book.md_author,
-                             book.pl_read_by,
+                             book.md_read_by,
                              book.pl_length,
                              book.pl_file]
 
@@ -381,7 +381,7 @@ class Book_View(Gtk.Box):
     def get_playlist_new(self):
         return Gtk.ListStore(book.md_title      ['g_typ'],
                              book.md_author     ['g_typ'],
-                             book.pl_read_by    ['g_typ'],
+                             book.md_read_by    ['g_typ'],
                              book.pl_length     ['g_typ'],
                              book.pl_track      ['g_typ'],
                              book.pl_file       ['g_typ'],
