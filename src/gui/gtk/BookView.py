@@ -337,7 +337,7 @@ class Book_View(Gtk.Box):
         self.header_box.pack_start(self.edit_playlist_box, expand=True, fill=True, padding=0)
 
 
-        self.display_cols = [book.pl_track,
+        self.display_cols = [book.md_track_number,
                              book.md_title,
                              book.md_author,
                              book.md_read_by,
@@ -366,8 +366,8 @@ class Book_View(Gtk.Box):
             rend.connect("editing-canceled", self.on_editing_cancelled)
 
         # default sort column tuple (tv_col, model_index)
-        self.default_sort_col =  (self.playlist_tree_view.get_column(self.display_cols.index(book.pl_track)),
-                                  book.pl_track['col'])
+        self.default_sort_col =  (self.playlist_tree_view.get_column(self.display_cols.index(book.md_track_number)),
+                                  book.md_track_number['col'])
         self.default_sort_col[0].set_sort_order(Gtk.SortType.DESCENDING)
         self.old_sort_order = Gtk.SortType.DESCENDING
 
@@ -383,7 +383,7 @@ class Book_View(Gtk.Box):
                              book.md_author     ['g_typ'],
                              book.md_read_by    ['g_typ'],
                              book.md_length     ['g_typ'],
-                             book.pl_track      ['g_typ'],
+                             book.md_track_number      ['g_typ'],
                              book.pl_file       ['g_typ'],
                              book.pl_track_id   ['g_typ'],
                              book.pl_path       ['g_typ'])
@@ -506,7 +506,7 @@ class Book_View(Gtk.Box):
         sorted_model = Gtk.TreeModelSort(model=self.playlist)
         sorted_model.set_sort_column_id(model_index, new_sort_order)
         # custom compare functon for the track number column
-        sorted_model.set_sort_func(book.pl_track['col'], self.cmp_str_as_num, None)
+        sorted_model.set_sort_func(book.md_track_number['col'], self.cmp_str_as_num, None)
 
         self.playlist_tree_view.set_model(sorted_model)
         # copy sorted sort model to new regular liststore model
