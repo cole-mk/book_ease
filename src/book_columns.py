@@ -23,23 +23,28 @@
 
 
 # The playlist metadata column setup
-md_title        = {'key':'title',       'alt_keys':['album']}
+md_title            = {'key':'title',       'alt_keys':['album']}
 
-md_author       = {'key':'author',      'alt_keys':['artist', 'performer', 'composer']}
+md_author           = {'key':'author',      'alt_keys':['artist', 'performer', 'composer']}
 
-md_read_by      = {'key':'performer',   'alt_keys':['author', 'artist', 'composer']}
+md_read_by          = {'key':'performer',   'alt_keys':['author', 'artist', 'composer']}
 
-md_length       = {'key':'length',      'alt_keys':[None]}
+md_length           = {'key':'length',      'alt_keys':[None]}
 
-md_track_number = {'key':'tracknumber', 'alt_keys':[None]}
+md_track_number     = {'key':'tracknumber', 'alt_keys':[None]}
 
-metadata_col_list = (md_title,  md_author, md_read_by, md_length, md_track_number)
+metadata_col_list   = (md_title,  md_author, md_read_by, md_length, md_track_number)
 
 
 # The track column setup
-track_file      = {'key':'file',        'alt_keys':[None]}
+track_file          = {'key':'file',        'alt_keys':[None]}
 
-track_path      = {'key':None,          'alt_keys':[None]}
+track_path          = {'key':None,          'alt_keys':[None]}
+
+track_col_list      = (track_file, track_path)
+
 
 # The pl_track column setup
-pl_track_id     = {'key':'pl_track_id', 'alt_keys':[None]}
+pl_track_id         = {'key':'pl_track_id', 'alt_keys':[None]}
+
+pl_track_col_list   = (pl_track_id,)
