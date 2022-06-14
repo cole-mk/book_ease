@@ -307,7 +307,7 @@ class Book_View(Gtk.Box):
         self.title_label.set_no_show_all(True)
         self.title_label.set_halign(Gtk.Align.END)
         self.header_box.pack_start(self.title_label, expand=True, fill=True, padding=0)
-        title_store = Gtk.ListStore(book.pl_title['g_typ'])
+        title_store = Gtk.ListStore(book.md_title['g_typ'])
         self.title_combo = Gtk.ComboBox.new_with_model_and_entry(title_store)
         self.title_combo.set_halign(Gtk.Align.END)
         self.title_combo.set_no_show_all(True)
@@ -338,7 +338,7 @@ class Book_View(Gtk.Box):
 
 
         self.display_cols = [book.pl_track,
-                             book.pl_title,
+                             book.md_title,
                              book.pl_author,
                              book.pl_read_by,
                              book.pl_length,
@@ -379,7 +379,7 @@ class Book_View(Gtk.Box):
         return self.playlist
 
     def get_playlist_new(self):
-        return Gtk.ListStore(book.pl_title      ['g_typ'],
+        return Gtk.ListStore(book.md_title      ['g_typ'],
                              book.pl_author     ['g_typ'],
                              book.pl_read_by    ['g_typ'],
                              book.pl_length     ['g_typ'],
@@ -670,7 +670,7 @@ class Book_View(Gtk.Box):
         for p in paths:
             itr = tv_model.get_iter(p)
             # append the actual current value in the selected row or row zero of the treeview
-            p_val = tv_model.get_value(itr, book.pl_title['col'])
+            p_val = tv_model.get_value(itr, book.md_title['col'])
             # make sure selected_val isnt a duplicate
             match = False
             for i in title_store:
@@ -682,7 +682,7 @@ class Book_View(Gtk.Box):
 
             # append to title_store each val in metadata value list for each p
             pl_track_id = tv_model.get_value(itr, book.pl_track_id['col'])
-            for meta_val in self.book.get_track(pl_track_id).get_entries(book.pl_title['key']):
+            for meta_val in self.book.get_track(pl_track_id).get_entries(book.md_title['key']):
                 match = False
                 # make sure meta_val isnt a duplicate
                 for i in title_store:

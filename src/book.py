@@ -81,7 +81,7 @@ def query_end(con):
         con.close()
 
 # The Playlist Data Column Setup
-pl_title    = {'name':'Title',         'col':0,
+md_title    = {'name':'Title',         'col':0,
                'g_typ':str,            'key':'title',
                'alt_keys':['album']}
 
@@ -113,7 +113,7 @@ pl_path      = {'name':'pl_path',  'col':7,
                'g_typ':str,        'key':None,
                'alt_keys':[None]}
 
-metadata_col_list =[pl_title,  pl_author, pl_read_by,
+metadata_col_list =[md_title,  pl_author, pl_read_by,
                     pl_length, pl_track]
 
 
