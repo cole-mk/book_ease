@@ -31,6 +31,7 @@ import mutagen
 from gui.gtk import BookView
 from gui.gtk import pinned_books_view
 import book_view_interface
+import book_columns
 
 # module wide db connection for multi queries
 __db_connection = None
@@ -80,41 +81,8 @@ def query_end(con):
         con.commit()
         con.close()
 
-# The Playlist Data Column Setup
-pl_title    = {'name':'Title',         'col':0,
-               'g_typ':str,            'key':'title',
-               'alt_keys':['album']}
-
-pl_author   = {'name':'Author',            'col':1,
-               'g_typ':str,                'key':'author',
-               'alt_keys':['artist', 'performer', 'composer']}
-
-pl_read_by  = {'name':'Read by',           'col':2,
-               'g_typ':str,                'key':'performer',
-               'alt_keys':['author', 'artist', 'composer']}
-
-pl_length   = {'name':'Length',            'col':3,
-               'g_typ':str,                'key':'length',
-               'alt_keys':[None]}
-
-pl_track    = {'name':'Track',             'col':4,
-               'g_typ':str,                'key':'tracknumber',
-               'alt_keys':[None]}
-
-pl_file     = {'name':'File',      'col':5,
-               'g_typ':str,        'key':'file',
-               'alt_keys':[None]}
-
-pl_track_id   = {'name':'pl_track_id',     'col':6,
-               'g_typ':int,            'key':'pl_track_id',
-               'alt_keys':[None]}
-
-pl_path      = {'name':'pl_path',  'col':7,
-               'g_typ':str,        'key':None,
-               'alt_keys':[None]}
-
-metadata_col_list =[pl_title,  pl_author, pl_read_by,
-                    pl_length, pl_track]
+#metadata_col_list =[book_columns.md_title,  book_columns.md_author, book_columns.md_read_by,
+#                    book_columns.md_length, book_columns.md_track_number]
 
 
 # TODO: file_list can be removed from the constructor all together. create_book can get it from self.files
@@ -192,7 +160,7 @@ class Book(playlist.Playlist, signal_.Signal_):
             tr.set_saved(True)
             self.track_list.append(tr)
             # populate track metadata
-            for col in metadata_col_list:
+            for col in book_columns.metadata_col_list:
                 entry_list = self.track_dbi.get_metadata_list(col['key'], tr.get_pl_track_id())
                 tr.set_entry(col['key'], entry_list)
 
@@ -218,7 +186,7 @@ class Book(playlist.Playlist, signal_.Signal_):
                 i+=1
 
                 # load alt values if this entry is empty
-                for col in metadata_col_list:
+                for col in book_columns.metadata_col_list:
                     if not track.get_entries(col['key']):
                         alt_entries = track.get_entry_lists_new(col['alt_keys'])
                         if alt_entries:
@@ -277,7 +245,7 @@ class Book(playlist.Playlist, signal_.Signal_):
             track.set_pl_track_id(pl_track_id)
 
             # save the Track metadata
-            for col in metadata_col_list:
+            for col in book_columns.metadata_col_list:
                 md_entry_l = track.get_entries(col['key'])
                 for md_entry in md_entry_l:
                     id_ = self.track_dbi.save_track_metadata(md_entry, pl_track_id, col['key'])
