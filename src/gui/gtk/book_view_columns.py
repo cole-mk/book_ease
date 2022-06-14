@@ -22,7 +22,7 @@
 #  MA 02110-1301, USA.
 import book_columns
 
-# The Playlist Data Column Setup
+# The playlist metadata column setup
 md_title        = book_columns.md_title
 md_title        = {'name':'Title',          'col':0, 'g_typ':str}
 
@@ -38,12 +38,25 @@ md_length       = {'name':'Length',         'col':3, 'g_typ':str}
 md_track_number = book_columns.md_track_number
 md_track_number = {'name':'Track',          'col':4, 'g_typ':str}
 
+# The track column setup
 track_file      = book_columns.track_file
 track_file      = {'name':'File',           'col':5, 'g_typ':str}
 
+track_path      = book_columns.track_path
+track_path      = {'name':'pl_path',        'col':7, 'g_typ':str}
+
+# The pl_track column setup
 pl_track_id     = book_columns.pl_track_id
 pl_track_id     = {'name':'pl_track_id',    'col':6, 'g_typ':int}
 
-track_path      = book_columns.track_path
-track_path      = {'name':'pl_path',        'col':7, 'g_typ':str}
+# The IDs for the metadata data columns
+md_title_id        = {'col':8,  'g_typ':int}
+
+md_author_id       = {'col':9,  'g_typ':int}
+
+md_read_by_id      = {'col':10, 'g_typ':int}
+
+md_length_id       = {'col':11, 'g_typ':int}
+
+md_track_number_id = {'col':12, 'g_typ':int}
 

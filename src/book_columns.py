@@ -22,7 +22,7 @@
 #  MA 02110-1301, USA.
 
 
-# The Playlist Data Column Setup
+# The playlist metadata column setup
 md_title        = {'key':'title',       'alt_keys':['album']}
 
 md_author       = {'key':'author',      'alt_keys':['artist', 'performer', 'composer']}
@@ -33,8 +33,10 @@ md_length       = {'key':'length',      'alt_keys':[None]}
 
 md_track_number = {'key':'tracknumber', 'alt_keys':[None]}
 
+# The track column setup
 track_file      = {'key':'file',        'alt_keys':[None]}
 
-pl_track_id     = {'key':'pl_track_id', 'alt_keys':[None]}
-
 track_path      = {'key':None,          'alt_keys':[None]}
+
+# The pl_track column setup
+pl_track_id     = {'key':'pl_track_id', 'alt_keys':[None]}
