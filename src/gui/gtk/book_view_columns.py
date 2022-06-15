@@ -23,25 +23,25 @@
 from book_columns import *
 
 # The playlist metadata column setup
-md_title.update(        {'g_col':0, 'g_typ':str, 'name':'Title'})
+md_title             |= {'g_col':0, 'g_typ':str, 'name':'Title'}
 
-md_author.update(       {'g_col':1, 'g_typ':str, 'name':'Author'})
+md_author            |= {'g_col':1, 'g_typ':str, 'name':'Author'}
 
-md_read_by.update(      {'g_col':2, 'g_typ':str, 'name':'Read by'})
+md_read_by           |= {'g_col':2, 'g_typ':str, 'name':'Read by'}
 
-md_length.update(       {'g_col':3, 'g_typ':str, 'name':'Length'})
+md_length            |= {'g_col':3, 'g_typ':str, 'name':'Length'}
 
-md_track_number.update( {'g_col':4, 'g_typ':str, 'name':'Track'})
+md_track_number      |= {'g_col':4, 'g_typ':str, 'name':'Track'}
 
 
 # The track column setup
-track_file.update(      {'g_col':5, 'g_typ':str, 'name':'File'})
+track_file           |= {'g_col':5, 'g_typ':str, 'name':'File'}
 
-track_path.update(      {'g_col':7, 'g_typ':str, 'name':'pl_path'})
+track_path           |= {'g_col':7, 'g_typ':str, 'name':'pl_path'}
 
 
 # The pl_track column setup
-pl_track_id.update(     {'g_col':6, 'g_typ':int, 'name':'pl_track_id'})
+pl_track_id          |= {'g_col':6, 'g_typ':int, 'name':'pl_track_id'}
 
 
 # The IDs for the metadata data columns
@@ -57,4 +57,4 @@ md_track_number_id    = {'g_col':12, 'g_typ':int}
 
 metadata_id_col_list  = (md_title_id, md_author_id, md_read_by_id, md_length_id, md_track_number_id)
 
-playlist_row_id = {'g_col':13, 'g_typ':int}
+playlist_row_id       = {'g_col':13, 'g_typ':int}
