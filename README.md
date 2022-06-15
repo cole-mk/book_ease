@@ -8,9 +8,10 @@
 ## Getting Started
 
 ### Dependencies
+* python >= 3.10
 * mutagen==1.45.1
 * pycairo==1.21.0
-* PyGObject==3.36.0
+* PyGObject==3.42.1
 
 ### Installing
 
