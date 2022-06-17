@@ -218,7 +218,7 @@ class BookMark:
                     tvs.unselect_all()
                     self.files.cd(value)
 
-    def on_button_press(self, unused_button, unused_event):
+    def on_button_press(self, unused_button, event):
         if event.get_button()[0] is True:
             if event.get_button()[1] == 1:
                 pass
