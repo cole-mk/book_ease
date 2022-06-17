@@ -37,22 +37,6 @@ import signal_
 import pinned_books
 import book
 
-#p = playlist_data.
-
-class media_player:
-
-    def __init__(self, config):
-        self.config = config
-        #self.player = vlc.Instance()
-        #self.media_list = []
-        #self.playlist_file = 'playlist.m3u'
-        #if config.has_option('app', 'playlist_file'):
-        #   tmp_playlist_file = config['app']['playlist_file']
-        #   if os.path.exists(tmp_playlist_file.rstrip()):
-        #       print('tmp_playlist_file exists')
-        #       self.playlist_file = tmp_playlist_file
-
-
 
 class RenameTvEntryDialog(Gtk.Dialog):
 
@@ -1040,8 +1024,7 @@ def main(args):
                               files,
                               config,
                               builder)
-    # vlc interface
-    player = media_player(config)
+
     # bookreader backend
     book_reader = BookReader_(files, config, builder)
 
