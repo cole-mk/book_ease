@@ -92,16 +92,16 @@ class BookMark:
         self.bookmark_view.set_show_expanders (False)
         self.bookmark_view.unset_rows_drag_dest()
         self.bookmark_view.unset_rows_drag_source()
-        self.rendererIcon = Gtk.CellRendererPixbuf()
+        self.renderer_icon = Gtk.CellRendererPixbuf()
 
-        self.rendererText = Gtk.CellRendererText()
-        self.rendererText.editable = True
+        self.renderer_text = Gtk.CellRendererText()
+        self.renderer_text.editable = True
 
         self.column = Gtk.TreeViewColumn("Bookmarks")
-        self.column.pack_start(self.rendererIcon, False)
-        self.column.pack_start(self.rendererText, True)
-        self.column.add_attribute(self.rendererIcon, "pixbuf", self.icon_pos)
-        self.column.add_attribute(self.rendererText, "text", self.name_pos)
+        self.column.pack_start(self.renderer_icon, False)
+        self.column.pack_start(self.renderer_text, True)
+        self.column.add_attribute(self.renderer_icon, "pixbuf", self.icon_pos)
+        self.column.add_attribute(self.renderer_text, "text", self.name_pos)
 
         self.bookmark_view.append_column(self.column)
         self.bookmark_view.set_reorderable(True)
