@@ -140,8 +140,8 @@ class BookMark:
         model, paths = sel.get_selected_rows()
         sel.unselect_all()
         # get the selected bookmark model from the row
-        for p in paths:
-            itr = model.get_iter(p)
+        for pth in paths:
+            itr = model.get_iter(pth)
             name = model.get_value(itr, self.name_pos)
             target = model.get_value(itr, self.target_pos)
             # get rename info from the user
