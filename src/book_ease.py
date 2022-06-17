@@ -40,7 +40,7 @@ import book
 
 class RenameTvEntryDialog(Gtk.Dialog):
 
-    def __init__(self, parent, title="My Dialog"):
+    def __init__(self, title="My Dialog"):
         self.title=title
         super().__init__(title=self.title, transient_for=None, flags=0)
 
@@ -146,7 +146,7 @@ class BookMark:
             name = model.get_value(itr, self.name_pos)
             target = model.get_value(itr, self.target_pos)
             # get rename info from the user
-            dialog = RenameTvEntryDialog(self, title='Rename Bookmark')
+            dialog = RenameTvEntryDialog(title='Rename Bookmark')
             dialog.label_1.set_text("Rename: " + name)
             dialog.entry_1.set_text(name)
             dialog.entry_1.select_region(0 , -1)
