@@ -380,8 +380,12 @@ class BookReader_View:
         self.create_pl_label = Gtk.Label('New Playlist')
         self.create_pl_label.set_margin_right(4)
         self.has_new_media_box.pack_start(self.create_pl_label, expand=False, fill=False, padding=0)
-        self.has_new_media_box.set_child_packing(child=self.create_pl_label, expand=False, fill=False, padding=0, pack_type=Gtk.PackType.END)
-        self.has_new_media_box.set_child_packing(child=self.create_pl_btn, expand=False, fill=False, padding=0, pack_type=Gtk.PackType.END)
+        self.has_new_media_box.set_child_packing(child=self.create_pl_label, expand=False, fill=False,
+                                                 padding=0, pack_type=Gtk.PackType.END)
+
+        self.has_new_media_box.set_child_packing(child=self.create_pl_btn, expand=False, fill=False,
+                                                 padding=0, pack_type=Gtk.PackType.END)
+
         self.create_pl_btn.connect('button-release-event', self.on_button_release)
 
         self.header_box.pack_end(self.has_new_media_box, expand=False, fill=False, padding=10)
@@ -393,7 +397,8 @@ class BookReader_View:
         self.open_book_btn = Gtk.Button(label='Open')
         #self.open_book_btn.show()
         self.has_book_box.pack_start(self.open_book_btn, expand=False, fill=False, padding=0)
-        self.has_book_box.set_child_packing(child=self.open_book_btn, expand=False, fill=False, padding=0, pack_type=Gtk.PackType.END)
+        self.has_book_box.set_child_packing(child=self.open_book_btn, expand=False, fill=False,
+                                            padding=0, pack_type=Gtk.PackType.END)
 
         # extract list of g_types from self.cur_pl_helper_l that was previously sorted by col number
         # use list to initialize self.cur_pl_list, our model for displayling
@@ -407,7 +412,8 @@ class BookReader_View:
         self.has_book_combo.add_attribute(renderer_text, "text", self.cur_pl_title['g_col'])
         self.has_book_combo.set_active(0)
         self.has_book_box.pack_start(self.has_book_combo, expand=False, fill=False, padding=0)
-        self.has_book_box.set_child_packing(child=self.has_book_combo, expand=False, fill=False, padding=0, pack_type=Gtk.PackType.END)
+        self.has_book_box.set_child_packing(child=self.has_book_combo, expand=False, fill=False,
+                                            padding=0, pack_type=Gtk.PackType.END)
 
         self.open_book_btn.connect('button-release-event', self.on_button_release)
 
@@ -640,7 +646,8 @@ class Files_(signal_.Signal_):
         self.sort_dir_first = True
 
         self.file_list = self.get_file_list_new()
-        self.icon_pos, self.f_name_pos, self.is_dir_pos, self.f_size_pos, self.f_units_pos, self.ctime_pos = (0, 1, 2, 3, 4, 5)
+        self.icon_pos, self.f_name_pos, self.is_dir_pos, self.f_size_pos, self.f_units_pos, self.ctime_pos \
+            = (0, 1, 2, 3, 4, 5)
 
         # Signals
         # Notify of file changes
@@ -990,13 +997,20 @@ class MainWindow(Gtk.Window):
                 self.image_view.hide()
 
         # deal with the parent panes needing to be hidden
-        if (not self.image_view.get_visible() and not self.book_reader_view.get_visible()) and self.book_reader_pane.get_visible():
+        if ((not self.image_view.get_visible() and not self.book_reader_view.get_visible())
+             and self.book_reader_pane.get_visible()):
+            # hide the parent pane
             self.book_reader_pane.hide()
-        elif (self.image_view.get_visible() or self.book_reader_view.get_visible()) and not self.book_reader_pane.get_visible():
+        elif ((self.image_view.get_visible() or self.book_reader_view.get_visible())
+               and not self.book_reader_pane.get_visible()):
+            # show the parent pane
             self.book_reader_pane.show()
-        elif (not self.file_manager1.get_visible() and not self.file_manager2.get_visible()) and self.file_manager_pane.get_visible():
+        elif ((not self.file_manager1.get_visible() and not self.file_manager2.get_visible())
+               and self.file_manager_pane.get_visible()):
             self.file_manager_pane.hide()
-        elif (self.file_manager1.get_visible() or self.file_manager2.get_visible()) and not self.file_manager_pane.get_visible():
+        elif ((self.file_manager1.get_visible() or self.file_manager2.get_visible())
+               and not self.file_manager_pane.get_visible()):
+            # show file manager pane
             self.file_manager_pane.show()
 
 
