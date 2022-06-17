@@ -857,7 +857,6 @@ class ControlBtn_VC(book_view_interface.BookView_Interface):
         pass
 
     def begin_edit_mode(self):
-        print('ctrl btn begin_edit_mode')
         self.control_btn_v.save_button.show()
         self.control_btn_v.cancel_button.show()
         self.control_btn_v.edit_button.hide()
@@ -873,30 +872,95 @@ class ControlBtn_VC(book_view_interface.BookView_Interface):
 
 class  Playlist_V:
 
-    def __init__(self):
+    def __init__(self, display_columns):
         builder = book_view_interface.get_builder()
         # display the playlist in a gtk treeview
         self.playlist_view = builder.get_object('playlist_view')
+
+        # a list of cell renderers used in the playlist view
+        self.cell_renderers = []
+
+        # initialize the TreeView columns and add them to the playlist view
+        for col in book_view_columns.display_cols:
+            rend = self.init_cell_renderer(col)
+            tvc = self.init_tree_view_column(col, rend)
+            self.playlist_view.append_column(tvc)
+            self.cell_renderers.append(rend)
+            #rend.connect("edited", self.on_edited, col)
+            #rend.connect("editing-started", self.on_editing_started, col)
+            #rend.connect("editing-canceled", self.on_editing_cancelled)
+
+    def init_cell_renderer(self, col):
+        """
+        initialize a cell renderer for display in the playlist treeview
+        This is what gets displayed in a combo box popup.
+        """
+        rend = Gtk.CellRendererCombo()
+        rend.set_property("text-column", 0)
+        rend.set_property("editable", True)
+        rend.set_property("has-entry", False)
+        # col 0 is playlist.TrackMDEntry.entry(type depends on column);
+        # col 1 is playlist.TrackMDEntry.id_ (int for all columns)
+        rend.set_property("model", Gtk.ListStore(col['g_typ'], int))
+        return rend
+
+    def init_tree_view_column(self, col, rend):
+        """initialize a single column for display in the treeview"""
+        tvc = Gtk.TreeViewColumn(col['name'])
+        tvc.pack_start(rend, True)
+        tvc.add_attribute(rend, "text", col['g_col'])
+        tvc.set_sort_order(Gtk.SortType.DESCENDING)
+        tvc.set_clickable(True)
+        #tvc.connect("clicked", self.on_clicked, col['g_col'])
+        return tvc
+
+    def get_cell_renderers(self) -> 'list':
+        """
+        get the list of Gtk.CellRenderersCombo's
+        associated with the playlist view
+        """
+        return self.cell_renderers
+
+    def set_model(self, playlist):
+        """
+        assign a GTK.TreeViewModel to the TreeView.
+
+        From the Gtk docs:
+        Sets the model for a GtkTreeView. If the tree_view already has a model set, it will remove it before setting the new model. If model is NULL, then it will unset the old model.
+        """
+        self.playlist_view.set_model(playlist)
+
+    def close(self):
+        self.playlist_view.destroy()
 
 
 class Playlist_VC(book_view_interface.BookView_Interface):
     """Controller for the treeview that displays a playlist"""
 
     def __init__(self, book_):
-        self.playlist_v = Playlist_V()
+        # copy the default list of columns that will be displayed
+        self.display_cols = book_view_columns.display_cols.copy()
+        # the view
+        self.playlist_v = Playlist_V(self.display_cols)
+        # the Book model that holds the playlist data
         self.book = book_
         # the column definitions that will be used to describe the playlist model data
-        self.playlist_columns = (
-            *book_view_columns.pl_track_col_list,
-            *book_view_columns.track_col_list,
-            *book_view_columns.metadata_col_list,
-            *book_view_columns.metadata_id_col_list,
-            book_view_columns.playlist_row_id
-        )
-        # unique id's for each row in the playlist model
+        self.playlist_columns = [
+                *book_view_columns.pl_track_col_list,
+                *book_view_columns.track_col_list,
+                *book_view_columns.metadata_col_list,
+                *book_view_columns.metadata_id_col_list,
+                book_view_columns.playlist_row_id
+            ]
+
+        # unique id generator for the rows in the playlist model
         self.row_id_iter = itertools.count()
+
         # generate the playlist model for display
         self.playlist = self.get_playlist_new()
+        # assign the playlist to the view
+        self.playlist_v.set_model(self.playlist)
+
         # each track metadata entry is a list. This secondary_metadata list is used to hold
         # track metadata beyond the first entry in each track's metadata list
         # that gets displayed in the playlist view. The secondary_metadata
@@ -919,7 +983,7 @@ class Playlist_VC(book_view_interface.BookView_Interface):
         pass
 
     def close(self):
-        self.playlist_v.destroy()
+        self.playlist_v.close()
 
     def get_playlist_new(self):
         """create a new model for the playlist"""

@@ -58,3 +58,6 @@ md_track_number_id    = {'g_col':12, 'g_typ':int}
 metadata_id_col_list  = (md_title_id, md_author_id, md_read_by_id, md_length_id, md_track_number_id)
 
 playlist_row_id       = {'g_col':13, 'g_typ':int}
+
+# The columns that will be displayed in the playlist treeview column
+display_cols = [md_track_number, md_title, md_author, md_read_by, md_length, track_file]
