@@ -655,8 +655,8 @@ class Files_(signal_.Signal_):
         self.signal('file_list_updated')
 
     def get_file_list_new(self):
-            fl = Gtk.ListStore(Pixbuf, str, bool, str, str, str)
-            return fl
+        fl = Gtk.ListStore(Pixbuf, str, bool, str, str, str)
+        return fl
 
     def populate_file_list(self, file_list, path):
         fl = file_list
