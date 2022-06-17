@@ -133,7 +133,6 @@ class BookMark:
         # reversed so the itr isn't corrupted on multiselect
         for pth in reversed(paths):
             itr = model.get_iter(pth)
-            name = model.get_value(itr, self.name_pos)
             model.remove(itr)
 
     def rename_selected_bookmark(self):
