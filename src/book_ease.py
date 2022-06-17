@@ -190,7 +190,7 @@ class BookMark:
             # update the config for data persistence
             self.config.set(self.config_section_name, name, path)
 
-    def cm_on_deactivate(self, user_data=None):
+    def cm_on_deactivate(self):
         sel = self.bookmark_view.get_selection()
         sel.unselect_all()
 
