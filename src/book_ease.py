@@ -21,28 +21,19 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
-import gi
-gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GdkPixbuf, GLib, Gdk
-from gi.repository.GdkPixbuf import Pixbuf
 import os
 import configparser
 from datetime import datetime
 import re
-#import vlc
-import mutagen
-from mutagen.easyid3 import EasyID3
-from threading import Thread
-import cairo
-import sqlite3
 from pathlib import Path
-import playlist
-from gui.gtk import BookView
-import signal_
 import pdb
-import db
-import sqlite_tables
-import singleton_
+import gi
+#pylint: disable=wrong-import-position
+gi.require_version("Gtk", "3.0")
+#pylint: enable=wrong-import-position
+from gi.repository import Gtk, GdkPixbuf, GLib, Gdk
+from gi.repository.GdkPixbuf import Pixbuf
+import signal_
 import pinned_books
 import book
 
