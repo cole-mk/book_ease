@@ -194,7 +194,7 @@ class BookMark:
         sel = self.bookmark_view.get_selection()
         sel.unselect_all()
 
-    def cm_on_item_button_release(self, button, event, user_data=None):
+    def cm_on_item_button_release(self, unused_button, event, user_data=None):
         if event.get_button()[0] is True:
             if event.get_button()[1] == 1:
                 #print('left button clicked')
@@ -206,7 +206,7 @@ class BookMark:
                 elif 'rename bookmark' == user_data:
                     self.rename_selected_bookmark()
 
-    def on_button_release(self, button, event):
+    def on_button_release(self, unused_button, event):
         if event.get_button()[0] is True:
             if event.get_button()[1] == 1:
                 # cd to the directory targeted in the selected bookmark
@@ -218,7 +218,7 @@ class BookMark:
                     tvs.unselect_all()
                     self.files.cd(value)
 
-    def on_button_press(self, button, event, user_data=None):
+    def on_button_press(self, unused_button, event, user_data=None):
         if event.get_button()[0] is True:
             if event.get_button()[1] == 1:
                 pass
