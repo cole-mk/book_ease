@@ -218,7 +218,7 @@ class BookMark:
                     tvs.unselect_all()
                     self.files.cd(value)
 
-    def on_button_press(self, unused_button, event, user_data=None):
+    def on_button_press(self, unused_button, unused_event):
         if event.get_button()[0] is True:
             if event.get_button()[1] == 1:
                 pass
@@ -237,7 +237,7 @@ class BookMark:
                 #print('forward button clicked')
 
     #callback for treestore row deleted, catching the user drag icons to reorder
-    def on_row_deleted(self, path, user_data=None):
+    def on_row_deleted(self, unused_path, unused_user_data=None):
         self.update_bookmark_config()
 
     def update_bookmark_config(self):
@@ -254,12 +254,11 @@ class BookMark:
 
 
 class Image_View:
-    def __init__(self, image_view, files, config, builder):
+    def __init__(self, files, config, builder):
         self.image_view_section = 'image_view'
         self.files = files
         self.config = config
         self.builder = builder
-        #self.image_view = image_view
         self.image_view = builder.get_object("image_view")
         self.image_view_da = builder.get_object("image_view_da")
         self.image_view_da.connect("draw", self.on_draw)
@@ -285,12 +284,12 @@ class Image_View:
         pass
 
 
-    def on_configure(self, area, event, data=None):
+    def on_configure(self, unused_area, unused_event, unused_data=None):
         # redraw the image
-        self.init_surface(self.image_view_da)
+        self.init_surface()
         self.surface.flush()
 
-    def init_surface(self, area):
+    def init_surface(self):
         # Destroy previous buffer
         if self.surface is not None:
             self.surface.finish()
@@ -300,7 +299,7 @@ class Image_View:
         disp_pixbuf = self.pixbuf.scale_simple(w, h, GdkPixbuf.InterpType.BILINEAR)
         self.surface = Gdk.cairo_surface_create_from_pixbuf(disp_pixbuf, 1, None)
 
-    def on_draw(self, area, context):
+    def on_draw(self, unused_area, context):
         if self.surface is not None:
             context.set_source_surface(self.surface, 0.25, 0.25)
             context.paint()
@@ -410,7 +409,7 @@ class BookReader_View:
 
         self.br_view.pack_start(self.outer_box, expand=True, fill=True, padding=0)
 
-    def on_button_release(self, btn, evt, data=None):
+    def on_button_release(self, btn, evt, unused_data=None):
         if evt.get_button()[0] is True:
             if evt.get_button()[1] == 1:
                 if btn is self.create_pl_btn:
@@ -432,7 +431,7 @@ class BookReader_View:
                     playlist_data.set_title(pl_row[self.cur_pl_title['col']])
                     self.book_reader.open_existing_book(playlist_data)
 
-    def on_has_new_media(self, has_new_media, user_data=None):
+    def on_has_new_media(self, has_new_media):
         if has_new_media:
             self.has_new_media_box.set_no_show_all(False)
             self.has_new_media_box.show_all()
@@ -535,7 +534,7 @@ class BookReader_:
         bk = self.get_book(index)
         bk[0].save(title)
 
-    def on_file_list_updated(self, get_cur_path, user_data=None):
+    def on_file_list_updated(self, get_cur_path):
         # conditions that need to be considered:
         # are there any media files in the directory
         # Is there a pre-existing playlist in the dir already
@@ -675,7 +674,7 @@ class Files_(signal_.Signal_):
         return self.file_list
 
     # callback signaled by Files_View
-    def cmp_f_list_dir_fst(self, model, row1, row2, user_data=None):
+    def cmp_f_list_dir_fst(self, model, row1, row2):
         sort_column, sort_order = model.get_sort_column_id()
         name1 = model.get_value(row1, sort_column)
         name2 = model.get_value(row2, sort_column)
@@ -828,7 +827,7 @@ class Files_View:
         self.files_view.connect('row-activated', self.row_activated)
         self.files_view.connect('button-release-event', self.on_button_release )
 
-    def on_button_release(self, button, event):
+    def on_button_release(self, unused_button, event):
         if event.get_button()[0] is True:
             if event.get_button()[1] == 1:
                 self.on_col_width_change()
@@ -852,7 +851,7 @@ class Files_View:
         if name_width_config != name_width:
             self.config.set(self.config_section_name, 'column_width_name', str(name_width))
 
-    def row_activated(self, treeview, path, column, user_data=None):
+    def row_activated(self, treeview, path, unused_column):
         model = treeview.get_model()
         tree_iter = model.get_iter(path)
         value = model.get_value(tree_iter,1)
@@ -927,7 +926,7 @@ class MainWindow(Gtk.Window):
             self.show_image_switch.set_state(self.show_image_switch_state)
 
 
-    def on_delete_event(self, widget, val, window=None):
+    def on_delete_event(self, unused_widget, unused_val, window=None):
         # save settings to config
         # window size
         window_1_pane_pos = self.window_pane.get_position()
@@ -954,10 +953,10 @@ class MainWindow(Gtk.Window):
         self.config.set('book_reader_window', 'show_playlist_switch_state', str(show_playlist_switch_state))
 
 
-    def on_destroy(self, *args):
+    def on_destroy(self, unused_window):
         Gtk.main_quit()
 
-    def on_visibility_switch_changed(self, sw, state, user_data=None):
+    def on_visibility_switch_changed(self, sw, state):
         if sw.get_name() == 'show_files_switch1':
             if state:
                 self.file_manager1.show()
@@ -997,7 +996,7 @@ class MainWindow(Gtk.Window):
             self.file_manager_pane.show()
 
 
-def main(args):
+def main(unused_args):
     #configuration file
     config_dir = Path.home() / '.config' / 'book_ease'
     config_dir.mkdir(mode=511, parents=True, exist_ok=True)
@@ -1019,8 +1018,7 @@ def main(args):
                                files,
                                config)
     # image pane
-    image_view_1 = Image_View(builder.get_object("image_view"),
-                              files,
+    image_view_1 = Image_View(files,
                               config,
                               builder)
 
