@@ -164,7 +164,7 @@ class BookMark:
                 self.update_bookmark_config()
             dialog.destroy()
 
-    def select_dir_dialog(self, path=None):
+    def select_dir_dialog(self):
         name = None
         target = None
         dialog = Gtk.FileChooserDialog(
