@@ -131,8 +131,8 @@ class BookMark:
         model, paths = sel.get_selected_rows()
         sel.unselect_all()
         # reversed so the itr isn't corrupted on multiselect
-        for p in reversed(paths):
-            itr = model.get_iter(p)
+        for pth in reversed(paths):
+            itr = model.get_iter(pth)
             name = model.get_value(itr, self.name_pos)
             model.remove(itr)
 
