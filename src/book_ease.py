@@ -68,7 +68,7 @@ class RenameTvEntryDialog(Gtk.Dialog):
         self.entry_2.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY, 'folder')
         self.entry_2.connect('icon-press', self.on_file_chooser_icon_pressed, file_chooser_method)
 
-    def on_file_chooser_icon_pressed(self, entry, icon_pos, event, file_chooser_method=None):
+    def on_file_chooser_icon_pressed(self, unused_1, unused_2, unused_3, file_chooser_method=None):
         name, path = file_chooser_method()
         if name and path:
             self.entry_2.set_text(path)
