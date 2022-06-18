@@ -552,9 +552,9 @@ class Book_C:
     def get_title(self):
         return self.book.get_playlist_data().get_title()
 
-    def open_existing_playlist(self):
+    def open_existing_playlist(self, playlist_data):
         """open a previously saved book"""
-        self.book.book_data_load()
+        self.book.book_data_load(playlist_data)
 
     def on_book_data_ready(self, is_sorted):
         """
