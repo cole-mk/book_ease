@@ -646,7 +646,7 @@ class BookReader_:
         """
         book_ = book.Book_C(self.cur_path, None, self.config, self.files, self)
         book_.page = self.book_reader_view.append_book(book_.get_view, book_.get_title())
-        index = self.append_book(book_)
+        self.append_book(book_)
         # load the playlist metadata
         book.open_existing_playlist(pl_row)
         # load the playlist metadata in background
@@ -662,7 +662,7 @@ class BookReader_:
         f_list = self.files.get_file_list_new()
         self.files.populate_file_list(f_list, self.cur_path)
         book_ = book.Book_C(self.cur_path, f_list, self.config, self.files, self)
-        index = self.append_book(book_)
+        self.append_book(book_)
         book_.page = self.book_reader_view.append_book(book_.get_view(), book_.get_title())
         # clear book_reader_view.has_new_media flag
         self.book_reader_view.on_has_new_media(False)
@@ -684,7 +684,7 @@ class BookReader_:
         """remove a book from the books list and tel its view to close"""
         self.remove_book(books_index)
         # close the bookview
-        book_, book_v = self.get_book(books_index)
+        book_v = self.get_book(books_index)[1]
         book_v.close()
 
     def book_editing_cancelled(self, books_index):
@@ -694,7 +694,7 @@ class BookReader_:
         This is bookreader playing repeater for the Book system again.
         It needs to be moved to Book_C.
         """
-        book_, book_v = self.get_book(books_index)
+        book_ = self.get_book(books_index)[0]
         if book_.is_saved():
             # clear the tracklist and reload from DB
             pl_row = book_.get_cur_pl_row()
@@ -1139,27 +1139,17 @@ def main(unused_args):
     # files backend
     files = Files_(config)
     # left side file viewer
-    files_view_1 = Files_View(builder.get_object("files_1"),
-                              files,
-                              config)
+    Files_View(builder.get_object("files_1"), files, config)
     # left side bookmarks
-    bookmark_view_1 = BookMark(builder.get_object("bookmarks_1"),
-                               files_view_1,
-                               files,
-                               config)
+    BookMark(builder.get_object("bookmarks_1"), files_view_1, files, config)
     # image pane
-    image_view_1 = Image_View(files,
-                              config,
-                              builder)
+    Image_View(files, config, builder)
 
     # bookreader backend
-    book_reader = BookReader_(files, config, builder)
+    BookReader_(files, config, builder)
 
     # main window
-    window = MainWindow(builder.get_object("window1"),
-                        builder.get_object("window_1_pane"),
-                        config,
-                        builder)
+    MainWindow(builder.get_object("window1"), builder.get_object("window_1_pane"), config, builder)
 
     Gtk.main()
     # write any changes to the config
