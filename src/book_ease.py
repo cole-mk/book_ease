@@ -1150,7 +1150,7 @@ def main(unused_args):
 
     Gtk.main()
     # write any changes to the config
-    with open(config_file, 'w') as configfile:
+    with open(config_file, 'w', encoding="utf-8") as configfile:
         config.write(configfile)
 
     return 0
