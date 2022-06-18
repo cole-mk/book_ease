@@ -26,12 +26,14 @@ import configparser
 from datetime import datetime
 import re
 from pathlib import Path
+#pylint: disable=unused-import
 import pdb
+#pylint: enable=unused-import
 import gi
 #pylint: disable=wrong-import-position
 gi.require_version("Gtk", "3.0")
 #pylint: enable=wrong-import-position
-from gi.repository import Gtk, GdkPixbuf, GLib, Gdk
+from gi.repository import Gtk, GdkPixbuf, Gdk
 from gi.repository.GdkPixbuf import Pixbuf
 import signal_
 import pinned_books
