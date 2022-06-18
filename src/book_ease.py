@@ -794,15 +794,14 @@ class Files_(signal_.Signal_):
             #return immediately if comparing a dir and a file
             if is_dir_1 and not is_dir_2:
                 return -1 * direction
-            elif not is_dir_1 and is_dir_2:
+            if not is_dir_1 and is_dir_2:
                 return 1 * direction
 
         if name1 < name2:
             return -1
-        elif name1 == name2:
+        if name1 == name2:
             return 0
-        else:
-            return 1
+        return 1
 
     def format_f_size(self, size):
         """
