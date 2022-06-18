@@ -599,8 +599,8 @@ class BookReader_:
         repeat a book save signal from book view sending it to book.
         This method will be replaced by one in Book_C
         """
-        book = self.get_book(index)
-        book[0].save(title)
+        book_ = self.get_book(index)
+        book_[0].save(title)
 
     def on_file_list_updated(self, get_cur_path):
         """
@@ -632,11 +632,11 @@ class BookReader_:
                 break
         self.book_reader_view.on_has_new_media(has_new_media)
 
-    def append_book(self, book):
+    def append_book(self, book_):
         """append book to list of opened books"""
         index = len(self.books)
-        book.set_index(index)
-        self.books.append(book)
+        book_.set_index(index)
+        self.books.append(book_)
         return index
 
     def open_existing_book(self, pl_row):
@@ -804,7 +804,7 @@ class Files_(signal_.Signal_):
         else:
             return 1
 
-    def format_f_size(size):
+    def format_f_size(self, size):
         """
         convert filesize to string with appropriate units
         This includes generating a units suffix thats returned with the formatted size as a tuple.
