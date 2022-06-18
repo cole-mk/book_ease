@@ -648,7 +648,7 @@ class BookReader_:
         book_.page = self.book_reader_view.append_book(book_.get_view, book_.get_title())
         self.append_book(book_)
         # load the playlist metadata
-        book.open_existing_playlist(pl_row)
+        book_.open_existing_playlist(pl_row)
         # load the playlist metadata in background
         #load_book_data_th = Thread(target=bk.book_data_load, args={row})
         #load_book_data_th.setDaemon(True)
