@@ -334,8 +334,8 @@ class Image_View:
             self.surface.finish()
             self.surface = None
         # Create a new buffer
-        (w, h) = self.get_image_scale()
-        disp_pixbuf = self.pixbuf.scale_simple(w, h, GdkPixbuf.InterpType.BILINEAR)
+        (width, height) = self.get_image_scale()
+        disp_pixbuf = self.pixbuf.scale_simple(width, height, GdkPixbuf.InterpType.BILINEAR)
         self.surface = Gdk.cairo_surface_create_from_pixbuf(disp_pixbuf, 1, None)
 
     def on_draw(self, unused_area, context):
@@ -599,8 +599,8 @@ class BookReader_:
         repeat a book save signal from book view sending it to book.
         This method will be replaced by one in Book_C
         """
-        bk = self.get_book(index)
-        bk[0].save(title)
+        book = self.get_book(index)
+        book[0].save(title)
 
     def on_file_list_updated(self, get_cur_path):
         """
@@ -624,9 +624,9 @@ class BookReader_:
             self.book_reader_view.on_has_book(has_book=False)
 
         # tell view we have files available if they are media files. offer to create new playlist
-        fl = self.files.get_file_list()
+        f_list = self.files.get_file_list()
         has_new_media=False
-        for i in fl:
+        for i in f_list:
             if self.is_media_file(i[1]):
                 has_new_media=True
                 break
@@ -644,11 +644,11 @@ class BookReader_:
         create a new Book instance and tell it to load a saved playlist.
         append the new Book to the booklist for later usage
         """
-        bk = book.Book_C(self.cur_path, None, self.config, self.files, self)
-        bk.page = self.book_reader_view.append_book(bk.get_view, bk.get_title())
-        index = self.append_book(bk)
+        book_ = book.Book_C(self.cur_path, None, self.config, self.files, self)
+        book_.page = self.book_reader_view.append_book(book_.get_view, book_.get_title())
+        index = self.append_book(book_)
         # load the playlist metadata
-        bk.open_existing_playlist(pl_row)
+        book.open_existing_playlist(pl_row)
         # load the playlist metadata in background
         #load_book_data_th = Thread(target=bk.book_data_load, args={row})
         #load_book_data_th.setDaemon(True)
@@ -659,15 +659,15 @@ class BookReader_:
         create a new Book instance and tell it to create a new playlist.
         append the new Book to the booklist for later usage
         """
-        fl = self.files.get_file_list_new()
-        self.files.populate_file_list(fl, self.cur_path)
-        bk = book.Book_C(self.cur_path, fl, self.config, self.files, self)
-        index = self.append_book(bk)
-        bk.page = self.book_reader_view.append_book(bk.get_view(), bk.get_title())
+        f_list = self.files.get_file_list_new()
+        self.files.populate_file_list(f_list, self.cur_path)
+        book_ = book.Book_C(self.cur_path, f_list, self.config, self.files, self)
+        index = self.append_book(book_)
+        book_.page = self.book_reader_view.append_book(book_.get_view(), book_.get_title())
         # clear book_reader_view.has_new_media flag
         self.book_reader_view.on_has_new_media(False)
         # load the playlist metadata
-        bk.open_new_playlist()
+        book_.open_new_playlist()
         # load the playlist metadata in background
         #create_book_data_th = Thread(target=bk.open_new_playlist)
         #create_book_data_th.setDaemon(True)
@@ -684,8 +684,8 @@ class BookReader_:
         """remove a book from the books list and tel its view to close"""
         self.remove_book(books_index)
         # close the bookview
-        bk, bv = self.get_book(books_index)
-        bv.close()
+        book_, book_v = self.get_book(books_index)
+        book_v.close()
 
     def book_editing_cancelled(self, books_index):
         """
@@ -694,12 +694,12 @@ class BookReader_:
         This is bookreader playing repeater for the Book system again.
         It needs to be moved to Book_C.
         """
-        bk, bv = self.get_book(books_index)
-        if bk.is_saved():
+        book_, book_v = self.get_book(books_index)
+        if book_.is_saved():
             # clear the tracklist and reload from DB
-            pl_row = bk.get_cur_pl_row()
-            bk.clear_track_list()
-            bk.book_data_load(pl_row)
+            pl_row = book_.get_cur_pl_row()
+            book_.clear_track_list()
+            book_.book_data_load(pl_row)
         else:
             # close the playlist
             self.close_book(books_index)
@@ -740,8 +740,8 @@ class Files_(signal_.Signal_):
 
     def get_file_list_new(self):
         """create a new file list model for the files view"""
-        fl = Gtk.ListStore(Pixbuf, str, bool, str, str, str)
-        return fl
+        f_list = Gtk.ListStore(Pixbuf, str, bool, str, str, str)
+        return f_list
 
     def populate_file_list(self, file_list, path):
         """Determine if files in path, directory, are suitable to be displayed and add them to the file_list"""
@@ -1084,24 +1084,24 @@ class MainWindow(Gtk.Window):
         """exit the gui main loop"""
         Gtk.main_quit()
 
-    def on_visibility_switch_changed(self, sw, state):
+    def on_visibility_switch_changed(self, switch, state):
         """manage the actions associated with the upper battery of show view switches"""
-        if sw.get_name() == 'show_files_switch1':
+        if switch.get_name() == 'show_files_switch1':
             if state:
                 self.file_manager1.show()
             else:
                 self.file_manager1.hide()
-        elif sw.get_name() == 'show_files_switch2':
+        elif switch.get_name() == 'show_files_switch2':
             if state:
                 self.file_manager2.show()
             else:
                 self.file_manager2.hide()
-        elif sw.get_name() == 'show_playlist_switch':
+        elif switch.get_name() == 'show_playlist_switch':
             if state:
                 self.book_reader_view.show()
             else:
                 self.book_reader_view.hide()
-        elif sw.get_name() == 'show_image_switch':
+        elif switch.get_name() == 'show_image_switch':
             if state:
                 self.image_view.show()
             else:
