@@ -863,7 +863,7 @@ class Files_(signal_.Signal_):
             else:
                 self.path_ahead.append(path)
 
-    def cd_up(self):
+    def cd_up(self, path):
         """move up one level in the directory tree"""
         if os.path.isdir(path):
             self.append_to_path_back()
@@ -879,7 +879,7 @@ class Files_(signal_.Signal_):
                 self.current_path = path
                 self.__update_file_list()
             else:
-                elf.path_back.append(path)
+                self.path_back.append(path)
 
     def is_hidden_file(self, file_name):
         """determine if a file is a hidden file"""
