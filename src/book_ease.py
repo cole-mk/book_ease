@@ -1013,18 +1013,12 @@ class MainWindow(Gtk.Window):
         self.show_image_switch_state = self.config['book_reader_window'].getboolean('show_image_switch_state')
         # file_manager_pane
         self.file_manager_pane = builder.get_object("file_manager_pane")
-        try:
-            self.file_manager_pane_pos = self.config['book_reader_window'].getint('file_manager_pane_pos')
-            self.file_manager_pane.set_position(int(self.file_manager_pane_pos))
-        except Exception as e:
-            print(e)
+        self.file_manager_pane_pos = self.config['book_reader_window'].getint('file_manager_pane_pos')
+        self.file_manager_pane.set_position(int(self.file_manager_pane_pos))
         # book_reader_pane
         self.book_reader_pane = builder.get_object("book_reader_pane")
-        try:
-            self.book_reader_pane_pos = self.config['book_reader_window'].getint('book_reader_pane_pos')
-            self.book_reader_pane.set_position(int(self.book_reader_pane_pos))
-        except Exception as e:
-            print(e)
+        self.book_reader_pane_pos = self.config['book_reader_window'].getint('book_reader_pane_pos')
+        self.book_reader_pane.set_position(int(self.book_reader_pane_pos))
         # window callbacks
         self.book_reader_window.connect('destroy', self.on_destroy)
         self.book_reader_window.connect('delete-event', self.on_delete_event, self.book_reader_window )
@@ -1139,7 +1133,7 @@ def main(unused_args):
     # files backend
     files = Files_(config)
     # left side file viewer
-    Files_View(builder.get_object("files_1"), files, config)
+    files_view_1 = Files_View(builder.get_object("files_1"), files, config)
     # left side bookmarks
     BookMark(builder.get_object("bookmarks_1"), files_view_1, files, config)
     # image pane
