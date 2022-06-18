@@ -21,51 +21,30 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
-import gi
-gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GdkPixbuf, GLib, Gdk
-from gi.repository.GdkPixbuf import Pixbuf
+"""Entry point for book_ease program"""
 import os
 import configparser
 from datetime import datetime
 import re
-#import vlc
-import mutagen
-from mutagen.easyid3 import EasyID3
-from threading import Thread
-import cairo
-import sqlite3
 from pathlib import Path
-import playlist
-from gui.gtk import BookView
-import signal_
+#pylint: disable=unused-import
 import pdb
-import db
-import sqlite_tables
-import singleton_
+#pylint: enable=unused-import
+import gi
+#pylint: disable=wrong-import-position
+gi.require_version("Gtk", "3.0")
+#pylint: enable=wrong-import-position
+from gi.repository import Gtk, GdkPixbuf, Gdk
+from gi.repository.GdkPixbuf import Pixbuf
+import signal_
 import pinned_books
 import book
 
-#p = playlist_data.
-
-class media_player:
-
-    def __init__(self, config):
-        self.config = config
-        #self.player = vlc.Instance()
-        #self.media_list = []
-        #self.playlist_file = 'playlist.m3u'
-        #if config.has_option('app', 'playlist_file'):
-        #   tmp_playlist_file = config['app']['playlist_file']
-        #   if os.path.exists(tmp_playlist_file.rstrip()):
-        #       print('tmp_playlist_file exists')
-        #       self.playlist_file = tmp_playlist_file
-
-
 
 class RenameTvEntryDialog(Gtk.Dialog):
+    """Dialog for renaming a bookmark"""
 
-    def __init__(self, parent, title="My Dialog"):
+    def __init__(self, title="My Dialog"):
         self.title=title
         super().__init__(title=self.title, transient_for=None, flags=0)
 
@@ -90,16 +69,19 @@ class RenameTvEntryDialog(Gtk.Dialog):
         self.show_all()
 
     def add_filechooser_dialog(self, file_chooser_method=None):
-            self.entry_2.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY, 'folder')
-            self.entry_2.connect('icon-press', self.on_file_chooser_icon_pressed, file_chooser_method)
+        """Allow Bookmark to assign a file choser diaog for this dialog to use"""
+        self.entry_2.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY, 'folder')
+        self.entry_2.connect('icon-press', self.on_file_chooser_icon_pressed, file_chooser_method)
 
-    def on_file_chooser_icon_pressed(self, entry, icon_pos, event, file_chooser_method=None):
+    def on_file_chooser_icon_pressed(self, unused_1, unused_2, unused_3, file_chooser_method=None):
+        """callback to start the filechooser dialof that was assigned to this class in add_filechooser_dialog"""
         name, path = file_chooser_method()
         if name and path:
             self.entry_2.set_text(path)
 
 
 class BookMark:
+    """Controller and View for Bookmark functionality inside the file view"""
     def __init__(self, bookmark_view, f_view, files, config):
         self.files = files
         self.config = config
@@ -117,16 +99,16 @@ class BookMark:
         self.bookmark_view.set_show_expanders (False)
         self.bookmark_view.unset_rows_drag_dest()
         self.bookmark_view.unset_rows_drag_source()
-        self.rendererIcon = Gtk.CellRendererPixbuf()
+        self.renderer_icon = Gtk.CellRendererPixbuf()
 
-        self.rendererText = Gtk.CellRendererText()
-        self.rendererText.editable = True
+        self.renderer_text = Gtk.CellRendererText()
+        self.renderer_text.editable = True
 
         self.column = Gtk.TreeViewColumn("Bookmarks")
-        self.column.pack_start(self.rendererIcon, False)
-        self.column.pack_start(self.rendererText, True)
-        self.column.add_attribute(self.rendererIcon, "pixbuf", self.icon_pos)
-        self.column.add_attribute(self.rendererText, "text", self.name_pos)
+        self.column.pack_start(self.renderer_icon, False)
+        self.column.pack_start(self.renderer_text, True)
+        self.column.add_attribute(self.renderer_icon, "pixbuf", self.icon_pos)
+        self.column.add_attribute(self.renderer_text, "text", self.name_pos)
 
         self.bookmark_view.append_column(self.column)
         self.bookmark_view.set_reorderable(True)
@@ -152,26 +134,30 @@ class BookMark:
         self.cmenu.show_all()
 
     def remove_selected_bookmark(self):
+        """delete the selected bookmark and remove it from the view"""
         sel = self.bookmark_view.get_selection()
         model, paths = sel.get_selected_rows()
         sel.unselect_all()
         # reversed so the itr isn't corrupted on multiselect
-        for p in reversed(paths):
-            itr = model.get_iter(p)
-            name = model.get_value(itr, self.name_pos)
+        for pth in reversed(paths):
+            itr = model.get_iter(pth)
             model.remove(itr)
 
     def rename_selected_bookmark(self):
+        """
+        rename the selected bookmark
+        by creating a user input dialog to set the name
+        """
         sel = self.bookmark_view.get_selection()
         model, paths = sel.get_selected_rows()
         sel.unselect_all()
         # get the selected bookmark model from the row
-        for p in paths:
-            itr = model.get_iter(p)
+        for pth in paths:
+            itr = model.get_iter(pth)
             name = model.get_value(itr, self.name_pos)
             target = model.get_value(itr, self.target_pos)
             # get rename info from the user
-            dialog = RenameTvEntryDialog(self, title='Rename Bookmark')
+            dialog = RenameTvEntryDialog(title='Rename Bookmark')
             dialog.label_1.set_text("Rename: " + name)
             dialog.entry_1.set_text(name)
             dialog.entry_1.select_region(0 , -1)
@@ -190,7 +176,11 @@ class BookMark:
                 self.update_bookmark_config()
             dialog.destroy()
 
-    def select_dir_dialog(self, path=None):
+    def select_dir_dialog(self):
+        """
+        File choser dialog used by BookMark class
+        needs to be moved to its own class
+        """
         name = None
         target = None
         dialog = Gtk.FileChooserDialog(
@@ -210,17 +200,28 @@ class BookMark:
         return  name, target
 
     def add_bookmark(self, name, path):
+        """
+        add bookmark, defined by name and path, by adding it
+        to the bookmark model and saving it to file
+        """
         if name is not None and path is not None:
             icon = Gtk.IconTheme.get_default().load_icon('folder', 24, 0)
             self.bookmark_model.append([icon, name, path])
             # update the config for data persistence
             self.config.set(self.config_section_name, name, path)
 
-    def cm_on_deactivate(self, user_data=None):
+    def cm_on_deactivate(self):
+        """
+        callback to cleanup after a context menu is closed
+        unselects any entries in the view that were being acted upon by the context menu
+        """
         sel = self.bookmark_view.get_selection()
         sel.unselect_all()
 
-    def cm_on_item_button_release(self, button, event, user_data=None):
+    def cm_on_item_button_release(self, unused_button, event, user_data=None):
+        """
+        do task based on context menu selection by the user
+        """
         if event.get_button()[0] is True:
             if event.get_button()[1] == 1:
                 #print('left button clicked')
@@ -232,7 +233,10 @@ class BookMark:
                 elif 'rename bookmark' == user_data:
                     self.rename_selected_bookmark()
 
-    def on_button_release(self, button, event):
+    def on_button_release(self, unused_button, event):
+        """
+        change to the directory targeted by the clicked bookmark
+        """
         if event.get_button()[0] is True:
             if event.get_button()[1] == 1:
                 # cd to the directory targeted in the selected bookmark
@@ -244,7 +248,11 @@ class BookMark:
                     tvs.unselect_all()
                     self.files.cd(value)
 
-    def on_button_press(self, button, event, user_data=None):
+    def on_button_press(self, unused_button, event):
+        """
+        handle callbacks for a button press on a bookmark by any mouse button.
+        currently its only action is to call a context menu when the bookmark view is right clicked
+        """
         if event.get_button()[0] is True:
             if event.get_button()[1] == 1:
                 pass
@@ -262,17 +270,22 @@ class BookMark:
                 pass
                 #print('forward button clicked')
 
-    #callback for treestore row deleted, catching the user drag icons to reorder
-    def on_row_deleted(self, path, user_data=None):
+    def on_row_deleted(self, unused_path, unused_user_data=None):
+        """callback for treestore row deleted, catching the user drag icons to reorder"""
         self.update_bookmark_config()
 
     def update_bookmark_config(self):
+        """clear and resave all of the bookmarks with current values"""
         self.config.remove_section(self.config_section_name)
         self.config.add_section(self.config_section_name)
         for i in self.bookmark_model:
             self.config.set(self.config_section_name, i[1], i[2])
 
     def reload_bookmarks(self):
+        """
+        load saved bookmarks into the bookmark treeview
+        Note: this does not reload, it only appends
+        """
         for key in self.config[self.config_section_name]:
             if os.path.isdir(self.config[self.config_section_name][key]):
                 icon = Gtk.IconTheme.get_default().load_icon('folder', 24, 0)
@@ -280,12 +293,13 @@ class BookMark:
 
 
 class Image_View:
-    def __init__(self, image_view, files, config, builder):
+    """Display images inside a playlist folder"""
+
+    def __init__(self, files, config, builder):
         self.image_view_section = 'image_view'
         self.files = files
         self.config = config
         self.builder = builder
-        #self.image_view = image_view
         self.image_view = builder.get_object("image_view")
         self.image_view_da = builder.get_object("image_view_da")
         self.image_view_da.connect("draw", self.on_draw)
@@ -301,32 +315,31 @@ class Image_View:
             i = '.*.\\' + i.strip() + '$'
             self.f_type_re.append(re.compile(i))
 
-    def is_image_file(self, file):
+    def is_image_file(self, file_):
+        """Test if file_ is an image file"""
         for i in self.f_type_re:
-            if i.match(file):
+            if i.match(file_):
                 return True
         return False
 
-    def on_btn_release_event(self, button, event, user_data=None ):
-        pass
-
-
-    def on_configure(self, area, event, data=None):
-        # redraw the image
-        self.init_surface(self.image_view_da)
+    def on_configure(self, unused_area, unused_event, unused_data=None):
+        """redraw the image"""
+        self.init_surface()
         self.surface.flush()
 
-    def init_surface(self, area):
+    def init_surface(self):
+        """create a new image surface"""
         # Destroy previous buffer
         if self.surface is not None:
             self.surface.finish()
             self.surface = None
         # Create a new buffer
-        (w, h) = self.get_image_scale()
-        disp_pixbuf = self.pixbuf.scale_simple(w, h, GdkPixbuf.InterpType.BILINEAR)
+        (width, height) = self.get_image_scale()
+        disp_pixbuf = self.pixbuf.scale_simple(width, height, GdkPixbuf.InterpType.BILINEAR)
         self.surface = Gdk.cairo_surface_create_from_pixbuf(disp_pixbuf, 1, None)
 
-    def on_draw(self, area, context):
+    def on_draw(self, unused_area, context):
+        """draw a context on the surface"""
         if self.surface is not None:
             context.set_source_surface(self.surface, 0.25, 0.25)
             context.paint()
@@ -335,6 +348,7 @@ class Image_View:
         return False
 
     def get_image_scale(self):
+        """get the correct width and height dimensions of an image to scale it so that it correctly fits in the view"""
         minimum_width=200
         max_height = self.image_view_da.get_allocation().height
         dest_width = minimum_width
@@ -359,6 +373,10 @@ class Image_View:
 
 
 class BookReader_View:
+    """
+    The outer most view of the bookreader pane containing a notebook to display individual books as well as several
+    control buttons to manage the books
+    """
 
     def __init__(self, br_view, book_reader, pinned_view):
         self.br_view = br_view
@@ -389,8 +407,12 @@ class BookReader_View:
         self.create_pl_label = Gtk.Label('New Playlist')
         self.create_pl_label.set_margin_right(4)
         self.has_new_media_box.pack_start(self.create_pl_label, expand=False, fill=False, padding=0)
-        self.has_new_media_box.set_child_packing(child=self.create_pl_label, expand=False, fill=False, padding=0, pack_type=Gtk.PackType.END)
-        self.has_new_media_box.set_child_packing(child=self.create_pl_btn, expand=False, fill=False, padding=0, pack_type=Gtk.PackType.END)
+        self.has_new_media_box.set_child_packing(child=self.create_pl_label, expand=False, fill=False,
+                                                 padding=0, pack_type=Gtk.PackType.END)
+
+        self.has_new_media_box.set_child_packing(child=self.create_pl_btn, expand=False, fill=False,
+                                                 padding=0, pack_type=Gtk.PackType.END)
+
         self.create_pl_btn.connect('button-release-event', self.on_button_release)
 
         self.header_box.pack_end(self.has_new_media_box, expand=False, fill=False, padding=10)
@@ -402,7 +424,8 @@ class BookReader_View:
         self.open_book_btn = Gtk.Button(label='Open')
         #self.open_book_btn.show()
         self.has_book_box.pack_start(self.open_book_btn, expand=False, fill=False, padding=0)
-        self.has_book_box.set_child_packing(child=self.open_book_btn, expand=False, fill=False, padding=0, pack_type=Gtk.PackType.END)
+        self.has_book_box.set_child_packing(child=self.open_book_btn, expand=False, fill=False,
+                                            padding=0, pack_type=Gtk.PackType.END)
 
         # extract list of g_types from self.cur_pl_helper_l that was previously sorted by col number
         # use list to initialize self.cur_pl_list, our model for displayling
@@ -416,7 +439,8 @@ class BookReader_View:
         self.has_book_combo.add_attribute(renderer_text, "text", self.cur_pl_title['g_col'])
         self.has_book_combo.set_active(0)
         self.has_book_box.pack_start(self.has_book_combo, expand=False, fill=False, padding=0)
-        self.has_book_box.set_child_packing(child=self.has_book_combo, expand=False, fill=False, padding=0, pack_type=Gtk.PackType.END)
+        self.has_book_box.set_child_packing(child=self.has_book_combo, expand=False, fill=False,
+                                            padding=0, pack_type=Gtk.PackType.END)
 
         self.open_book_btn.connect('button-release-event', self.on_button_release)
 
@@ -430,7 +454,11 @@ class BookReader_View:
 
         self.br_view.pack_start(self.outer_box, expand=True, fill=True, padding=0)
 
-    def on_button_release(self, btn, evt, data=None):
+    def on_button_release(self, btn, evt, unused_data=None):
+        """
+        callback for the various control buttons
+        currently takes actions for creating a new book and opening a new book
+        """
         if evt.get_button()[0] is True:
             if evt.get_button()[1] == 1:
                 if btn is self.create_pl_btn:
@@ -452,7 +480,8 @@ class BookReader_View:
                     playlist_data.set_title(pl_row[self.cur_pl_title['col']])
                     self.book_reader.open_existing_book(playlist_data)
 
-    def on_has_new_media(self, has_new_media, user_data=None):
+    def on_has_new_media(self, has_new_media):
+        """allow book_reader_view to tell the view if there are media files in the directory"""
         if has_new_media:
             self.has_new_media_box.set_no_show_all(False)
             self.has_new_media_box.show_all()
@@ -461,6 +490,14 @@ class BookReader_View:
             self.has_new_media_box.hide()
 
     def on_has_book(self, has_book, playlists_in_path=None):
+        """
+        Allow book_reader_view to tell the view if there are any playlists associated with the current path.
+
+        The has book box is a combo box containing the list of those playlists.
+
+        This method shows or hides the has_book_box based on the value of has_book and updates the combo box model with
+        the playlists in playlists_in_path
+        """
         # model holds list of existing playlist titles
         model = self.has_book_combo.get_model()
         model.clear()
@@ -479,6 +516,7 @@ class BookReader_View:
             self.has_book_box.hide()
 
     def append_book(self, view, title):
+        """set a book view to a new notebook tab"""
         label = Gtk.Label(label=title[0:8])
         newpage = self.book_reader_notebook.append_page(view, label)
         self.book_reader_notebook.show_all()
@@ -487,6 +525,7 @@ class BookReader_View:
         return newpage, view
 
     def build_start_page(self):
+        """build the content of the first notebook tab for displaying non-specific-book information"""
         start_label = Gtk.Label(label="Welcome to BookEase")
         start_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         start_box.pack_start(start_label, expand=False, fill=False, padding=20)
@@ -497,6 +536,8 @@ class BookReader_View:
 
 
 class BookReader_:
+    """class to manage the state of many books"""
+
     def __init__(self, files, config, builder):
         self.book_reader_section = 'book_reader'
         self.cur_path = None
@@ -535,16 +576,18 @@ class BookReader_:
         )
 
     def has_book(self, pth):
-
+        """determine if there is a playlist associated with the directory, pth"""
         br_path = os.path.join(pth, self.book_reader_dir, self.playlist_file)
         if os.path.exists(br_path):
             return True
         return False
 
     def get_book(self, index):
+        """retrieve a book from the book list"""
         return self.books[index]
 
     def remove_book(self, book_index):
+        """remove a book from the book list"""
         self.books.pop(book_index)
         # propogate changes to book list indices
         while book_index < len(self.books):
@@ -552,10 +595,22 @@ class BookReader_:
             book_index+=1
 
     def on_playlist_save(self, index, title):
-        bk = self.get_book(index)
-        bk[0].save(title)
+        """
+        repeat a book save signal from book view sending it to book.
+        This method will be replaced by one in Book_C
+        """
+        book_ = self.get_book(index)
+        book_[0].save(title)
 
-    def on_file_list_updated(self, get_cur_path, user_data=None):
+    def on_file_list_updated(self, get_cur_path):
+        """
+        Files is notifying bookreader that it has changed directories and is giving Book reader the list of files in
+        the new current working directory.
+
+        Tell BookReader_View if there are any saved playlists associated with this directory.
+
+        Tell BookReader_View if there are any media files that can be used to create a playlist.
+        """
         # conditions that need to be considered:
         # are there any media files in the directory
         # Is there a pre-existing playlist in the dir already
@@ -569,72 +624,90 @@ class BookReader_:
             self.book_reader_view.on_has_book(has_book=False)
 
         # tell view we have files available if they are media files. offer to create new playlist
-        fl = self.files.get_file_list()
+        f_list = self.files.get_file_list()
         has_new_media=False
-        for i in fl:
+        for i in f_list:
             if self.is_media_file(i[1]):
                 has_new_media=True
                 break
         self.book_reader_view.on_has_new_media(has_new_media)
 
-    def append_book(self, book):
+    def append_book(self, book_):
         """append book to list of opened books"""
         index = len(self.books)
-        book.set_index(index)
-        self.books.append(book)
+        book_.set_index(index)
+        self.books.append(book_)
         return index
 
     def open_existing_book(self, pl_row):
-        bk = book.Book_C(self.cur_path, None, self.config, self.files, self)
-        bk.page = self.book_reader_view.append_book(bk.get_view, bk.get_title())
-        index = self.append_book(bk)
+        """
+        create a new Book instance and tell it to load a saved playlist.
+        append the new Book to the booklist for later usage
+        """
+        book_ = book.Book_C(self.cur_path, None, self.config, self.files, self)
+        book_.page = self.book_reader_view.append_book(book_.get_view, book_.get_title())
+        self.append_book(book_)
         # load the playlist metadata
-        bk.open_existing_playlist(pl_row)
+        book_.open_existing_playlist(pl_row)
         # load the playlist metadata in background
         #load_book_data_th = Thread(target=bk.book_data_load, args={row})
         #load_book_data_th.setDaemon(True)
         #load_book_data_th.start()
 
     def open_new_book(self):
-        fl = self.files.get_file_list_new()
-        self.files.populate_file_list(fl, self.cur_path)
-        bk = book.Book_C(self.cur_path, fl, self.config, self.files, self)
-        index = self.append_book(bk)
-        bk.page = self.book_reader_view.append_book(bk.get_view(), bk.get_title())
+        """
+        create a new Book instance and tell it to create a new playlist.
+        append the new Book to the booklist for later usage
+        """
+        f_list = self.files.get_file_list_new()
+        self.files.populate_file_list(f_list, self.cur_path)
+        book_ = book.Book_C(self.cur_path, f_list, self.config, self.files, self)
+        self.append_book(book_)
+        book_.page = self.book_reader_view.append_book(book_.get_view(), book_.get_title())
         # clear book_reader_view.has_new_media flag
         self.book_reader_view.on_has_new_media(False)
         # load the playlist metadata
-        bk.open_new_playlist()
+        book_.open_new_playlist()
         # load the playlist metadata in background
         #create_book_data_th = Thread(target=bk.open_new_playlist)
         #create_book_data_th.setDaemon(True)
         #create_book_data_th.start()
 
-    def is_media_file(self, file):
+    def is_media_file(self, file_):
+        """determine is file_ matches any of the media file definitions"""
         for i in self.f_type_re:
-            if i.match(file):
+            if i.match(file_):
                 return True
         return False
 
     def close_book(self, books_index):
+        """remove a book from the books list and tel its view to close"""
         self.remove_book(books_index)
         # close the bookview
-        bk, bv = self.get_book(books_index)
-        bv.close()
+        book_v = self.get_book(books_index)[1]
+        book_v.close()
 
     def book_editing_cancelled(self, books_index):
-        bk, bv = self.get_book(books_index)
-        if bk.is_saved():
+        """
+        callback for when a book view's cancel editing button has been pressed
+        close the book if it wasn't already saved and reload if it was
+        This is bookreader playing repeater for the Book system again.
+        It needs to be moved to Book_C.
+        """
+        book_ = self.get_book(books_index)[0]
+        if book_.is_saved():
             # clear the tracklist and reload from DB
-            pl_row = bk.get_cur_pl_row()
-            bk.clear_track_list()
-            bk.book_data_load(pl_row)
+            pl_row = book_.get_cur_pl_row()
+            book_.clear_track_list()
+            book_.book_data_load(pl_row)
         else:
             # close the playlist
             self.close_book(books_index)
 
 
 class Files_(signal_.Signal_):
+    """class to manage the file management features of book_ease"""
+
     def __init__(self, config):
         signal_.Signal_.__init__(self)
         self.config = config
@@ -649,7 +722,8 @@ class Files_(signal_.Signal_):
         self.sort_dir_first = True
 
         self.file_list = self.get_file_list_new()
-        self.icon_pos, self.f_name_pos, self.is_dir_pos, self.f_size_pos, self.f_units_pos, self.ctime_pos = (0, 1, 2, 3, 4, 5)
+        self.icon_pos, self.f_name_pos, self.is_dir_pos, self.f_size_pos, self.f_units_pos, self.ctime_pos \
+            = (0, 1, 2, 3, 4, 5)
 
         # Signals
         # Notify of file changes
@@ -658,17 +732,19 @@ class Files_(signal_.Signal_):
         self.__update_file_list()
 
     def __update_file_list(self):
+        """repopulate the files list gtk model with the files in cwd"""
         self.file_list.clear()
         self.populate_file_list(self.file_list, self.current_path)
         # notify subscribers that the file list has been updated
         self.signal('file_list_updated')
 
     def get_file_list_new(self):
-            fl = Gtk.ListStore(Pixbuf, str, bool, str, str, str)
-            return fl
+        """create a new file list model for the files view"""
+        f_list = Gtk.ListStore(Pixbuf, str, bool, str, str, str)
+        return f_list
 
     def populate_file_list(self, file_list, path):
-        fl = file_list
+        """Determine if files in path, directory, are suitable to be displayed and add them to the file_list"""
         files = os.scandir(path)
         # populate liststore
         for i in files:
@@ -687,14 +763,19 @@ class Files_(signal_.Signal_):
             if i.is_dir():
                 icon = Gtk.IconTheme.get_default().load_icon('folder', 24, 0)
             # append to file list
-            fl.append([icon, i.name, i.is_dir(), size_f, units, str(timestamp_formatted)])
+            file_list.append([icon, i.name, i.is_dir(), size_f, units, str(timestamp_formatted)])
 
 
     def get_file_list(self):
+        """retrieve self.file_list"""
         return self.file_list
 
     # callback signaled by Files_View
-    def cmp_f_list_dir_fst(self, model, row1, row2, user_data=None):
+    def cmp_f_list_dir_fst(self, model, row1, row2):
+        """
+        compare method for sorting sort columns in the file view
+        returns gt:1 lt:-1 or eq:0
+        """
         sort_column, sort_order = model.get_sort_column_id()
         name1 = model.get_value(row1, sort_column)
         name2 = model.get_value(row2, sort_column)
@@ -713,51 +794,57 @@ class Files_(signal_.Signal_):
             #return immediately if comparing a dir and a file
             if is_dir_1 and not is_dir_2:
                 return -1 * direction
-            elif not is_dir_1 and is_dir_2:
+            if not is_dir_1 and is_dir_2:
                 return 1 * direction
 
         if name1 < name2:
             return -1
-        elif name1 == name2:
+        if name1 == name2:
             return 0
-        else:
-            return 1
+        return 1
 
-    # convert filesize to string with appropriate units
     def format_f_size(self, size):
+        """
+        convert filesize to string with appropriate units
+        This includes generating a units suffix thats returned with the formatted size as a tuple.
+        """
         units = 'b'
-        length = len("{:.0f}".format(size))
+        length = len(f"{size:.0f}")
         if length <= 3:
             val = str(size)
         elif length <= 6:
-            val = "{:.1f}".format(size / 10e+2)
+            val = f"{size / 10e+2:.1f}"
             units = 'kb'
         elif length <= 9:
-            val = "{:.1f}".format(size / 10e+5)
+            val = f"{size / 10e+5:.1f}"
             units = 'mb'
         elif length <= 12:
-            val = "{:.1f}".format(size / 10e+8)
+            val = f"{size / 10e+8:.1f}"
             units = 'gb'
         else:
-            val = "{:.1f}".format(size / 10e+11)
+            val = f"{size / 10e+11:.1f}"
             units = 'tb'
         return (val, units)
 
     def append_to_path_back(self):
+        """track file change history"""
         if len(self.path_back) >= self.path_back_max_len:
             self.path_back.pop(0)
         self.path_back.append(self.current_path)
 
     def append_to_path_ahead(self):
+        """track file change history"""
         if len(self.path_ahead) >= self.path_ahead_max_len:
             self.path_ahead.pop(0)
         self.path_ahead.append(self.current_path)
 
 
     def get_path_current(self):
+        """get the current path"""
         return self.current_path
 
     def cd(self, path):
+        """move to a new working directory determined by path"""
         if os.path.isdir(path):
             self.append_to_path_back()
             self.path_ahead.clear()
@@ -765,6 +852,7 @@ class Files_(signal_.Signal_):
             self.__update_file_list()
 
     def cd_ahead(self):
+        """move forward to directory in the file change history"""
         if len(self.path_ahead) > 0:
             path = self.path_ahead.pop()
             if os.path.isdir(path):
@@ -774,13 +862,15 @@ class Files_(signal_.Signal_):
             else:
                 self.path_ahead.append(path)
 
-    def cd_up(self):
+    def cd_up(self, path):
+        """move up one level in the directory tree"""
         if os.path.isdir(path):
             self.append_to_path_back()
             self.cd(os.path.split(self.get_path_current())[0])
             self.__update_file_list()
 
     def cd_previous(self):
+        """move back to directory in the file change history"""
         if len(self.path_back) > 0:
             path = self.path_back.pop()
             if os.path.isdir(path):
@@ -788,9 +878,10 @@ class Files_(signal_.Signal_):
                 self.current_path = path
                 self.__update_file_list()
             else:
-                elf.path_back.append(path)
+                self.path_back.append(path)
 
     def is_hidden_file(self, file_name):
+        """determine if a file is a hidden file"""
         valid = re.compile(r"^[\.]")
         if valid.match(file_name):
             return True
@@ -798,6 +889,8 @@ class Files_(signal_.Signal_):
 
 
 class Files_View:
+    """Display file infrmation for files in the cwd"""
+
     def __init__(self, files_view, files, config):
         self.files_view = files_view
         self.files = files
@@ -847,7 +940,13 @@ class Files_View:
         self.files_view.connect('row-activated', self.row_activated)
         self.files_view.connect('button-release-event', self.on_button_release )
 
-    def on_button_release(self, button, event):
+    def on_button_release(self, unused_button, event):
+        """
+        handle mouse button release events.
+        Currently:
+        column resising
+        forward and back buttons to move ahead or back in the file change history.
+        """
         if event.get_button()[0] is True:
             if event.get_button()[1] == 1:
                 self.on_col_width_change()
@@ -866,12 +965,17 @@ class Files_View:
                 #print('forward button clicked')
 
     def on_col_width_change(self):
+        """save new column width to config parser, creating a new section name if it doesn't exist'"""
         name_width_config = int(self.config[self.config_section_name]['column_width_name'])
         name_width = self.name_col.get_width()
         if name_width_config != name_width:
             self.config.set(self.config_section_name, 'column_width_name', str(name_width))
 
-    def row_activated(self, treeview, path, column, user_data=None):
+    def row_activated(self, treeview, path, unused_column):
+        """
+        a file was cicked in the view.
+        if file is a directory then change to that directory
+        """
         model = treeview.get_model()
         tree_iter = model.get_iter(path)
         value = model.get_value(tree_iter,1)
@@ -882,6 +986,7 @@ class Files_View:
             self.files.cd(new_path)
 
 class MainWindow(Gtk.Window):
+    """The main display window"""
 
     def __init__(self, book_reader_window, window_pane, config, builder):
         self.config = config
@@ -910,18 +1015,12 @@ class MainWindow(Gtk.Window):
         self.show_image_switch_state = self.config['book_reader_window'].getboolean('show_image_switch_state')
         # file_manager_pane
         self.file_manager_pane = builder.get_object("file_manager_pane")
-        try:
-            self.file_manager_pane_pos = self.config['book_reader_window'].getint('file_manager_pane_pos')
-            self.file_manager_pane.set_position(int(self.file_manager_pane_pos))
-        except Exception as e:
-            print(e)
+        self.file_manager_pane_pos = self.config['book_reader_window'].getint('file_manager_pane_pos')
+        self.file_manager_pane.set_position(int(self.file_manager_pane_pos))
         # book_reader_pane
         self.book_reader_pane = builder.get_object("book_reader_pane")
-        try:
-            self.book_reader_pane_pos = self.config['book_reader_window'].getint('book_reader_pane_pos')
-            self.book_reader_pane.set_position(int(self.book_reader_pane_pos))
-        except Exception as e:
-            print(e)
+        self.book_reader_pane_pos = self.config['book_reader_window'].getint('book_reader_pane_pos')
+        self.book_reader_pane.set_position(int(self.book_reader_pane_pos))
         # window callbacks
         self.book_reader_window.connect('destroy', self.on_destroy)
         self.book_reader_window.connect('delete-event', self.on_delete_event, self.book_reader_window )
@@ -946,7 +1045,11 @@ class MainWindow(Gtk.Window):
             self.show_image_switch.set_state(self.show_image_switch_state)
 
 
-    def on_delete_event(self, widget, val, window=None):
+    def on_delete_event(self, unused_widget, unused_val, window=None):
+        """
+        The view has been closed.
+        Save the view state to file
+        """
         # save settings to config
         # window size
         window_1_pane_pos = self.window_pane.get_position()
@@ -973,43 +1076,44 @@ class MainWindow(Gtk.Window):
         self.config.set('book_reader_window', 'show_playlist_switch_state', str(show_playlist_switch_state))
 
 
-    def on_destroy(self, *args):
+    def on_destroy(self, unused_window):
+        """exit the gui main loop"""
         Gtk.main_quit()
 
-    def on_visibility_switch_changed(self, sw, state, user_data=None):
-        if sw.get_name() == 'show_files_switch1':
-            if state:
-                self.file_manager1.show()
-            else:
-                self.file_manager1.hide()
-        elif sw.get_name() == 'show_files_switch2':
-            if state:
-                self.file_manager2.show()
-            else:
-                self.file_manager2.hide()
-        elif sw.get_name() == 'show_playlist_switch':
-            if state:
-                self.book_reader_view.show()
-            else:
-                self.book_reader_view.hide()
-        elif sw.get_name() == 'show_image_switch':
-            if state:
-                self.image_view.show()
-            else:
-                self.image_view.hide()
+    def on_visibility_switch_changed(self, switch, state):
+        """manage the actions associated with the upper battery of show view switches"""
+
+        # lookup table mapping the switches to the function to call which further depends on the state of the switch
+        # This function call either shows or hides the panel associated with the switch.
+        switch_functions = {
+            'show_image_switch'   :(lambda x:(x and self.image_view.show       or self.image_view.hide)),
+            'show_playlist_switch':(lambda x:(x and self.book_reader_view.show or self.book_reader_view.hide)),
+            'show_files_switch2'  :(lambda x:(x and self.file_manager2.show    or self.file_manager2.hide)),
+            'show_files_switch1'  :(lambda x:(x and self.file_manager1.show    or self.file_manager1.hide))
+            }
+        sw_func = switch_functions.get(switch.get_name())(state)
+        sw_func()
 
         # deal with the parent panes needing to be hidden
-        if (not self.image_view.get_visible() and not self.book_reader_view.get_visible()) and self.book_reader_pane.get_visible():
+        if ((not self.image_view.get_visible() and not self.book_reader_view.get_visible())
+             and self.book_reader_pane.get_visible()):
+            # hide the parent pane
             self.book_reader_pane.hide()
-        elif (self.image_view.get_visible() or self.book_reader_view.get_visible()) and not self.book_reader_pane.get_visible():
+        elif ((self.image_view.get_visible() or self.book_reader_view.get_visible())
+               and not self.book_reader_pane.get_visible()):
+            # show the parent pane
             self.book_reader_pane.show()
-        elif (not self.file_manager1.get_visible() and not self.file_manager2.get_visible()) and self.file_manager_pane.get_visible():
+        elif ((not self.file_manager1.get_visible() and not self.file_manager2.get_visible())
+               and self.file_manager_pane.get_visible()):
             self.file_manager_pane.hide()
-        elif (self.file_manager1.get_visible() or self.file_manager2.get_visible()) and not self.file_manager_pane.get_visible():
+        elif ((self.file_manager1.get_visible() or self.file_manager2.get_visible())
+               and not self.file_manager_pane.get_visible()):
+            # show file manager pane
             self.file_manager_pane.show()
 
 
-def main(args):
+def main(unused_args):
+    """entry point for book_ease"""
     #configuration file
     config_dir = Path.home() / '.config' / 'book_ease'
     config_dir.mkdir(mode=511, parents=True, exist_ok=True)
@@ -1022,33 +1126,21 @@ def main(args):
     # files backend
     files = Files_(config)
     # left side file viewer
-    files_view_1 = Files_View(builder.get_object("files_1"),
-                              files,
-                              config)
+    files_view_1 = Files_View(builder.get_object("files_1"), files, config)
     # left side bookmarks
-    bookmark_view_1 = BookMark(builder.get_object("bookmarks_1"),
-                               files_view_1,
-                               files,
-                               config)
+    BookMark(builder.get_object("bookmarks_1"), files_view_1, files, config)
     # image pane
-    image_view_1 = Image_View(builder.get_object("image_view"),
-                              files,
-                              config,
-                              builder)
-    # vlc interface
-    player = media_player(config)
+    Image_View(files, config, builder)
+
     # bookreader backend
-    book_reader = BookReader_(files, config, builder)
+    BookReader_(files, config, builder)
 
     # main window
-    window = MainWindow(builder.get_object("window1"),
-                        builder.get_object("window_1_pane"),
-                        config,
-                        builder)
+    MainWindow(builder.get_object("window1"), builder.get_object("window_1_pane"), config, builder)
 
     Gtk.main()
     # write any changes to the config
-    with open(config_file, 'w') as configfile:
+    with open(config_file, 'w', encoding="utf-8") as configfile:
         config.write(configfile)
 
     return 0
