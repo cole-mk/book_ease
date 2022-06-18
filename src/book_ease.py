@@ -1083,26 +1083,17 @@ class MainWindow(Gtk.Window):
 
     def on_visibility_switch_changed(self, switch, state):
         """manage the actions associated with the upper battery of show view switches"""
-        if switch.get_name() == 'show_files_switch1':
-            if state:
-                self.file_manager1.show()
-            else:
-                self.file_manager1.hide()
-        elif switch.get_name() == 'show_files_switch2':
-            if state:
-                self.file_manager2.show()
-            else:
-                self.file_manager2.hide()
-        elif switch.get_name() == 'show_playlist_switch':
-            if state:
-                self.book_reader_view.show()
-            else:
-                self.book_reader_view.hide()
-        elif switch.get_name() == 'show_image_switch':
-            if state:
-                self.image_view.show()
-            else:
-                self.image_view.hide()
+
+        # lookup table mapping the switches to the function to call which further depends on the state of the switch
+        # This function call either shows or hides the panel associated with the switch.
+        switch_functions = {
+            'show_image_switch'   :(lambda x:(x and self.image_view.show       or self.image_view.hide)),
+            'show_playlist_switch':(lambda x:(x and self.book_reader_view.show or self.book_reader_view.hide)),
+            'show_files_switch2'  :(lambda x:(x and self.file_manager2.show    or self.file_manager2.hide)),
+            'show_files_switch1'  :(lambda x:(x and self.file_manager1.show    or self.file_manager1.hide))
+            }
+        sw_func = switch_functions.get(switch.get_name())(state)
+        sw_func()
 
         # deal with the parent panes needing to be hidden
         if ((not self.image_view.get_visible() and not self.book_reader_view.get_visible())
