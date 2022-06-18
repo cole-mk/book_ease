@@ -804,23 +804,26 @@ class Files_(signal_.Signal_):
         else:
             return 1
 
-    def format_f_size(self, size):
-        """convert filesize to string with appropriate units"""
+    def format_f_size(size):
+        """
+        convert filesize to string with appropriate units
+        This includes generating a units suffix thats returned with the formatted size as a tuple.
+        """
         units = 'b'
-        length = len("{:.0f}".format(size))
+        length = len(f"{size:.0f}")
         if length <= 3:
             val = str(size)
         elif length <= 6:
-            val = "{:.1f}".format(size / 10e+2)
+            val = f"{size / 10e+2:.1f}"
             units = 'kb'
         elif length <= 9:
-            val = "{:.1f}".format(size / 10e+5)
+            val = f"{size / 10e+5:.1f}"
             units = 'mb'
         elif length <= 12:
-            val = "{:.1f}".format(size / 10e+8)
+            val = f"{size / 10e+8:.1f}"
             units = 'gb'
         else:
-            val = "{:.1f}".format(size / 10e+11)
+            val = f"{size / 10e+11:.1f}"
             units = 'tb'
         return (val, units)
 
