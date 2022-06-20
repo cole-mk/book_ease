@@ -121,7 +121,7 @@ class PinnedButton_VC(book_view_interface.BookView_Interface):
         self.book = book
         self.view = PinnedButton_V()
         self.view.pinned_button.connect('toggled', self.on_button_toggled)
-        self.signal_ = signal_.Signal_()
+        self.signal_ = signal_.Signal()
         self.signal_.add_signal('toggled')
         self.signal_.add_signal('book_updated')
 

@@ -21,11 +21,15 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 """
-helper class to implement signal system (notifications)
+helper module to implement signal system (notifications)
 note: instantiated/inherited by server
 """
 
-class Signal_():
+class Signal():
+    """
+    helper class to implement signal system (notifications)
+    note: instantiated/inherited by server
+    """
 
     def __init__(self):
         """
@@ -78,4 +82,5 @@ class Signal_():
         signal[1]: cb_args
         signal[2]: cb_kwargs
         """
-        [signal[0](*signal[1], *extra_args, **signal[2], **extra_kwargs) for signal in self._sig_handlers[handle]]
+        for signal in self._sig_handlers[handle]:
+            signal[0](*signal[1], *extra_args, **signal[2], **extra_kwargs)
