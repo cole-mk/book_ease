@@ -926,7 +926,9 @@ class  Playlist_V:
         assign a GTK.TreeViewModel to the TreeView.
 
         From the Gtk docs:
-        Sets the model for a GtkTreeView. If the tree_view already has a model set, it will remove it before setting the new model. If model is NULL, then it will unset the old model.
+        Sets the model for a GtkTreeView.
+        If the tree_view already has a model set, it will remove it before setting the new model.
+        If model is NULL, then it will unset the old model.
         """
         self.playlist_view.set_model(playlist)
 
@@ -974,7 +976,14 @@ class Playlist_VC(book_view_interface.BookView_Interface):
         pass
 
     def update(self):
-        pass
+        # clear the playlist view
+        self.playlist.clear()
+        # pop each track off of the list and move the data to self.playlist
+        while True:
+            track = self.book.pop_track()
+            if track is None:
+                break
+            self.__add_track(track)
 
     def begin_edit_mode(self):
         pass
@@ -997,3 +1006,34 @@ class Playlist_VC(book_view_interface.BookView_Interface):
     def genereate_row_id(self) -> 'row_id:int':
         """generate a unique row id for the playlist"""
         return next(self.row_id_iter)
+
+    def __add_track(self, track):
+        """add data from a track object into the playlist view"""
+        # append a new row to the playlist
+        cur_row = self.playlist.append()
+        # load the metadata columns
+        self.__add_metadata_columns(track, cur_row)
+        # load track data not stored in the metadata dictionary
+        self.__add_track_columns(track, cur_row)
+        # add the column that holds the unique row id specific to this instance of the Book_VC
+        self.__add_row_id_column(track, cur_row)
+
+    def __add_row_id_column(self, track, cur_row):
+        self.playlist.set_value(cur_row, book_view_columns.playlist_row_id['g_col'], self.genereate_row_id())
+
+    def __add_track_columns(self, track, cur_row):
+        self.playlist.set_value(cur_row, book_view_columns.track_file['g_col'], track.get_file_name())
+        self.playlist.set_value(cur_row, book_view_columns.track_path['g_col'], track.get_file_path())
+
+
+    def __add_metadata_columns(self, track, cur_row):
+        """load the first entry of all of the track metadata"""
+        for col in book_view_columns.metadata_col_list:
+            track_md_entry_list = track.get_entries(col['key'])
+            if track_md_entry_list:
+                # load the entry portion of the first TrackMDEntry
+                self.playlist.set_value(cur_row, col['g_col'], track_md_entry_list[0].get_entry())
+                # load the id portion of the first TrackMDEntry
+                self.playlist.set_value(cur_row, col['id_column']['g_col'], track_md_entry_list[0].get_id())
+
+
