@@ -20,7 +20,10 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
-
+"""
+book_columns.py is a module to aid in programatically describing the columns of data that represent a book.
+This includes Playlist, Track, and Track medtadata
+"""
 
 # The playlist metadata column setup
 md_title            = {'key':'title',       'alt_keys':['album']}
