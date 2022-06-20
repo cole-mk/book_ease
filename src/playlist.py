@@ -20,16 +20,12 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
-
+from pathlib import Path
 
 class Track:
     def __init__(self, file_path=None, number=None, is_saved=False, pl_track_id=None):
         self.metadata = {}
-        if file_path is not None:
-            self.file_path = file_path
-            self._file = file_path.rsplit('/', maxsplit=1).pop()
-            self.metadata['file'] = [TrackMDEntry(id_=None, index=0, entry=self._file)]
-            self.metadata['path'] = [TrackMDEntry(id_=None, index=0, entry=file_path)]
+        self.file_path = Path(file_path)
         self.number = number
         self.saved = is_saved
         self.pl_track_id = pl_track_id
@@ -74,11 +70,16 @@ class Track:
         entries.sort(key=lambda entry: entry.get_index())
         return entries
 
-    def get_file_name(self):
-        return self._file
+    def get_file_name(self) -> 'str':
+        """
+        return file_name as derived from self.file_path
+        raises AttributeError if self.file_path has not been set
+        """
+        return str(self.file_path.name)
+        #return self.file_path.rsplit('/', maxsplit=1).pop()
 
     def get_file_path(self):
-        return self.file_path
+        return str(self.file_path)
 
     def get_entry_lists_new(self, keys_):
         """
