@@ -766,7 +766,7 @@ class Book_V:
         self.pinned_v_box.destroy()
 
 
-class Book_VC(book_view_interface.BookView_Interface):
+class Book_VC(book_view_interface.BookViewInterface):
     """
     Book_VC is a controller for Book_V
     """
@@ -802,7 +802,7 @@ class Title_V:
         self.title_entry = builder.get_object('title_entry')
 
 
-class Title_VC(book_view_interface.BookView_Interface):
+class Title_VC(book_view_interface.BookViewInterface):
 
     def __init__(self, book_):
         self.book = book_
@@ -844,7 +844,7 @@ class ControlBtn_V:
         self.edit_button = builder.get_object('edit_button')
 
 
-class ControlBtn_VC(book_view_interface.BookView_Interface):
+class ControlBtn_VC(book_view_interface.BookViewInterface):
 
     def __init__(self, book_):
         self.book = book_
@@ -936,7 +936,7 @@ class  Playlist_V:
         self.playlist_view.destroy()
 
 
-class Playlist_VC(book_view_interface.BookView_Interface):
+class Playlist_VC(book_view_interface.BookViewInterface):
     """Controller for the treeview that displays a playlist"""
 
     def __init__(self, book_):

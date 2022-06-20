@@ -20,19 +20,23 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
-import abc
-from gi.repository import Gtk, Gdk, GLib
-from pathlib import Path
-
-
 """module wide gtk.builder instance"""
-__book_builder = None
+
+import abc
+from pathlib import Path
+from gi.repository import Gtk
+
+
+__book_builder = None # pylint: disable=invalid-name
+
 
 
 def get_builder() ->'Gtk.builder':
     """instantiate and return module wide gtk.builder instance"""
+
     glade_path = Path().cwd() / 'gui' / 'gtk' / 'book.glade'
-    global __book_builder
+    global __book_builder# pylint: disable=global-statement disable=invalid-name
+
     if __book_builder is None:
         __book_builder = Gtk.Builder()
         __book_builder.add_from_file(str(glade_path))
@@ -45,7 +49,8 @@ api_ = {'update':lambda x:x.update,
         'begin_display_mode':lambda x:x.begin_display_mode}
 
 
-class BookView_Interface(metaclass=abc.ABCMeta):
+class BookViewInterface(metaclass=abc.ABCMeta):
+    """interface to implement the observer/observable interface used by the Book_C"""
 
     @classmethod
     def __subclasshook__(cls, subclass):
@@ -67,21 +72,21 @@ class BookView_Interface(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def begin_edit_mode():
+    def begin_edit_mode(self):
         """switch to editing mode"""
         raise NotImplementedError
 
     @abc.abstractmethod
-    def begin_display_mode():
+    def begin_display_mode(self):
         """switch to display mode"""
         raise NotImplementedError
 
     @abc.abstractmethod
-    def close():
+    def close(self):
         """cleanup and close the gui"""
         raise NotImplementedError
 
     @abc.abstractmethod
-    def get_view():
+    def get_view(self):
         """retrieve the view from the VI classes"""
         raise NotImplementedError
