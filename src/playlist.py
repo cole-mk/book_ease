@@ -20,12 +20,12 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
-from pathlib import Path
+
 
 class Track:
     def __init__(self, file_path=None, number=None, is_saved=False, pl_track_id=None):
         self.metadata = {}
-        self.file_path = Path(file_path)
+        self.file_path = file_path
         self.number = number
         self.saved = is_saved
         self.pl_track_id = pl_track_id
@@ -75,11 +75,10 @@ class Track:
         return file_name as derived from self.file_path
         raises AttributeError if self.file_path has not been set
         """
-        return str(self.file_path.name)
-        #return self.file_path.rsplit('/', maxsplit=1).pop()
+        return self.file_path.rsplit('/', maxsplit=1).pop()
 
     def get_file_path(self):
-        return str(self.file_path)
+        return self.file_path
 
     def get_entry_lists_new(self, keys_):
         """
