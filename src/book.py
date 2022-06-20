@@ -265,6 +265,14 @@ class Book(playlist.Playlist, signal_.Signal_):
         # notify any listeners that the playlist has been saved
         self.signal('book_saved')
 
+    def pop_track(self) -> 'Track':
+        """pop and return a Track object from the self.track_list"""
+        try:
+            track = self.track_list.pop()
+        except IndexError:
+            track = None
+        return track
+
 
 class PlaylistDBI():
 
