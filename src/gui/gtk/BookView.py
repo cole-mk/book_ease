@@ -277,7 +277,7 @@ class Book_View(Gtk.Box):
 
     def __init__(self, book_, book_reader):
         Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL, spacing=0)
-        self.signal = signal_.Signal_()
+        self.signal = signal_.Signal()
         self.signal.add_signal('pinned_state_changed')
         self.book = book_
         self.notebook = self.book.book_reader.book_reader_view.book_reader_notebook

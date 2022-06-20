@@ -86,10 +86,10 @@ def query_end(con):
 
 
 # TODO: file_list can be removed from the constructor all together. create_book can get it from self.files
-class Book(playlist.Playlist, signal_.Signal_):
+class Book(playlist.Playlist, signal_.Signal):
     def __init__(self, path, file_list, config, files, book_reader):
         playlist.Playlist.__init__(self)
-        signal_.Signal_.__init__(self)
+        signal_.Signal.__init__(self)
         self.index = None
         self.playlist_data = PlaylistData(title='New Book', path=path)
         self.config = config
@@ -510,7 +510,7 @@ class Book_C:
         self.index = None
 
         # instantiate the component_views observable and the component view controllers
-        self.component_views = signal_.Signal_()
+        self.component_views = signal_.Signal()
         # register the signals
         [self.component_views.add_signal(handle) for handle in book_view_interface.api_]
 

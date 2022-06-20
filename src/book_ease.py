@@ -705,11 +705,11 @@ class BookReader_:
             self.close_book(books_index)
 
 
-class Files_(signal_.Signal_):
+class Files_(signal_.Signal):
     """class to manage the file management features of book_ease"""
 
     def __init__(self, config):
-        signal_.Signal_.__init__(self)
+        signal_.Signal.__init__(self)
         self.config = config
         self.library_path = self.config['app']['library path']
         self.current_path = self.library_path

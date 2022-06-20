@@ -26,7 +26,7 @@ import sqlite_tables
 import singleton_
 
 
-class PinnedBooks_C(signal_.Signal_):
+class PinnedBooks_C(signal_.Signal):
     """
     controller for the pinned books module
     """
@@ -35,7 +35,7 @@ class PinnedBooks_C(signal_.Signal_):
         """
         instantiate both the PinnedBooks_V and the PinnedBooks_M
         """
-        signal_.Signal_.__init__(self)
+        signal_.Signal.__init__(self)
         self.add_signal('open-book')
         self.model = PinnedBooks_M()
         self.view = PinnedBooks_V(self.model.get_col_info(), self)
@@ -242,7 +242,7 @@ class PinnedButton_M:
         raise ValueError('button not found in pinned_button_list')
 
 
-class PinnedBooks_M(signal_.Signal_):
+class PinnedBooks_M(signal_.Signal):
     """
     maintain the list of pinned books
     this includes saving/retrieving the list to/from premenant storage
@@ -250,7 +250,7 @@ class PinnedBooks_M(signal_.Signal_):
     """
 
     def __init__(self):
-        signal_.Signal_.__init__(self)
+        signal_.Signal.__init__(self)
         # signal that that something in the pinned list might have changed
         self.add_signal('pinned_list_changed')
         # the database interface
