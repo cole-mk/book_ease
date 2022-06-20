@@ -38,15 +38,15 @@ It creates lists of these columns that are only of interest to the view classes
 from book_columns import *
 
 # TrackMDEntry.id columns; The IDs for the metadata data columns
-md_title_id          = {'g_col':8,  'g_typ':int}
+md_title_id          = {'g_col':8,  'g_typ':int, 'name':'md_title_id'}
 
-md_author_id         = {'g_col':9,  'g_typ':int}
+md_author_id         = {'g_col':9,  'g_typ':int, 'name':'md_author_id'}
 
-md_read_by_id        = {'g_col':10, 'g_typ':int}
+md_read_by_id        = {'g_col':10, 'g_typ':int, 'name':'md_read_by_id'}
 
-md_length_id         = {'g_col':11, 'g_typ':int}
+md_length_id         = {'g_col':11, 'g_typ':int, 'name':'md_length_id'}
 
-md_track_number_id   = {'g_col':12, 'g_typ':int}
+md_track_number_id   = {'g_col':12, 'g_typ':int, 'name':'md_track_number_id'}
 
 metadata_id_col_list = (md_title_id, md_author_id, md_read_by_id, md_length_id, md_track_number_id)
 
@@ -66,7 +66,7 @@ md_track_number     |= {'g_col':4,  'g_typ':str, 'name':'Track',   'id_column':m
 # The track column setup
 track_file          |= {'g_col':5,  'g_typ':str, 'name':'File'}
 
-track_path          |= {'g_col':7,  'g_typ':str, 'name':'pl_path'}
+track_path          |= {'g_col':7,  'g_typ':str, 'name':'Path'}
 
 
 # The pl_track column setup
@@ -75,7 +75,7 @@ pl_track_id         |= {'g_col':6,  'g_typ':int, 'name':'pl_track_id'}
 
 # The playlist_row_id is a unique row id that is only used by
 # The V and VC classes. It never touches Book or Book_C.
-playlist_row_id      = {'g_col':13, 'g_typ':int}
+playlist_row_id      = {'g_col':13, 'g_typ':int, 'name':'playlist_row_id'}
 
 # The columns that will be displayed in the playlist treeview column
 display_cols = [md_track_number, md_title, md_author, md_read_by, md_length, track_file]
