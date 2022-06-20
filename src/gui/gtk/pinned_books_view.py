@@ -115,7 +115,7 @@ class PinnedButton_V():
         self.pinned_button = builder.get_object('pinned_button')
 
 
-class PinnedButton_VC(book_view_interface.BookView_Interface):
+class PinnedButton_VC(book_view_interface.BookViewInterface):
 
     def __init__(self, book):
         self.book = book
