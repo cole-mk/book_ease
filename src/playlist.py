@@ -20,9 +20,14 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
-
+"""
+This module contains playlist and track definitions, as well as the TrackMDEntry data type that supports the Track
+It also includes a TrackEdit class that implements Track but has an additional column field.
+"""
 
 class Track:
+    """the data type that represents everything about a Track in a playlist"""
+
     def __init__(self, file_path=None, number=None, is_saved=False, pl_track_id=None):
         self.metadata = {}
         self.file_path = file_path
@@ -31,42 +36,57 @@ class Track:
         self.pl_track_id = pl_track_id
 
     def get_pl_track_id(self) -> 'int or None':
+        """get the get_pl_track_id"""
         return self.pl_track_id
 
     def set_pl_track_id(self, pl_track_id):
+        """set the pl_track_id"""
         self.pl_track_id = pl_track_id
 
     def is_saved(self):
+        """determine if this track has already been saved to the database"""
         return self.saved
 
     def set_saved(self, is_saved):
+        """establish that this track has already been saved to the database"""
         self.saved = is_saved
 
     def set_number(self, number):
+        """
+        set this track's number in the playlist
+
+        Note: This is different than the metadata track number.
+        This is used internally for track placement in the view
+        """
         self.number = number
 
     def get_number(self):
+        """
+        get this track's number in the playlist
+
+        Note: This is different than the metadata track number.
+        This is used internally for track placement in the view
+        """
         return self.number
 
     def get_key_list(self):
+        """get the list of keys from the self.metadata dict"""
         key_list = []
         for key in self.metadata:
             key_list.append(key)
         return key_list
 
     def set_entry(self, key, entries):
-        if type(entries) is not list:
-            raise TypeError ( entries, 'is not a list' )
-        for v in entries:
-            if type(v) is not TrackMDEntry:
-                raise TypeError ( entries, 'is not a TrackMDEntry' )
+        """set or replace an entry in the self.metadata dict"""
         self.metadata[key] = entries
 
     def get_entries(self, key):
-        # return a list of all the entries in trackdata[key] sorted by index
+        """return a list of all the entries in self.metadata[key] sorted by index"""
         entries = []
         if key is not None and key in self.metadata:
-            [entries.append(entry) for entry in self.metadata[key] if entry is not None]
+            for entry in self.metadata[key]:
+                if entry is not None:
+                    entries.append(entry)
         entries.sort(key=lambda entry: entry.get_index())
         return entries
 
@@ -78,6 +98,7 @@ class Track:
         return self.file_path.rsplit('/', maxsplit=1).pop()
 
     def get_file_path(self):
+        """get the path full path to the file represented by this Track"""
         return self.file_path
 
     def get_entry_lists_new(self, keys_):
@@ -94,33 +115,46 @@ class Track:
 
 
 class Playlist():
+    """
+    Wrapper class for the playlist stored in the book
+    """
 
     def __init__(self):
         self.track_list = []
         self.saved_playlist = False
 
     def clear_track_list(self):
+        """Remove all Track's from self.track_list"""
         self.track_list.clear()
 
-    def is_saved(self):
+    def is_saved(self) -> bool:
+        """tell if this playlist has already been saved"""
         return self.saved_playlist
 
     def set_saved(self, _bool):
+        """set this playlist's saved flag"""
         self.saved_playlist = _bool
 
     def get_track_list(self):
+        """get a reference to self.track_list"""
         return self.track_list
 
     def get_track(self, id_):
-        for tr in self.track_list:
-            if tr.get_pl_track_id() == id_:
-               return tr
+        """get a reference to a Track by searching for its id'"""
+        for track in self.track_list:
+            if track.get_pl_track_id() == id_:
+                return track
         raise ValueError('track.pl_track_id not found in tracklist')
 
     def track_list_sort_number(self):
+        """sort self.track_list in place"""
         self.track_list.sort(key=lambda row: row.number)
 
-class Track_Edit(Track):
+class TrackEdit(Track):
+    """
+    Track class with the added attribute, self.col_info.
+    used by the dialog that edits one column at a time.
+    """
 
     def __init__(self, col_info):
         super().__init__()
@@ -129,8 +163,15 @@ class Track_Edit(Track):
 
 
 class TrackMDEntry:
-    # this container is the value in a key value pair
-    # sotred inside Track.metadata
+    """
+    This container is one entry in the value list from a key:value pair stored inside Track.metadata
+
+    It contains three attributes:
+    The entry's id in the database.
+    The entry's index in the value list from a key:value pair stored inside Track.metadata
+    The text entry itself
+    """
+
 
     def __init__(self,  id_=None, index=None, entry=None):
         self.id_ = id_
@@ -138,23 +179,32 @@ class TrackMDEntry:
         self.entry = entry
 
     def get_id(self):
+        """get the entry's id in the database."""
         return self.id_
 
     def set_id(self, id_):
+        """set the entry's id in the database."""
         self.id_ = id_
 
     def get_index(self):
+        """get the entry's index in the value list from a key:value pair stored inside Track.metadata"""
         return self.index
 
     def set_index(self, index):
+        """set the entry's index in the value list from a key:value pair stored inside Track.metadata"""
         self.index = index
 
     def get_entry(self):
+        """get the text entry itself"""
         return self.entry
 
     def set_entry(self, entry):
+        """set the text entry itself"""
         self.entry = entry
 
     def copy(self):
+        """
+        return a new TrackMDEntry with index and entry values populated with data copied from this TrackMDEntry
+        self.id_ is left as None because the copy has not yet been saved.
+        """
         return TrackMDEntry(index=self.get_index(), entry=self.get_entry())
-
