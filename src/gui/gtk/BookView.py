@@ -583,7 +583,7 @@ class Book_View(Gtk.Box):
 
     def has_pinned_button(self):
         """
-        determine if BookView has already had a PinnedButton_V
+        determine if BookView has already had a PinnedButtonV
         object added to itself
         """
         return self.pinned_button
