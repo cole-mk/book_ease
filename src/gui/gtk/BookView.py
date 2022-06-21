@@ -160,7 +160,7 @@ class Edit_Row_Dialog:
                     break
 
             if not existing_edit:
-                edit = playlist.Track_Edit(self.selected_col)
+                edit = playlist.TrackEdit(self.selected_col)
                 self.track_edit_list_tmp.append(edit)
 
             edit.set_entry(edit.col_info['key'], val_list)
@@ -427,7 +427,7 @@ class Book_View(Gtk.Box):
             # send the changes to book
             if len(val_list) > 0:
                 row_id = self.playlist[path][book_view_columns.pl_track_id['col']]
-                edit = playlist.Track_Edit(col)
+                edit = playlist.TrackEdit(col)
                 edit.set_entry(col['key'], val_list)
                 edit.set_pl_track_id(row_id)
                 self.book.track_list_update(edit)
