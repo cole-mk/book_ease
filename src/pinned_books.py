@@ -24,7 +24,7 @@
 pinned_books module, along with the gui bits in gui.gtk.pinned_books_view, is the entire subsystem responsible for
 managing the list of book that have been marked as "pinned" by the user.
 """
-from gui.gtk.pinned_books_view import PinnedBooks_V, PinnedButton_VC
+from gui.gtk.pinned_books_view import PinnedBooksV, PinnedButtonVC
 import signal_
 import sqlite_tables
 import singleton_
@@ -37,12 +37,12 @@ class PinnedBooksC(signal_.Signal):
 
     def __init__(self):
         """
-        instantiate both the PinnedBooks_V and the PinnedBooksM
+        instantiate both the PinnedBooksV and the PinnedBooksM
         """
         signal_.Signal.__init__(self)
         self.add_signal('open-book')
         self.model = PinnedBooksM()
-        self.view = PinnedBooks_V(self.model.get_col_info(), self)
+        self.view = PinnedBooksV(self.model.get_col_info(), self)
         self.pinned_button_model = PinnedButtonM()
         self.model.connect('pinned_list_changed', self.view.load_pinned_list)
 
@@ -86,10 +86,10 @@ class PinnedBooksC(signal_.Signal):
 
     def get_pinned_button_new(self, book):
         """
-        create a new PinnedButton_V, a container for a CheckButton
+        create a new PinnedButtonVC, a container for a CheckButton
         returns the view object
         """
-        btn_vi = PinnedButton_VC(book)
+        btn_vi = PinnedButtonVC(book)
         # set checkbutton state
         if self.is_pinned(book.get_playlist_id()):
             btn_vi.set_checked(True)

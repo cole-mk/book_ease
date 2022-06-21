@@ -20,14 +20,22 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
+
+"""
+pinned_books_view module contains the views for the pinned buttons attached to each book view and for the list of pinned
+books that are displayed by the book reader view
+"""
+
 import gi
+#pylint: disable=wrong-import-position
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Gdk, GLib
+#pylint: enable=wrong-import-position
+from gi.repository import Gtk
 import signal_
 import book_view_interface
 
 
-class PinnedBooks_V(Gtk.Box):
+class PinnedBooksV(Gtk.Box):
     """
     display the list of pinned books in a Gtk.Treeview encapsulated in a Gtk.Box
     """
@@ -91,17 +99,19 @@ class PinnedBooks_V(Gtk.Box):
         append a book to the list of pinned books
         """
         model = self.pinned_view.get_model()
-        row = model.append(tuple(playlist_data.get_data_sorted_by_prop('col')))
+        row_iter = model.append(tuple(playlist_data.get_data_sorted_by_prop('col')))
+        return row_iter
 
-    def remove(self,title, path):
+    def remove_book(self,title, path):
         """remove a row from the list of pinned books"""
         model = self.pinned_view.get_model()
         for row in model:
-            if row[self.book_reader.pinned_title['col']] == title and row[self.book_reader.pinned_path['col']] == path:
+            if (row[self.pinned_cols.get_title_prop('col')] == title
+            and row[self.pinned_cols.get_path_prop('col')] == path):
                 model.remove(row.iter)
 
 
-class PinnedButton_V():
+class PinnedButtonV: #pylint: disable=too-few-public-methods
     """
     display a Gtk.CheckButton to control wether or not a book is pinned
     """
@@ -115,20 +125,22 @@ class PinnedButton_V():
         self.pinned_button = builder.get_object('pinned_button')
 
 
-class PinnedButton_VC(book_view_interface.BookViewInterface):
+class PinnedButtonVC(book_view_interface.BookViewInterface):
+    """
+    class controls a Gtk.CheckButton view.
+    this class is connected to the pinned_books module as well as book.Book_C
+    """
 
     def __init__(self, book):
         self.book = book
-        self.view = PinnedButton_V()
+        self.view = PinnedButtonV()
         self.view.pinned_button.connect('toggled', self.on_button_toggled)
         self.signal_ = signal_.Signal()
         self.signal_.add_signal('toggled')
         self.signal_.add_signal('book_updated')
 
-    def set_view(self, pinned_button_v):
-        self.view = pinned_button_v
-
     def get_view(self):
+        """return self.view.pinned_button"""
         return self.view.pinned_button
 
     def update(self):
@@ -137,16 +149,19 @@ class PinnedButton_VC(book_view_interface.BookViewInterface):
             self.signal_.signal('book_updated', playlist_id=self.book.get_playlist_id())
 
     def begin_edit_mode(self):
+        """hide the view when told to begin book editing mode"""
         self.view.pinned_button.hide()
 
     def begin_display_mode(self):
+        """show the view when told to begin book editing mode"""
         if self.book.is_saved():
             self.view.pinned_button.show()
 
     def close(self):
+        """cleanup by closing the view"""
         self.view.pinned_button.destroy()
 
-    def on_button_toggled(self, btn):
+    def on_button_toggled(self, btn): #pylint: disable=unused-argument
         """
         callback function registered with with Gtk
         handles signaling of pinned_button state changed
