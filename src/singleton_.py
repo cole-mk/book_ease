@@ -26,7 +26,7 @@ https://www.python.org/download/releases/2.2/descrintro/#__new__
 """
 
 
-class Singleton_(object):
+class Singleton():
     """
     To create a singleton class, you subclass from Singleton;
     each subclass will have a single instance,
@@ -36,12 +36,12 @@ class Singleton_(object):
     The __init__ method is called each time the constructor is called
     """
     def __new__(cls, *args, **kwds):
-        it = cls.__dict__.get("__it__")
-        if it is not None:
-            return it
-        cls.__it__ = it = object.__new__(cls)
-        it.init(*args, **kwds)
-        return it
+        singleton = cls.__dict__.get("__it__")
+        if singleton is not None:
+            return singleton
+        cls.__it__ = singleton = object.__new__(cls)
+        singleton.init(*args, **kwds)
+        return singleton
 
     def init(self, *args, **kwds):
-        pass
+        """pass"""

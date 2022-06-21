@@ -95,7 +95,7 @@ class PinnedBooks_C(signal_.Signal):
         return btn_vi
 
 
-class PinnedCols(singleton_.Singleton_):
+class PinnedCols(singleton_.Singleton):
     """
     PinnedCols contains descriptions of the data in the PinnedData class
     that are common to all instances of the PinnedData class.
