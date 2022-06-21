@@ -20,26 +20,30 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
-from gui.gtk.pinned_books_view import PinnedBooks_V, PinnedButton_V, PinnedButton_VC
+"""
+pinned_books module, along with the gui bits in gui.gtk.pinned_books_view, is the entire subsystem responsible for
+managing the list of book that have been marked as "pinned" by the user.
+"""
+from gui.gtk.pinned_books_view import PinnedBooks_V, PinnedButton_VC
 import signal_
 import sqlite_tables
 import singleton_
 
 
-class PinnedBooks_C(signal_.Signal):
+class PinnedBooksC(signal_.Signal):
     """
     controller for the pinned books module
     """
 
     def __init__(self):
         """
-        instantiate both the PinnedBooks_V and the PinnedBooks_M
+        instantiate both the PinnedBooks_V and the PinnedBooksM
         """
         signal_.Signal.__init__(self)
         self.add_signal('open-book')
-        self.model = PinnedBooks_M()
+        self.model = PinnedBooksM()
         self.view = PinnedBooks_V(self.model.get_col_info(), self)
-        self.pinned_button_model = PinnedButton_M()
+        self.pinned_button_model = PinnedButtonM()
         self.model.connect('pinned_list_changed', self.view.load_pinned_list)
 
     def on_book_updated(self, playlist_id):
@@ -73,7 +77,7 @@ class PinnedBooks_C(signal_.Signal):
 
     def is_pinned(self, playlist_id):
         """
-        ask the PinnedBooks_M if this particular playlist
+        ask the PinnedBooksM if this particular playlist
         is on the pinned list
 
         playlist_id: the id of the playlist
@@ -170,7 +174,7 @@ class PinnedData:
 
     def get_title_prop(self, key):
         """see PinnedCols"""
-        return self._col_info.title['key']
+        return self._col_info.title[key]
 
     def set_title_prop(self, key, prop):
         """see PinnedCols"""
@@ -182,7 +186,7 @@ class PinnedData:
 
     def get_path_prop(self, key):
         """see PinnedCols"""
-        return self._col_info.path['key']
+        return self._col_info.path[key]
 
     def set_path_prop(self, key, prop):
         """see PinnedCols"""
@@ -194,7 +198,7 @@ class PinnedData:
 
     def get_playlist_id_prop(self, key):
         """see PinnedCols"""
-        return self._col_info.playlist_id['key']
+        return self._col_info.playlist_id[key]
 
     def set_playlist_id_prop(self, key, prop):
         """see PinnedCols"""
@@ -212,11 +216,10 @@ class PinnedData:
         data = {self.get_playlist_id():self._col_info.get_playlist_id_prop(prop),
                 self.get_title():self._col_info.get_title_prop(prop),
                 self.get_path():self._col_info.get_path_prop(prop)}
+        return list(sorted(data, key=lambda key: data[key]))
 
-        return [datum for datum in sorted(data, key=lambda key: data[key])]
 
-
-class PinnedButton_M:
+class PinnedButtonM:
     """
     maintain the list of pinned buttons
     """
@@ -242,7 +245,7 @@ class PinnedButton_M:
         raise ValueError('button not found in pinned_button_list')
 
 
-class PinnedBooks_M(signal_.Signal):
+class PinnedBooksM(signal_.Signal):
     """
     maintain the list of pinned books
     this includes saving/retrieving the list to/from premenant storage
@@ -254,7 +257,7 @@ class PinnedBooks_M(signal_.Signal):
         # signal that that something in the pinned list might have changed
         self.add_signal('pinned_list_changed')
         # the database interface
-        self.dbi = PinnedBooks_DBI()
+        self.dbi = PinnedBooksDBI()
         # setup col_info
         self.col_info = PinnedCols()
 
@@ -310,7 +313,7 @@ class PinnedBooks_M(signal_.Signal):
             self.signal('pinned_list_changed')
 
 
-class PinnedBooks_DBI:
+class PinnedBooksDBI:
     """
     Class to interface the database with the rest of the module.
     manage the connections to the database table classes.
@@ -348,7 +351,8 @@ class PinnedBooks_DBI:
         con.close()
         # return list of PinnedData objects copied from list of sqlite row objects
         playlists = []
-        [playlists.append(PinnedData(playlist_id=row['id'], title=row['title'], path=row['path'])) for row in rows]
+        for row in rows:
+            playlists.append(PinnedData(playlist_id=row['id'], title=row['title'], path=row['path']))
         return playlists
 
     def is_pinned(self, playlist_id):
@@ -384,5 +388,6 @@ class PinnedBooks_DBI:
             rows = self.pinned_playlists.get_pinned_playlists(con)
         con.close()
         # convert list of sqlite row object to list of tuples (str,)
-        [pinned_list.append(row['playlist_id']) for row in rows]
+        for row in rows:
+            pinned_list.append(row['playlist_id'])
         return pinned_list

@@ -132,7 +132,7 @@ class PinnedButton_VC(book_view_interface.BookViewInterface):
         return self.view.pinned_button
 
     def update(self):
-        """if book is saved, tell PinnedBooks_C to update list of pinned books"""
+        """if book is saved, tell PinnedBooksC to update list of pinned books"""
         if self.book.is_saved():
             self.signal_.signal('book_updated', playlist_id=self.book.get_playlist_id())
 

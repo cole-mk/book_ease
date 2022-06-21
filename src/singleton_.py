@@ -43,5 +43,5 @@ class Singleton():
         singleton.init(*args, **kwds)
         return singleton
 
-    def init(self, *args, **kwds):
+    def init(self):
         """pass"""
