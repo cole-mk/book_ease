@@ -404,10 +404,10 @@ class TrackDBI():
             if e_entry['idx'] != index:
                 # rotate indices and update row in table
                 self.pl_track_metadata.null_duplicate_indices(con, pl_track_id, index, key)
-                self.pl_track_metadata.update_row(con, id_, entry, index, key)
+                self.pl_track_metadata.update_row(con, pl_track_id, id_, entry, index, key)
             elif e_entry['entry'] != entry:
                 # indices already match, simply update row
-                self.pl_track_metadata.update_row(con, id_, entry, index, key)
+                self.pl_track_metadata.update_row(con, pl_track_id, id_, entry, index, key)
         query_end(con)
         return id_
 
