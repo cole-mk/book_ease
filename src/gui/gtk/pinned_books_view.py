@@ -44,7 +44,7 @@ class PinnedBooksV(Gtk.Box):
         """
         initialize the Gtk.Treeview and its model for displayling the list of pinned books
 
-        pinned_cols is pinned.PinnedCols: container for descriptions of the pinned list data
+        pinned_cols is pinned_books.PinnedCols: container for descriptions of the pinned list data
         pinned_books_c: controller for this view
         """
         Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL, spacing=0)
