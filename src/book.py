@@ -586,5 +586,12 @@ class Book_C:
         api_ = book_view_interface.api_
         [self.component_views.connect(handle, api_[handle](view_vc)) for handle in api_]
 
+    def save(self):
+        print('Book_C.save()')
 
+    def edit(self):
+        print('Book_C.edit()')
+
+    def cancel_edit(self):
+        print('Book_C.cancel_edit()')
 
