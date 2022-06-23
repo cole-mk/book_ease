@@ -125,19 +125,25 @@ class PinnedButtonV: #pylint: disable=too-few-public-methods
         self.pinned_button = builder.get_object('pinned_button')
 
 
-class PinnedButtonVC(book_view_interface.BookViewInterface):
+class PinnedButtonVC:
     """
     class controls a Gtk.CheckButton view.
     this class is connected to the pinned_books module as well as book.Book_C
     """
 
-    def __init__(self, book):
+    def __init__(self, book, book_transmitter):
+        # subscribe to the signals relevant to this class
+        book_transmitter.connect('close', self.close)
+        book_transmitter.connect('begin_edit_mode', self.begin_edit_mode)
+        book_transmitter.connect('begin_display_mode', self.begin_display_mode)
+        book_transmitter.connect('update', self.update)
+        # save a reference to the book model so PinnedButtonVC can get data when it needs to
         self.book = book
         self.view = PinnedButtonV()
         self.view.pinned_button.connect('toggled', self.on_button_toggled)
-        self.signal_ = signal_.Signal()
-        self.signal_.add_signal('toggled')
-        self.signal_.add_signal('book_updated')
+        self.button_transmitter = signal_.Signal()
+        self.button_transmitter.add_signal('toggled')
+        self.button_transmitter.add_signal('book_updated')
 
     def get_view(self):
         """return self.view.pinned_button"""
@@ -146,7 +152,7 @@ class PinnedButtonVC(book_view_interface.BookViewInterface):
     def update(self):
         """if book is saved, tell PinnedBooksC to update list of pinned books"""
         if self.book.is_saved():
-            self.signal_.signal('book_updated', playlist_id=self.book.get_playlist_id())
+            self.button_transmitter.signal('book_updated', playlist_id=self.book.get_playlist_id())
 
     def begin_edit_mode(self):
         """hide the view when told to begin book editing mode"""
@@ -166,7 +172,7 @@ class PinnedButtonVC(book_view_interface.BookViewInterface):
         callback function registered with with Gtk
         handles signaling of pinned_button state changed
         """
-        self.signal_.signal('toggled', playlist_id=self.book.get_playlist_id())
+        self.button_transmitter.signal('toggled', playlist_id=self.book.get_playlist_id())
 
     def get_playlist_id(self):
         """get the id of the book that this button is associated with"""
