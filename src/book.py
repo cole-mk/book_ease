@@ -501,32 +501,45 @@ class TrackFI:
 
 class Book_C:
 
+    #the list of signals that Book_C is allowed to send to the component views
+    book_tx_api = ['update', 'get_view', 'close', 'begin_edit_mode', 'begin_display_mode']
+    # the list of signals that the component views is allowed to send to Book_C
+    component_tx_api = ['save_button', 'cancel_button', 'edit_button']
+
     def __init__(self, path, file_list, config, files, book_reader):
-        # the main view
-        self.book_vc = BookView.Book_VC()
         # the model
         self.book = Book(path, file_list, config, files, book_reader)
         # allow BookReader to track Book_C's position in its books list
         self.index = None
 
-        # instantiate the component_views observable and the component view controllers
-        self.component_views = signal_.Signal()
-        # register the signals
-        [self.component_views.add_signal(handle) for handle in book_view_interface.api_]
+        # set up the callback system in the observer interface of the component view controllers
+        # This makes it so that the component views only have to call the signal name and not do any other setup.
+        self.component_transmitter = signal_.Signal()
+        for handle in self.component_tx_api:
+            self.component_transmitter.add_signal(handle)
+            self.component_transmitter.connect(handle, self.receive, handle)
 
+        # instantiate the component_views observable.
+        self.transmitter = signal_.Signal()
+        # register the outgoing signals that go to the component views.
+        # Each of the component views now just need to connect to the signals they want to subscribe to.
+        for handle in self.book_tx_api:
+            self.transmitter.add_signal(handle)
+
+        # create the component view controllers
+        # the main view does not use the component_transmitter because it has nothing to say
+        self.book_vc = BookView.Book_VC(self.transmitter)
         # title view
-        self.title_vc = BookView.Title_VC(self.book)
-        self.connect_component(self.title_vc)
+        BookView.Title_VC(self.book, self.transmitter, self.component_transmitter)
         # control button view
-        self.control_btn_vc = BookView.ControlBtn_VC(self.book)
-        self.connect_component(self.control_btn_vc)
+        BookView.ControlBtn_VC(self.book, self.transmitter, self.component_transmitter)
         # playlist view
-        self.playlist_vc = BookView.Playlist_VC(self.book)
-        self.connect_component(self.playlist_vc)
-        # pinned button view
-        pinned_button_vc = book_reader.pinned_books.get_pinned_button_new(self.book)
-        self.connect_component(pinned_button_vc)
+        BookView.Playlist_VC(self.book, self.transmitter, self.component_transmitter)
+        # pinned button view does not use the component_transmitter because it is responsible for signalling its own
+        # controller.
+        book_reader.pinned_books.get_pinned_button_new(self.book, self.transmitter)
 
+        # connect to the signals from the Book that Book_C is interested in
         self.book.connect('book_data_created', self.on_book_data_ready, is_sorted=False)
 
         # bk.connect('book_saved', book_view.book_data_load_th)
@@ -537,7 +550,6 @@ class Book_C:
         # bk.connect('book_saved', self.book_updated, index=index)
         # connect the book_data_loaded to the add book_updated callback
         # bk.connect('book_data_loaded', self.book_updated, index=index)
-
     def get_view(self):
         return self.book_vc.get_view()
 
@@ -570,21 +582,29 @@ class Book_C:
         load the book into the view
         """
         # tell components to load their data from the book
-        self.component_views.signal('update')
+        self.transmitter.signal('update')
         if self.book.is_saved():
             # tell components to enter display mode
-            self.component_views.signal('begin_display_mode')
+            self.transmitter.signal('begin_display_mode')
         else:
             # tell components to enter editing mode
-            self.component_views.signal('begin_edit_mode')
+            self.transmitter.signal('begin_edit_mode')
 
-    def connect_component(self, view_vc):
-        """
-        connect a view controller's functions to all signals
-        defined in the book_view_interface.api_
-        """
-        api_ = book_view_interface.api_
-        [self.component_views.connect(handle, api_[handle](view_vc)) for handle in api_]
+    def save(self):
+        pass
 
+    def edit(self):
+        pass
 
+    def cancel_edit(self):
+        pass
 
+    def receive(self, control_signal):
+        """convert signals from the component views into actions by calling the appropriate methods"""
+        match control_signal:
+            case 'save_button':
+                self.save()
+            case 'cancel_button':
+                self.edit()
+            case 'edit_button':
+                self.cancel_edit()

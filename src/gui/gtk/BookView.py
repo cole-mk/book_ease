@@ -766,11 +766,12 @@ class Book_V:
         self.pinned_v_box.destroy()
 
 
-class Book_VC(book_view_interface.BookViewInterface):
+class Book_VC:
     """
     Book_VC is a controller for Book_V
     """
-    def __init__(self):
+    def __init__(self, book_tx_signal):
+        book_tx_signal.connect('close', self.close)
         self.book_v = Book_V()
 
     def update(self):
@@ -802,9 +803,17 @@ class Title_V:
         self.title_entry = builder.get_object('title_entry')
 
 
-class Title_VC(book_view_interface.BookViewInterface):
+class Title_VC:
 
-    def __init__(self, book_):
+    def __init__(self, book_, book_tx_signal, component_transmitter):
+        # save a reference to the transmitter that this class uses to send messages back to Book_C
+        self.transmitter = component_transmitter
+        # subscribe to the signals relevant to this class
+        book_tx_signal.connect('close', self.close)
+        book_tx_signal.connect('begin_edit_mode', self.begin_edit_mode)
+        book_tx_signal.connect('begin_display_mode', self.begin_display_mode)
+        book_tx_signal.connect('update', self.update)
+        # save a reference to the book model so Title_VC can get data when it needs to
         self.book = book_
         # create the Gtk view
         self.title_v = Title_V()
@@ -843,12 +852,36 @@ class ControlBtn_V:
         self.cancel_button = builder.get_object('cancel_button')
         self.edit_button = builder.get_object('edit_button')
 
+    def get_save_button(self):
+        return self.save_button
 
-class ControlBtn_VC(book_view_interface.BookViewInterface):
+    def get_cancel_button(self):
+        return self.cancel_button
 
-    def __init__(self, book_):
+    def get_edit_button(self):
+        return self.edit_button
+
+
+class ControlBtn_VC:
+
+    def __init__(self, book_, book_tx_signal, component_transmitter):
+        # save a reference to the transmitter that this class uses to send messages bak to Book_C
+        self.transmitter = component_transmitter
+        # subscribe to the signals relevant to this class.
+        book_tx_signal.connect('close', self.close)
+        book_tx_signal.connect('begin_edit_mode', self.begin_edit_mode)
+        book_tx_signal.connect('begin_display_mode', self.begin_display_mode)
+
+        # save a reference to the book model so ControlBtn_VC can get data when it needs to.
         self.book = book_
+
+        # instantiate the view
         self.control_btn_v = ControlBtn_V()
+
+        # connect to the control button signals
+        self.control_btn_v.save_button.connect('button-release-event', self.on_control_button_released, 'save_button')
+        self.control_btn_v.cancel_button.connect('button-release-event', self.on_control_button_released, 'cancel_button')
+        self.control_btn_v.edit_button.connect('button-release-event', self.on_control_button_released, 'edit_button')
 
     def get_view(self):
         pass
@@ -868,6 +901,9 @@ class ControlBtn_VC(book_view_interface.BookViewInterface):
 
     def close(self):
         pass
+
+    def on_control_button_released(self, button, event_button, control_signal):
+        self.transmitter.signal(control_signal)
 
 
 class  Playlist_V:
@@ -936,10 +972,15 @@ class  Playlist_V:
         self.playlist_view.destroy()
 
 
-class Playlist_VC(book_view_interface.BookViewInterface):
+class Playlist_VC:
     """Controller for the treeview that displays a playlist"""
 
-    def __init__(self, book_):
+    def __init__(self, book_, book_transmitter, component_transmitter):
+        # save a reference to the transmitter that this class uses to send messages bak to Book_C
+        self.transmitter = component_transmitter
+        # subscribe to the signals relevant to this class
+        book_transmitter.connect('close', self.close)
+        book_transmitter.connect('update', self.update)
         # copy the default list of columns that will be displayed
         self.display_cols = book_view_columns.display_cols.copy()
         # the view
