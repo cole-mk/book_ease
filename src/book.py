@@ -185,7 +185,6 @@ class Book(playlist.Playlist, signal_.Signal):
             except UnsupportedFileType:
                 # skip to the next file if this file is a dorectory or some other non supported file type
                 continue
-            track.set_pl_track_id(i)
 
             # do the appending
             self.track_list.append(track)
