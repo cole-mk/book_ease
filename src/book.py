@@ -168,7 +168,7 @@ class Book(playlist.Playlist, signal_.Signal):
         # sort playlist by  number
         self.track_list_sort_number()
         # notify listeners that book data has been loaded
-        self.signal('book_data_loaded')
+        self.send('book_data_loaded')
 
     # initialize the playlist
     def create_book_data(self):
@@ -197,7 +197,7 @@ class Book(playlist.Playlist, signal_.Signal):
         if title_list:
             self.playlist_data.set_title(title_list[0].get_entry())
         # emit book_data_created signal
-        self.signal('book_data_created')
+        self.send('book_data_created')
 
     def track_list_update(self, track):
         # find existing track
@@ -263,7 +263,7 @@ class Book(playlist.Playlist, signal_.Signal):
         multi_query_end()
         self.track_list_sort_number()
         # notify any listeners that the playlist has been saved
-        self.signal('book_saved')
+        self.send('book_saved')
 
     def pop_track(self) -> 'Track':
         """pop and return a Track object from the self.track_list"""
@@ -582,13 +582,13 @@ class Book_C:
         load the book into the view
         """
         # tell components to load their data from the book
-        self.transmitter.signal('update')
+        self.transmitter.send('update')
         if self.book.is_saved():
             # tell components to enter display mode
-            self.transmitter.signal('begin_display_mode')
+            self.transmitter.send('begin_display_mode')
         else:
             # tell components to enter editing mode
-            self.transmitter.signal('begin_edit_mode')
+            self.transmitter.send('begin_edit_mode')
 
     def save(self):
         pass

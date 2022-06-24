@@ -736,7 +736,7 @@ class Files_(signal_.Signal):
         self.file_list.clear()
         self.populate_file_list(self.file_list, self.current_path)
         # notify subscribers that the file list has been updated
-        self.signal('file_list_updated')
+        self.send('file_list_updated')
 
     def get_file_list_new(self):
         """create a new file list model for the files view"""

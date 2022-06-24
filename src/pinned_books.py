@@ -271,7 +271,7 @@ class PinnedBooksM(signal_.Signal):
         else:
             self.pin_book(playlist_id)
         # propagate the message that the status has changed
-        self.signal('pinned_list_changed')
+        self.send('pinned_list_changed')
 
     def is_pinned(self, playlist_id):
         """
@@ -310,7 +310,7 @@ class PinnedBooksM(signal_.Signal):
         list might have changed.
         """
         if playlist_id in self.dbi.get_pinned_ids():
-            self.signal('pinned_list_changed')
+            self.send('pinned_list_changed')
 
 
 class PinnedBooksDBI:
