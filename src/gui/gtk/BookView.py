@@ -813,6 +813,7 @@ class Title_VC:
         book_tx_signal.connect('begin_edit_mode', self.begin_edit_mode)
         book_tx_signal.connect('begin_display_mode', self.begin_display_mode)
         book_tx_signal.connect('update', self.update)
+        book_tx_signal.connect('save_title', self.save)
         # save a reference to the book model so Title_VC can get data when it needs to
         self.book = book_
         # create the Gtk view
@@ -843,6 +844,8 @@ class Title_VC:
     def close(self):
         pass
 
+    def save(self):
+        print('Title_VC.save()')
 
 class ControlBtn_V:
 
@@ -981,6 +984,7 @@ class Playlist_VC:
         # subscribe to the signals relevant to this class
         book_transmitter.connect('close', self.close)
         book_transmitter.connect('update', self.update)
+        book_transmitter.connect('save', self.save)
         # copy the default list of columns that will be displayed
         self.display_cols = book_view_columns.display_cols.copy()
         # the view
@@ -1077,4 +1081,6 @@ class Playlist_VC:
                 # load the id portion of the first TrackMDEntry
                 self.playlist.set_value(cur_row, col['id_column']['g_col'], track_md_entry_list[0].get_id())
 
+    def save(self):
+        print('Playlist_VC.save()')
 
