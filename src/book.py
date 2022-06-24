@@ -464,10 +464,8 @@ class TrackFI:
     factory class to populate Track objects with data pulled from audio files
     """
 
-    def __init__(self):
-        pass
-
-    def get_track(path) -> 'Track':
+    @classmethod
+    def get_track(cls, path) -> 'Track':
         """create and return a track populated with file data and metadata"""
         track = playlist.Track(file_path=path)
         # populate Track.metadata
@@ -475,7 +473,8 @@ class TrackFI:
 
         return track
 
-    def format_track_num(track) -> 'track_num:str':
+    @classmethod
+    def format_track_num(cls, track) -> 'track_num:str':
         """
         remove denominator from track numbers
         that are given in the metadata as fractionals
@@ -483,7 +482,8 @@ class TrackFI:
         """
         return track.split('/')[0]
 
-    def load_metadata(track):
+    @classmethod
+    def load_metadata(cls, track):
         """load passed in Track instance with media file metadata"""
         metadata = mutagen.File(track.get_file_path(), easy=True)
         for key in metadata:
