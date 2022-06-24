@@ -515,6 +515,14 @@ class TrackFI:
                     md_entry_list.append(md_entry)
             track.set_entry(key, md_entry_list)
 
+    @classmethod
+    def is_media_file(cls, file_):
+        """determine is file_ matches any of the media file definitions"""
+        for i in cls.f_type_re:
+            if i.match(file_):
+                return True
+        return False
+
 
 class Book_C:
 
