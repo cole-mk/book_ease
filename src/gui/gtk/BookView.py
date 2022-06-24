@@ -903,7 +903,7 @@ class ControlBtn_VC:
         pass
 
     def on_control_button_released(self, button, event_button, control_signal):
-        self.transmitter.signal(control_signal)
+        self.transmitter.send(control_signal)
 
 
 class  Playlist_V:

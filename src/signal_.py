@@ -70,7 +70,7 @@ class Signal():
         """
         self._sig_handlers[handle].append((method, cb_args, cb_kwargs))
 
-    def signal(self, handle, *extra_args, **extra_kwargs):
+    def send(self, handle, *extra_args, **extra_kwargs):
         """
         execute each signal for this handle in the sig handlers list
         note: called by server

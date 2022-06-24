@@ -152,7 +152,7 @@ class PinnedButtonVC:
     def update(self):
         """if book is saved, tell PinnedBooksC to update list of pinned books"""
         if self.book.is_saved():
-            self.button_transmitter.signal('book_updated', playlist_id=self.book.get_playlist_id())
+            self.button_transmitter.send('book_updated', playlist_id=self.book.get_playlist_id())
 
     def begin_edit_mode(self):
         """hide the view when told to begin book editing mode"""
@@ -172,7 +172,7 @@ class PinnedButtonVC:
         callback function registered with with Gtk
         handles signaling of pinned_button state changed
         """
-        self.button_transmitter.signal('toggled', playlist_id=self.book.get_playlist_id())
+        self.button_transmitter.send('toggled', playlist_id=self.book.get_playlist_id())
 
     def get_playlist_id(self):
         """get the id of the book that this button is associated with"""
