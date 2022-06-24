@@ -26,6 +26,8 @@ import db
 import sqlite3
 import re
 import os
+import configparser
+from pathlib import Path
 import sqlite_tables
 import mutagen
 from gui.gtk import BookView
@@ -463,6 +465,21 @@ class TrackFI:
     Track File Interface
     factory class to populate Track objects with data pulled from audio files
     """
+    #configuration file
+    book_reader_section = 'book_reader'
+    config_dir = Path.home() / '.config' / 'book_ease'
+    config_dir.mkdir(mode=511, parents=True, exist_ok=True)
+    config_file = config_dir / 'book_ease.ini'
+    config = configparser.ConfigParser()
+    config.read(config_file)
+    # playlist_filetypes key has values given in a comma separated list
+    file_types = config[book_reader_section]['playlist_filetypes'].split(",")
+    # build compiled regexes for matching list of media suffixes.
+    f_type_re = []
+    for i in file_types:
+        i = '.*.\\' + i.strip() + '$'
+        f_type_re.append(re.compile(i))
+
 
     @classmethod
     def get_track(cls, path) -> 'Track':
