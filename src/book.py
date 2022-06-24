@@ -179,20 +179,24 @@ class Book(playlist.Playlist, signal_.Signal):
         for f in self.file_list:
             # populate track data
             file_path = os.path.join(self.playlist_data.get_path(), f[1])
-            if not f[self.files.is_dir_pos] and self.book_reader.is_media_file(file_path):
+            try:
+                # create the track
                 track = TrackFI.get_track(file_path)
-                track.set_pl_track_id(i)
+            except UnsupportedFileType:
+                # skip to the next file if this file is a dorectory or some other non supported file type
+                continue
+            track.set_pl_track_id(i)
 
-                # do the appending
-                self.track_list.append(track)
-                i+=1
+            # do the appending
+            self.track_list.append(track)
+            i+=1
 
-                # load alt values if this entry is empty
-                for col in book_columns.metadata_col_list:
-                    if not track.get_entries(col['key']):
-                        alt_entries = track.get_entry_lists_new(col['alt_keys'])
-                        if alt_entries:
-                            track.set_entry(col['key'], alt_entries[:1])
+            # load alt values if this entry is empty
+            for col in book_columns.metadata_col_list:
+                if not track.get_entries(col['key']):
+                    alt_entries = track.get_entry_lists_new(col['alt_keys'])
+                    if alt_entries:
+                        track.set_entry(col['key'], alt_entries[:1])
 
         # set book title from the first track title
         title_list = self.track_list[0].get_entries('title')
