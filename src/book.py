@@ -460,6 +460,10 @@ class TrackDBI():
         return md_list
 
 
+class UnsupportedFileType(Exception):
+    pass
+
+
 class TrackFI:
     """
     Track File Interface
@@ -483,7 +487,12 @@ class TrackFI:
 
     @classmethod
     def get_track(cls, path) -> 'Track':
-        """create and return a track populated with file data and metadata"""
+        """
+        create and return a track populated with file data and metadata
+        Raises exception if path does not represent a media file
+        """
+        if not cls.is_media_file(path):
+            raise UnsupportedFileType(path, 'is not a supported file type')
         track = playlist.Track(file_path=path)
         # populate Track.metadata
         TrackFI.load_metadata(track)
