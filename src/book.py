@@ -26,6 +26,8 @@ import db
 import sqlite3
 import re
 import os
+import configparser
+from pathlib import Path
 import sqlite_tables
 import mutagen
 from gui.gtk import BookView
@@ -177,20 +179,24 @@ class Book(playlist.Playlist, signal_.Signal):
         for f in self.file_list:
             # populate track data
             file_path = os.path.join(self.playlist_data.get_path(), f[1])
-            if not f[self.files.is_dir_pos] and self.book_reader.is_media_file(file_path):
+            try:
+                # create the track
                 track = TrackFI.get_track(file_path)
-                track.set_pl_track_id(i)
+            except UnsupportedFileType:
+                # skip to the next file if this file is a dorectory or some other non supported file type
+                continue
+            track.set_pl_track_id(i)
 
-                # do the appending
-                self.track_list.append(track)
-                i+=1
+            # do the appending
+            self.track_list.append(track)
+            i+=1
 
-                # load alt values if this entry is empty
-                for col in book_columns.metadata_col_list:
-                    if not track.get_entries(col['key']):
-                        alt_entries = track.get_entry_lists_new(col['alt_keys'])
-                        if alt_entries:
-                            track.set_entry(col['key'], alt_entries[:1])
+            # load alt values if this entry is empty
+            for col in book_columns.metadata_col_list:
+                if not track.get_entries(col['key']):
+                    alt_entries = track.get_entry_lists_new(col['alt_keys'])
+                    if alt_entries:
+                        track.set_entry(col['key'], alt_entries[:1])
 
         # set book title from the first track title
         title_list = self.track_list[0].get_entries('title')
@@ -458,24 +464,47 @@ class TrackDBI():
         return md_list
 
 
+class UnsupportedFileType(Exception):
+    pass
+
+
 class TrackFI:
     """
     Track File Interface
     factory class to populate Track objects with data pulled from audio files
     """
+    #configuration file
+    book_reader_section = 'book_reader'
+    config_dir = Path.home() / '.config' / 'book_ease'
+    config_dir.mkdir(mode=511, parents=True, exist_ok=True)
+    config_file = config_dir / 'book_ease.ini'
+    config = configparser.ConfigParser()
+    config.read(config_file)
+    # playlist_filetypes key has values given in a comma separated list
+    file_types = config[book_reader_section]['playlist_filetypes'].split(",")
+    # build compiled regexes for matching list of media suffixes.
+    f_type_re = []
+    for i in file_types:
+        i = '.*.\\' + i.strip() + '$'
+        f_type_re.append(re.compile(i))
 
-    def __init__(self):
-        pass
 
-    def get_track(path) -> 'Track':
-        """create and return a track populated with file data and metadata"""
+    @classmethod
+    def get_track(cls, path) -> 'Track':
+        """
+        create and return a track populated with file data and metadata
+        Raises exception if path does not represent a media file
+        """
+        if not cls.is_media_file(path):
+            raise UnsupportedFileType(path, 'is not a supported file type')
         track = playlist.Track(file_path=path)
         # populate Track.metadata
         TrackFI.load_metadata(track)
 
         return track
 
-    def format_track_num(track) -> 'track_num:str':
+    @classmethod
+    def format_track_num(cls, track) -> 'track_num:str':
         """
         remove denominator from track numbers
         that are given in the metadata as fractionals
@@ -483,7 +512,8 @@ class TrackFI:
         """
         return track.split('/')[0]
 
-    def load_metadata(track):
+    @classmethod
+    def load_metadata(cls, track):
         """load passed in Track instance with media file metadata"""
         metadata = mutagen.File(track.get_file_path(), easy=True)
         for key in metadata:
@@ -497,6 +527,14 @@ class TrackFI:
                     md_entry = playlist.TrackMDEntry(index=i, entry=v)
                     md_entry_list.append(md_entry)
             track.set_entry(key, md_entry_list)
+
+    @classmethod
+    def is_media_file(cls, file_):
+        """determine is file_ matches any of the media file definitions"""
+        for i in cls.f_type_re:
+            if i.match(file_):
+                return True
+        return False
 
 
 class Book_C:
