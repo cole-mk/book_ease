@@ -502,7 +502,7 @@ class TrackFI:
 class Book_C:
 
     #the list of signals that Book_C is allowed to send to the component views
-    book_tx_api = ['update', 'get_view', 'close', 'begin_edit_mode', 'begin_display_mode']
+    book_tx_api = ['update', 'get_view', 'close', 'begin_edit_mode', 'begin_display_mode', 'save_title', 'save']
     # the list of signals that the component views is allowed to send to Book_C
     component_tx_api = ['save_button', 'cancel_button', 'edit_button']
 
@@ -591,7 +591,8 @@ class Book_C:
             self.transmitter.send('begin_edit_mode')
 
     def save(self):
-        pass
+        self.transmitter.send('save_title')
+        self.transmitter.send('save')
 
     def edit(self):
         pass
