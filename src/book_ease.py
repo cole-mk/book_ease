@@ -619,7 +619,7 @@ class BookReader_:
         f_list = self.files.get_file_list()
         has_new_media=False
         for i in f_list:
-            if self.is_media_file(i[1]):
+            if book.TrackFI.is_media_file(i[1]):
                 has_new_media=True
                 break
         self.book_reader_view.on_has_new_media(has_new_media)
