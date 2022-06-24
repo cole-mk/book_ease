@@ -594,14 +594,6 @@ class BookReader_:
             self.get_book(book_index)[0].set_index(book_index)
             book_index+=1
 
-    def on_playlist_save(self, index, title):
-        """
-        repeat a book save signal from book view sending it to book.
-        This method will be replaced by one in Book_C
-        """
-        book_ = self.get_book(index)
-        book_[0].save(title)
-
     def on_file_list_updated(self, get_cur_path):
         """
         Files is notifying bookreader that it has changed directories and is giving Book reader the list of files in
