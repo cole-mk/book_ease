@@ -486,7 +486,8 @@ class TrackFI:
     for i in file_types:
         i = '.*.\\' + i.strip() + '$'
         f_type_re.append(re.compile(i))
-
+    # get a TrackMDEntryFormatter for fixing known formatting issues in file metadata
+    entry_formatter = playlist.TrackMDEntryFormatter()
 
     @classmethod
     def get_track(cls, path) -> 'Track':
@@ -503,41 +504,25 @@ class TrackFI:
         return track
 
     @classmethod
-    def format_track_num(cls, track) -> 'track_num:str':
-        """
-        remove denominator from track numbers
-        that are given in the metadata as fractionals
-        eg 1/12
-        """
-        return track.split('/')[0]
-
-    @classmethod
     def load_metadata(cls, track):
         """
         load passed in Track instance with media file metadata.
         mutagen returns a dict where each property value is a list of entries.
+        Track obojects implement this with as dict:list:TrackMDEntry(index, entry, id)
+
+        Note: id will be populated when saving to the db
         """
         metadata = mutagen.File(track.get_file_path(), easy=True)
         for key in metadata:
             md_entry_list = []
             for i, entry in enumerate(metadata[key]):
-                # fix common formatting issues found in file metadata
-                format_entry = TrackFI.get_md_entry_formatter(key)
+                # get function for fixing common formatting issues found in file metadata
+                format_entry = cls.entry_formatter.get_md_entry_formatter(key)
                 # create a new TrackMDEnty with the mutagen data
                 md_entry = playlist.TrackMDEntry(index=i, entry=format_entry(entry))
                 md_entry_list.append(md_entry)
+            # assign the copied list of metadata entries to the track
             track.set_entry(key, md_entry_list)
-
-    @classmethod
-    def get_md_entry_formatter(cls, key):
-        """
-        get the appropriate entry formatting method
-        default is an anonymous pass through method
-        """
-        match key:
-            case 'tracknumber':
-                return TrackFI.format_track_num
-        return lambda x:x
 
     @classmethod
     def is_media_file(cls, file_):

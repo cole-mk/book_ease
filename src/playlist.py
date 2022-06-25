@@ -208,3 +208,37 @@ class TrackMDEntry:
         self.id_ is left as None because the copy has not yet been saved.
         """
         return TrackMDEntry(index=self.get_index(), entry=self.get_entry())
+
+class TrackMDEntryFormatter:
+    """TrackMDEntryFormatter fixes known isues with the formatting in some files metadata"""
+    formatters = {}
+
+    def __init__(self):
+        self.add_md_entry_formatter('tracknumber', self.format_track_num)
+
+    @classmethod
+    def get_md_entry_formatter(cls, key):
+        """
+        get the appropriate entry formatting function
+        default is an anonymous pass through function
+        """
+        if key in cls.formatters:
+            return cls.formatters[key]
+        # return default function
+        return lambda x:x
+
+    @classmethod
+    def add_md_entry_formatter(cls, key, formatting_method):
+        """
+        add the formatting method
+        """
+        cls.formatters[key] = formatting_method
+
+    @classmethod
+    def format_track_num(cls, track_number) -> 'track_num:str':
+        """
+        remove denominator from track number(string)
+        that is given in the metadata as a fraction
+        eg 1/12
+        """
+        return track_number.split('/')[0]
