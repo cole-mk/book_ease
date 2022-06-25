@@ -238,6 +238,8 @@ class Book(playlist.Playlist, signal_.Signal):
         # update the playlist saved flag
         self.set_saved(True)
 
+    def save_track(self, track):
+        print('save_track')
 
     def save(self, title):
         self.playlist_data.set_title(title)
