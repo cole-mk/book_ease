@@ -84,12 +84,12 @@ class PinnedBooksC(signal_.Signal):
         """
         return self.model.is_pinned(playlist_id)
 
-    def get_pinned_button_new(self, book, book_transmitter):
+    def get_pinned_button_new(self, book, book_transmitter, book_view_builder):
         """
         create a new PinnedButtonVC, a container for a CheckButton
         returns the view object
         """
-        btn_vi = PinnedButtonVC(book, book_transmitter)
+        btn_vi = PinnedButtonVC(book, book_transmitter, book_view_builder)
         # set checkbutton state
         if self.is_pinned(book.get_playlist_id()):
             btn_vi.set_checked(True)
