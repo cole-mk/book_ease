@@ -513,19 +513,31 @@ class TrackFI:
 
     @classmethod
     def load_metadata(cls, track):
-        """load passed in Track instance with media file metadata"""
+        """
+        load passed in Track instance with media file metadata.
+        mutagen returns a dict where each property value is a list of entries.
+        """
         metadata = mutagen.File(track.get_file_path(), easy=True)
         for key in metadata:
             md_entry_list = []
-            if key == 'tracknumber':
-                for i, v in enumerate(metadata[key]):
-                    md_entry = playlist.TrackMDEntry(index=i, entry=TrackFI.format_track_num(v))
-                    md_entry_list.append(md_entry)
-            else:
-                for i, v in enumerate(metadata[key]):
-                    md_entry = playlist.TrackMDEntry(index=i, entry=v)
-                    md_entry_list.append(md_entry)
+            for i, entry in enumerate(metadata[key]):
+                # fix common formatting issues found in file metadata
+                format_entry = TrackFI.get_md_entry_formatter(key)
+                # create a new TrackMDEnty with the mutagen data
+                md_entry = playlist.TrackMDEntry(index=i, entry=format_entry(entry))
+                md_entry_list.append(md_entry)
             track.set_entry(key, md_entry_list)
+
+    @classmethod
+    def get_md_entry_formatter(cls, key):
+        """
+        get the appropriate entry formatting method
+        default is an anonymous pass through method
+        """
+        match key:
+            case 'tracknumber':
+                return TrackFI.format_track_num
+        return lambda x:x
 
     @classmethod
     def is_media_file(cls, file_):
