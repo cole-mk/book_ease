@@ -44,7 +44,9 @@ track_file          = {'key':'file',        'alt_keys':[None]}
 
 track_path          = {'key':None,          'alt_keys':[None]}
 
-track_col_list      = (track_file, track_path)
+track_num           = {'key':None,          'alt_keys':[None]}
+
+track_col_list      = (track_file, track_path, track_num)
 
 
 # The pl_track column setup
