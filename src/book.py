@@ -229,6 +229,13 @@ class Book(playlist.Playlist, signal_.Signal):
             ct += 1
         return playlist_data
 
+    def save_playlist_data(self):
+        """Save self.playlist_data"""
+        # add suffix to book title to ensure uniqueness
+        self.set_unique_playlist_title(self.playlist_data)
+        # save playlist_data (title,path,id) storing returned id in self.playlist_data
+        self.playlist_data.set_id(self.playlist_dbi.save(self.playlist_data))
+
 
     def save(self, title):
         self.playlist_data.set_title(title)

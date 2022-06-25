@@ -852,7 +852,9 @@ class Title_VC:
         pass
 
     def save(self):
-        print('Title_VC.save()')
+        """get the playlist title from the title_v model and save it to the book."""
+        self.book.get_playlist_data().set_title(self.title_v.title_entry.get_text())
+        self.book.save_playlist_data()
 
 class ControlBtn_V:
 
