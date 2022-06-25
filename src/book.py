@@ -32,7 +32,6 @@ import sqlite_tables
 import mutagen
 from gui.gtk import BookView
 from gui.gtk import pinned_books_view
-import book_view_interface
 import book_columns
 
 # module wide db connection for multi queries
@@ -560,18 +559,23 @@ class Book_C:
         for handle in self.book_tx_api:
             self.transmitter.add_signal(handle)
 
-        # create the component view controllers
-        # the main view does not use the component_transmitter because it has nothing to say
+        # create the main view.
+        # the main view does not use the component_transmitter because it has nothing to say.
+        # It does have a get_gui_builder method that will be used to allow the component views control of their
+        # particular views.
         self.book_vc = BookView.Book_VC(self.transmitter)
+        book_view_builder = self.book_vc.get_gui_builder()
+
+        # create the component view controllers.
         # title view
-        BookView.Title_VC(self.book, self.transmitter, self.component_transmitter)
+        BookView.Title_VC(self.book, self.transmitter, self.component_transmitter, book_view_builder)
         # control button view
-        BookView.ControlBtn_VC(self.book, self.transmitter, self.component_transmitter)
+        BookView.ControlBtn_VC(self.book, self.transmitter, self.component_transmitter, book_view_builder)
         # playlist view
-        BookView.Playlist_VC(self.book, self.transmitter, self.component_transmitter)
+        BookView.Playlist_VC(self.book, self.transmitter, self.component_transmitter, book_view_builder)
         # pinned button view does not use the component_transmitter because it is responsible for signalling its own
         # controller.
-        book_reader.pinned_books.get_pinned_button_new(self.book, self.transmitter)
+        book_reader.pinned_books.get_pinned_button_new(self.book, self.transmitter, book_view_builder)
 
         # connect to the signals from the Book that Book_C is interested in
         self.book.connect('book_data_created', self.on_book_data_ready, is_sorted=False)

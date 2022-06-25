@@ -32,7 +32,6 @@ gi.require_version("Gtk", "3.0")
 #pylint: enable=wrong-import-position
 from gi.repository import Gtk
 import signal_
-import book_view_interface
 
 
 class PinnedBooksV(Gtk.Box):
@@ -116,13 +115,12 @@ class PinnedButtonV: #pylint: disable=too-few-public-methods
     display a Gtk.CheckButton to control wether or not a book is pinned
     """
 
-    def __init__(self):
+    def __init__(self, book_view_builder):
         """
         Initialize a Gtk.CheckButton and encapsulate it in a Gtk.Box
         playlist_id: the id of the book that this button is associated with
         """
-        builder = book_view_interface.get_builder()
-        self.pinned_button = builder.get_object('pinned_button')
+        self.pinned_button = book_view_builder.get_object('pinned_button')
 
 
 class PinnedButtonVC:
@@ -131,7 +129,7 @@ class PinnedButtonVC:
     this class is connected to the pinned_books module as well as book.Book_C
     """
 
-    def __init__(self, book, book_transmitter):
+    def __init__(self, book, book_transmitter, book_view_builder):
         # subscribe to the signals relevant to this class
         book_transmitter.connect('close', self.close)
         book_transmitter.connect('begin_edit_mode', self.begin_edit_mode)
@@ -139,7 +137,7 @@ class PinnedButtonVC:
         book_transmitter.connect('update', self.update)
         # save a reference to the book model so PinnedButtonVC can get data when it needs to
         self.book = book
-        self.view = PinnedButtonV()
+        self.view = PinnedButtonV(book_view_builder)
         self.view.pinned_button.connect('toggled', self.on_button_toggled)
         self.button_transmitter = signal_.Signal()
         self.button_transmitter.add_signal('toggled')
