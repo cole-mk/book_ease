@@ -629,8 +629,15 @@ class Book_C:
             self.transmitter.send('begin_edit_mode')
 
     def save(self):
+        """Coordinate the saving of the book with Book and the the VC classes"""
+        # open the book's module wide connection to the database for saving the book
+        multi_query_begin()
+        # notify the VC classes that they need to save
         self.transmitter.send('save_title')
         self.transmitter.send('save')
+        # close the book's module wide connection to the database. This tells the book to write to disk to finish
+        # the saving process.
+        multi_query_end()
 
     def edit(self):
         pass
