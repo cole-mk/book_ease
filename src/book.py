@@ -230,11 +230,13 @@ class Book(playlist.Playlist, signal_.Signal):
         return playlist_data
 
     def save_playlist_data(self):
-        """Save self.playlist_data"""
+        """Save self.playlist_data which consists of title, path, and id"""
         # add suffix to book title to ensure uniqueness
         self.set_unique_playlist_title(self.playlist_data)
         # save playlist_data (title,path,id) storing returned id in self.playlist_data
         self.playlist_data.set_id(self.playlist_dbi.save(self.playlist_data))
+        # update the playlist saved flag
+        self.set_saved(True)
 
 
     def save(self, title):
@@ -645,6 +647,9 @@ class Book_C:
         # close the book's module wide connection to the database. This tells the book to write to disk to finish
         # the saving process.
         multi_query_end()
+        # tell the VC classes to update their views and switch to display mode
+        self.transmitter.send('update')
+        self.transmitter.send('begin_display_mode')
 
     def edit(self):
         pass
