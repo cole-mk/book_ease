@@ -113,6 +113,8 @@ class Track:
                 entry_list.append(e.copy())
         return entry_list
 
+    def set_file_path(self, path):
+        self.file_path = path
 
 class Playlist():
     """

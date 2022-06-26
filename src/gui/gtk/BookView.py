@@ -852,7 +852,9 @@ class Title_VC:
         pass
 
     def save(self):
-        print('Title_VC.save()')
+        """get the playlist title from the title_v model and save it to the book."""
+        self.book.get_playlist_data().set_title(self.title_v.title_entry.get_text())
+        self.book.save_playlist_data()
 
 class ControlBtn_V:
 
@@ -996,22 +998,11 @@ class Playlist_VC:
         self.playlist_v = Playlist_V(self.display_cols, book_view_builder)
         # the Book model that holds the playlist data
         self.book = book_
-        # the column definitions that will be used to describe the playlist model data
-        self.playlist_columns = [
-                *book_view_columns.pl_track_col_list,
-                *book_view_columns.track_col_list,
-                *book_view_columns.metadata_col_list,
-                *book_view_columns.metadata_id_col_list,
-                book_view_columns.playlist_row_id
-            ]
-
-        # unique id generator for the rows in the playlist model
-        self.row_id_iter = itertools.count()
 
         # generate the playlist model for display
-        self.playlist = self.get_playlist_new()
+        self.playlist_model = Playlist_VM()
         # assign the playlist to the view
-        self.playlist_v.set_model(self.playlist)
+        self.playlist_v.set_model(self.playlist_model.get_model())
 
         # each track metadata entry is a list. This secondary_metadata list is used to hold
         # track metadata beyond the first entry in each track's metadata list
@@ -1027,13 +1018,13 @@ class Playlist_VC:
 
     def update(self):
         # clear the playlist view
-        self.playlist.clear()
+        self.playlist_model.clear()
         # pop each track off of the list and move the data to self.playlist
         while True:
             track = self.book.pop_track()
             if track is None:
                 break
-            self.__add_track(track)
+            self.playlist_model.add_track(track)
 
     def begin_edit_mode(self):
         pass
@@ -1044,6 +1035,38 @@ class Playlist_VC:
     def close(self):
         self.playlist_v.close()
 
+    def save(self):
+        """
+        Get Track objects represented by rows in the playlist_model and save them to the Book
+        """
+        while True:
+            track = self.playlist_model.pop()
+            if track is None:
+                break
+            self.book.save_track(track)
+
+class Playlist_VM:
+    """
+    wrapper for the Playlist_VC.playlist, Gtk.Liststore.
+    gives and takes data passed in Tracks, and manages its storage in the Gtk.Liststore
+    """
+
+    def __init__(self):
+        # unique id generator for the rows in the playlist model
+        self.row_id_iter = itertools.count()
+
+        # the column definitions that will be used to describe the playlist model data
+        self.playlist_columns = [
+                *book_view_columns.pl_track_col_list,
+                *book_view_columns.track_col_list,
+                *book_view_columns.metadata_col_list,
+                *book_view_columns.metadata_id_col_list,
+                book_view_columns.playlist_row_id
+            ]
+
+        # The model of the playlist data that will be displayed in the view
+        self.playlist = self.get_playlist_new()
+
     def get_playlist_new(self):
         """create a new model for the playlist"""
         # sort the displayed columns by g_col number
@@ -1053,11 +1076,8 @@ class Playlist_VC:
         # create the playlist model
         return Gtk.ListStore(*playlist_col_types)
 
-    def genereate_row_id(self) -> 'row_id:int':
-        """generate a unique row id for the playlist"""
-        return next(self.row_id_iter)
 
-    def __add_track(self, track):
+    def add_track(self, track):
         """add data from a track object into the playlist view"""
         # append a new row to the playlist
         cur_row = self.playlist.append()
@@ -1075,6 +1095,11 @@ class Playlist_VC:
         self.playlist.set_value(cur_row, book_view_columns.track_file['g_col'], track.get_file_name())
         self.playlist.set_value(cur_row, book_view_columns.track_path['g_col'], track.get_file_path())
 
+    def __load_track_columns(self, track, cur_row):
+        """load track file path data from the playlist into the Track"""
+        # The playlist displays both path and filename, but Tracks only store the path, so only get the path
+        track.set_file_path(self.playlist.get_value(cur_row, book_view_columns.track_path['g_col']))
+        track.set_pl_track_id(self.playlist.get_value(cur_row, book_view_columns.pl_track_id['g_col']))
 
     def __add_metadata_columns(self, track, cur_row):
         """load the first entry of all of the track metadata"""
@@ -1086,6 +1111,61 @@ class Playlist_VC:
                 # load the id portion of the first TrackMDEntry
                 self.playlist.set_value(cur_row, col['id_column']['g_col'], track_md_entry_list[0].get_id())
 
-    def save(self):
-        print('Playlist_VC.save()')
+    def __load_metadata_columns(self, track, cur_row):
+        """
+        Copy data from the displayed Gtk.Liststore (self.playlist) to Track object
+        This method copies the track metadata stored in the playlist, referenced by the columns in the metadata_col_list
+        """
+        for col in book_view_columns.metadata_col_list:
+            # Tracks store metadata as a list of TrackMDEntries(index, entry, id)
+            entry_list = []
+            md_entry = playlist.TrackMDEntry()
+            # get the data for the first row of the TrackMDEntry list
+            md_entry.set_entry(self.playlist.get_value(cur_row,col['g_col']))
+            # don't add empty md_entries to the list even if it has an id. The Book will remove the deleted entry
+            if not md_entry.get_entry():
+                continue
+            md_entry.set_id(self.playlist.get_value(cur_row,col['id_column']['g_col']))
+            md_entry.set_index(0)
+            # add the TrackMDEntry to the list
+            entry_list.append(md_entry)
+            # put the metadata entries in the Track object
+            track.set_entry(col['key'], entry_list)
 
+    def get_model(self):
+        return self.playlist
+
+    def clear(self):
+        self.playlist.clear()
+
+    def genereate_row_id(self) -> 'row_id:int':
+        """generate a unique row id for the playlist"""
+        return next(self.row_id_iter)
+
+    def pop(self):
+        """create a track object with data from the model (Gtk.Liststore)"""
+        # break out if there is nothing to do here
+        if not len(self.playlist):
+            return None
+        # The Track that is built and returned.
+        track = playlist.Track()
+        # load the last row number into the Track
+        self.__load_last_row_number(track)
+        cur_row_num = track.get_number()
+        # retrieve gtk iter that referenes the last row from the playlist
+        cur_row_iter = self.playlist.get_iter((cur_row_num-1,))
+        # load the metadata columns
+        self.__load_metadata_columns(track, cur_row_iter)
+        # load track data not stored in the metadata dictionary
+        self.__load_track_columns(track, cur_row_iter)
+        # remove the row from the playlist
+        self.playlist.remove(cur_row_iter)
+        return track
+
+    def __load_last_row_number(self, track):
+        """
+        Determine the last row number (a one based index) of self.playlist by testing for length of the playlist.
+        Assign the last row number to the Track object.
+        """
+        last_row_num = len(self.playlist)
+        track.set_number(last_row_num)
