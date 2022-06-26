@@ -68,8 +68,6 @@ track_file          |= {'g_col':5,  'g_typ':str, 'name':'File'}
 
 track_path          |= {'g_col':7,  'g_typ':str, 'name':'Path'}
 
-track_num           |= {'g_col':14,  'g_typ':int, 'name':'track_num'}
-
 
 # The pl_track column setup
 pl_track_id         |= {'g_col':6,  'g_typ':int, 'name':'pl_track_id'}

@@ -1039,7 +1039,6 @@ class Playlist_VC:
         """
         Get Track objects represented by rows in the playlist_model and save them to the Book
         """
-        self.playlist_model.update_row_numbers()
         while True:
             track = self.playlist_model.pop()
             if track is None:
@@ -1101,7 +1100,6 @@ class Playlist_VM:
         # The playlist displays both path and filename, but Tracks only store the path, so only get the path
         track.set_file_path(self.playlist.get_value(cur_row, book_view_columns.track_path['g_col']))
         track.set_pl_track_id(self.playlist.get_value(cur_row, book_view_columns.pl_track_id['g_col']))
-        track.set_number(self.playlist.get_value(cur_row, book_view_columns.track_num['g_col']))
 
     def __add_metadata_columns(self, track, cur_row):
         """load the first entry of all of the track metadata"""
@@ -1146,19 +1144,25 @@ class Playlist_VM:
         # break out if there is nothing to do here
         if not len(self.playlist):
             return None
-        ## retrieve the first row from the playlist
-        cur_row = self.playlist.get_iter((0,))
         # The Track that is built and returned.
         track = playlist.Track()
-        ## load the metadata columns
-        self.__load_metadata_columns(track, cur_row)
-        ## load track data not stored in the metadata dictionary
-        self.__load_track_columns(track, cur_row)
+        # load the last row number into the Track
+        self.__load_last_row_number(track)
+        cur_row_num = track.get_number()
+        # retrieve gtk iter that referenes the last row from the playlist
+        cur_row_iter = self.playlist.get_iter((cur_row_num-1,))
+        # load the metadata columns
+        self.__load_metadata_columns(track, cur_row_iter)
+        # load track data not stored in the metadata dictionary
+        self.__load_track_columns(track, cur_row_iter)
         # remove the row from the playlist
-        self.playlist.remove(cur_row)
+        self.playlist.remove(cur_row_iter)
         return track
 
-    def update_row_numbers(self):
-        """Set the track numbers according to their placement in the list"""
-        for i, row in enumerate(self.playlist):
-            row[book_view_columns.track_num['g_col']] = i
+    def __load_last_row_number(self, track):
+        """
+        Determine the last row number (a one based index) of self.playlist by testing for length of the playlist.
+        Assign the last row number to the Track object.
+        """
+        last_row_num = len(self.playlist)
+        track.set_number(last_row_num)
