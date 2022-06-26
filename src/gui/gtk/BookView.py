@@ -1043,7 +1043,7 @@ class Playlist_VC:
             track = self.playlist_model.pop()
             if track is None:
                 break
-            self.book.save_track('track')
+            self.book.save_track(track)
 
 class Playlist_VM:
     """
@@ -1121,11 +1121,14 @@ class Playlist_VM:
             entry_list = []
             md_entry = playlist.TrackMDEntry()
             # get the data for the first row of the TrackMDEntry list
-            md_entry.set_id(self.playlist.get_value(cur_row,col['id_column']['g_col']))
             md_entry.set_entry(self.playlist.get_value(cur_row,col['g_col']))
+            # don't add empty md_entries to the list even if it has an id. The Book will remove the deleted entry
+            if not md_entry.get_entry():
+                continue
+            md_entry.set_id(self.playlist.get_value(cur_row,col['id_column']['g_col']))
             md_entry.set_index(0)
             # add the TrackMDEntry to the list
-            entry_list.append(self.playlist.get_value(cur_row,col['g_col']))
+            entry_list.append(md_entry)
             # put the metadata entries in the Track object
             track.set_entry(col['key'], entry_list)
 

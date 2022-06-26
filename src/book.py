@@ -239,7 +239,41 @@ class Book(playlist.Playlist, signal_.Signal):
         self.set_saved(True)
 
     def save_track(self, track):
-        print('save_track')
+        """Save all of the Track data that isn't metadata"""
+        # increment the pl_track_counter that was initialized in save_book_begin
+        self.pl_track_counter += 1
+        # save the file path that the Track object references
+        track_file_id = self.track_dbi.save_track_file(track)
+        # save the simple Track instance variables
+        pl_track_id = self.track_dbi.save_pl_track(self.playlist_data.get_id(), track_file_id, track)
+        # update pl_track_id in the Track instance
+        track.set_pl_track_id(pl_track_id)
+
+        # save the Track metadata
+        for col in book_columns.metadata_col_list:
+            md_entry_l = track.get_entries(col['key'])
+            for md_entry in md_entry_l:
+                id_ = self.track_dbi.save_track_metadata(md_entry, pl_track_id, col['key'])
+                md_entry.set_id(id_)
+            # remove deleted entries from database
+            self.track_dbi.remove_deleted_metadata(len(md_entry_l) - 1, pl_track_id, col['key'])
+        # set track saved state
+        track.set_saved(True)
+
+    def save_book_finished(self):
+        """cleanup after saving the book and close the connection to the database."""
+        # remove deleted entries from database using self.pl_track_counter to determine the actual size of the playlist
+        self.track_dbi.remove_deleted_pl_tracks(self.playlist_data.get_id(), self.pl_track_counter)
+        self.saved_playlist = True
+        multi_query_end()
+
+    def save_book_begin(self):
+        """prepare to begin saving book data by opening a connection to the database."""
+        # initialize a counter to determine the size of the playlist that will be use to cleanup deleted files
+        self.pl_track_counter = 0
+        # open the book's module wide connection to the database for saving the book
+        multi_query_begin()
+
 
     def save(self, title):
         self.playlist_data.set_title(title)
@@ -409,12 +443,7 @@ class TrackDBI():
 
         # find an existing entry that matches id
         e_entry = self.pl_track_metadata.get_row_by_id(con, id_)
-        if not e_entry:
-            # rotate indices and add new row to table
-            self.pl_track_metadata.null_duplicate_indices(con, pl_track_id, index, key)
-            # update md_entry with id returned from new row
-            id_ = self.pl_track_metadata.add_row(con, pl_track_id, entry, index, key)
-        else:
+        if e_entry:
             # only update if there is an actual change
             if e_entry['idx'] != index:
                 # rotate indices and update row in table
@@ -423,6 +452,11 @@ class TrackDBI():
             elif e_entry['entry'] != entry:
                 # indices already match, simply update row
                 self.pl_track_metadata.update_row(con, pl_track_id, id_, entry, index, key)
+        else:
+            # rotate indices and add new row to table
+            self.pl_track_metadata.null_duplicate_indices(con, pl_track_id, index, key)
+            # update md_entry with id returned from new row
+            id_ = self.pl_track_metadata.add_row(con, pl_track_id, entry, index, key)
         query_end(con)
         return id_
 
@@ -439,7 +473,6 @@ class TrackDBI():
         # pl_track.track_number entries are a one based index
         con = query_begin()
         id_list = self.pl_track.get_ids_by_max_index_or_null(con, max_index, playlist_id)
-        print('remove_deleted_pl_tracks id_list', id_list)
         [self.pl_track.remove_row_by_id(con, row['id']) for row in id_list]
         query_end(con)
 
@@ -641,14 +674,13 @@ class Book_C:
 
     def save(self):
         """Coordinate the saving of the book with Book and the the VC classes"""
-        # open the book's module wide connection to the database for saving the book
-        multi_query_begin()
+        # Tell the book to prepare for saving saving
+        self.book.save_book_begin()
         # notify the VC classes that they need to save
         self.transmitter.send('save_title')
         self.transmitter.send('save')
-        # close the book's module wide connection to the database. This tells the book to write to disk to finish
-        # the saving process.
-        multi_query_end()
+        # Tell the book that it is finished saving and can cleanup
+        self.book.save_book_finished()
         # tell the VC classes to update their views and switch to display mode
         self.transmitter.send('update')
         self.transmitter.send('begin_display_mode')
