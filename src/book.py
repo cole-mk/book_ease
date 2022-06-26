@@ -239,7 +239,7 @@ class Book(playlist.Playlist, signal_.Signal):
         self.set_saved(True)
 
     def save_track(self, track):
-        """Save all of the Track data that isn't metadata"""
+        """Save all of the Track data."""
         # increment the pl_track_counter that was initialized in save_book_begin
         self.pl_track_counter += 1
         # save the file path that the Track object references
