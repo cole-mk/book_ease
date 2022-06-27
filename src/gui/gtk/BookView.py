@@ -1009,9 +1009,9 @@ class Playlist_VC:
         # that gets displayed in the playlist view. The secondary_metadata
         # will be used to populate combo box popups on demand when the user
         # wants to see or edit more than just the first metadata entry. Entries will
-        # come in the form of a tuple (FK->playlist_row_id, TrackMDEntry)
+        # come in the form of a tuple (FK->playlist_row_id, key, TrackMDEntry)
         # *FK = foreign key
-        self.secondary_metadata = []
+        self.secondary_metadata = SecondaryMetadata()
 
     def get_view(self):
         pass
@@ -1024,7 +1024,8 @@ class Playlist_VC:
             track = self.book.pop_track()
             if track is None:
                 break
-            self.playlist_model.add_track(track)
+            playlist_row_id = self.playlist_model.add_track(track)
+            self.secondary_metadata.add_track(playlist_row_id, track)
 
     def begin_edit_mode(self):
         pass
@@ -1077,7 +1078,7 @@ class Playlist_VM:
         return Gtk.ListStore(*playlist_col_types)
 
 
-    def add_track(self, track):
+    def add_track(self, track) -> 'playlist_row_id:int':
         """add data from a track object into the playlist view"""
         # append a new row to the playlist
         cur_row = self.playlist.append()
@@ -1086,10 +1087,13 @@ class Playlist_VM:
         # load track data not stored in the metadata dictionary
         self.__add_track_columns(track, cur_row)
         # add the column that holds the unique row id specific to this instance of the Book_VC
-        self.__add_row_id_column(track, cur_row)
+        playlist_row_id = self.__add_row_id_column(track, cur_row)
+        return playlist_row_id
 
-    def __add_row_id_column(self, track, cur_row):
-        self.playlist.set_value(cur_row, book_view_columns.playlist_row_id['g_col'], self.genereate_row_id())
+    def __add_row_id_column(self, track, cur_row) -> 'row_id:int':
+        id_ = self.genereate_row_id()
+        self.playlist.set_value(cur_row, book_view_columns.playlist_row_id['g_col'], id_)
+        return id_
 
     def __add_track_columns(self, track, cur_row):
         self.playlist.set_value(cur_row, book_view_columns.track_file['g_col'], track.get_file_name())
@@ -1169,3 +1173,31 @@ class Playlist_VM:
         """
         last_row_num = len(self.playlist)
         track.set_number(last_row_num)
+
+class SecondaryMetadata:
+    """
+    Data storage model for storing secondary Track.metadata.
+    Track.metadata is a dict with a list of TrackMDEntries (id, index, entry) for each key.
+    The first entries for each key are displayed in the main treeview and are stored in its data model, Gtk.Liststore
+    This class stores the entries that are not displayed in the treeview.
+    SecondaryMetadata stores its data as a list of tuples, (FK->pl_row_id, key, TrackMDEntry).
+    *FK = foreign key
+    """
+
+    def __init__(self):
+        # create the data storage model for this class
+        self.secondary_metadata = []
+
+    def add_entry(self, row_id, key, TrackMDEntry):
+        self.secondary_metadata.append((row_id, key, TrackMDEntry))
+
+    def add_track(self, playlist_row_id, track):
+        """
+        Pull the metadata from the Track.
+        append entries with non zero indices to self.secondary_metadata
+        """
+        for key in track.get_key_list():
+            for entry in track.get_entries(key):
+                if entry.get_index() == 0:
+                    continue
+                self.add_entry(playlist_row_id, key, entry)
