@@ -479,7 +479,7 @@ class PlaylistVM:
     def pop(self):
         """create a track object with data from the model (Gtk.Liststore)"""
         # break out if there is nothing to do here
-        if not self.playlist:
+        if not self.playlist.get_iter_first():
             return None
         # The Track that is built and returned.
         track = playlist.Track()
