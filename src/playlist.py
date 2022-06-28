@@ -114,6 +114,7 @@ class Track:
         return entry_list
 
     def set_file_path(self, path):
+        """set the file path associated with this Track instance"""
         self.file_path = path
 
 class Playlist():
