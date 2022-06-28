@@ -24,27 +24,53 @@
 import subprocess
 import sys
 from pylint import lint
-from pylint.lint import Run
 
 
-# The pylint score required to pass
-minimum_score = 10
-
-# get a list of python source files in the git repo
+# the pylint score required to pass
+MINIMUM_SCORE = 10
+# files to ignore
+ignore_list = ['__init__.py']
+# Get a list of python source files in the git repo.
 file_to_be_linted = subprocess.check_output(["git", "ls-files", "*.py"])
 
-failure = False
+FAILURE = False
+results = []
 for file_ in file_to_be_linted.decode().split('\n'):
-    # split always gives an extra blank line after the last file
+    # Split always gives an extra blank line after the last file.
     if not file_:
         continue
-    # lint the source file
+    if file_ .split("/")[-1] in ignore_list:
+        continue
+    # Lint the source file.
     run = lint.Run([file_], do_exit=False)
-    # get and assess the score
+    # Get and assess the score.
     score = run.linter.stats.global_note
-    if score < minimum_score:
-        failure = True
+    # Store the results for printing at the end of the script.
+    results.append(['Success', score, file_])
+    if score < MINIMUM_SCORE:
+        # Store a failed exit state for the script.
+        FAILURE = True
+        # Set the message in the second column of the previously appended row.
+        results[len(results)-1][0] = 'Failure'
 
-if failure:
+# Uutput a summary of the results.
+
+PART_ONE = """\n\n
+Summary of Results:
+——————————————————
+Overall:"""
+
+PART_TWO = """
+——————————————————
+Individual:\n
+Status  Score File
+——————  ————— ————"""
+
+print(PART_ONE)
+print('Failure' if FAILURE else 'Success')
+print(PART_TWO)
+for result in results:
+    print(result[0], f"{result[1]:05.2f}", result[2])
+
+if FAILURE:
     sys.exit(1)
-
