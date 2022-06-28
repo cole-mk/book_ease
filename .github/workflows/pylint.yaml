@@ -22,5 +22,5 @@ jobs:
     - name: Analysing the code with pylint
       run: |
         # find . -name '*.py' -exec pylint {} \;
-        python lint.py 
+        python --rcfile book_ease.toml lint.py 
 
