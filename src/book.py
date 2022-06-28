@@ -34,51 +34,52 @@ from gui.gtk import book_view
 from gui.gtk import pinned_books_view
 import book_columns
 
-# module wide db connection for multi queries
-__db_connection = None
+
+class DBConnection:
+    """module wide db connection for multi queries"""
+
+    def __init__(self):
+        self.con = None
+
+
+# the module wide reference to DBConnection
+__DB_CONNECTION = DBConnection()
+
 
 def multi_query_begin():
     """
     create a semi-persistent connection
     for executing multiple transactions
     """
-    print('multi_query_begin')
-    global __db_connection
-    if __db_connection is not None:
+    if __DB_CONNECTION.con is not None:
         raise RuntimeError('connection already exists')
-    else:
-        __db_connection = sqlite_tables.create_connection()
-        __db_connection.execute('BEGIN')
+    __DB_CONNECTION.con = sqlite_tables.create_connection()
+    __DB_CONNECTION.con.execute('BEGIN')
 
 def multi_query_end():
     """commit and close connection of a multi_query"""
-    global __db_connection
-    if __db_connection is None:
+    if __DB_CONNECTION.con is None:
         raise RuntimeError('connection doesn\'t exist')
-    else:
-        __db_connection.commit()
-        __db_connection.close()
-        __db_connection = None
+    __DB_CONNECTION.con.commit()
+    __DB_CONNECTION.con.close()
+    __DB_CONNECTION.con = None
 
 def query_begin() -> 'sqlite3.Connection':
     """
     get an sqlite connection object
-    returns __db_connection if a multi_query is in effect.
+    returns __DB_CONNECTION.con if a multi_query is in effect.
     Otherwise, create and return a new connection
     """
-    global __db_connection
-    if __db_connection is None:
+    if __DB_CONNECTION.con is None:
         return sqlite_tables.create_connection()
-    else:
-        return __db_connection
+    return __DB_CONNECTION.con
 
 def query_end(con):
     """
     commit and close connection if a multi_query
     is not in effect.
     """
-    global __db_connection
-    if con is not __db_connection:
+    if con is not __DB_CONNECTION.con:
         con.commit()
         con.close()
 
