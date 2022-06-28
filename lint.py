@@ -29,7 +29,7 @@ from pylint import lint
 # the pylint score required to pass
 MINIMUM_SCORE = 10
 # files to ignore
-ignore_list = ['__init__.py']
+ignore_list = ['__init__.py', 'book_ease.py']
 # Get a list of python source files in the git repo.
 file_to_be_linted = subprocess.check_output(["git", "ls-files", "*.py"])
 
@@ -45,6 +45,7 @@ for file_ in file_to_be_linted.decode().split('\n'):
     run = lint.Run([file_], do_exit=False)
     # Get and assess the score.
     score = run.linter.stats.global_note
+    print()
     # Store the results for printing at the end of the script.
     results.append(['Success', score, file_])
     if score < MINIMUM_SCORE:
