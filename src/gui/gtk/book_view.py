@@ -110,7 +110,7 @@ class TitleVC:
     """controller for displaying the book title"""
 
     def __init__(self, book_, book_tx_signal, component_transmitter, book_view_builder):
-        # save a reference to the transmitter that this class uses to send messages back to Book_C
+        # save a reference to the transmitter that this class uses to send messages back to BookC
         self.transmitter = component_transmitter
         # subscribe to the signals relevant to this class
         book_tx_signal.connect('close', self.close)
@@ -188,7 +188,7 @@ class ControlBtnVC:
     """control the control buttons display"""
 
     def __init__(self, book_, book_tx_signal, component_transmitter, book_view_builder):
-        # save a reference to the transmitter that this class uses to send messages bak to Book_C
+        # save a reference to the transmitter that this class uses to send messages bak to BookC
         self.transmitter = component_transmitter
         # subscribe to the signals relevant to this class.
         book_tx_signal.connect('close', self.close)
@@ -237,7 +237,7 @@ class ControlBtnVC:
     def on_control_button_released(self, button, event_button, control_signal): #pylint: disable=unused-argument
         """
         callback for control button release events originating in ControlBtnV.
-        relay the event to Book_C
+        relay the event to BookC
         """
         self.transmitter.send(control_signal)
 
@@ -313,7 +313,7 @@ class PlaylistVC:
     """Controller for the treeview that displays a playlist"""
 
     def __init__(self, book_, book_transmitter, component_transmitter, book_view_builder):
-        # save a reference to the transmitter that this class uses to send messages bak to Book_C
+        # save a reference to the transmitter that this class uses to send messages bak to BookC
         self.transmitter = component_transmitter
         # subscribe to the signals relevant to this class
         book_transmitter.connect('close', self.close)

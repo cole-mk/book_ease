@@ -126,7 +126,7 @@ class PinnedButtonV: #pylint: disable=too-few-public-methods
 class PinnedButtonVC:
     """
     class controls a Gtk.CheckButton view.
-    this class is connected to the pinned_books module as well as book.Book_C
+    this class is connected to the pinned_books module as well as book.BookC
     """
 
     def __init__(self, book, book_transmitter, book_view_builder):
