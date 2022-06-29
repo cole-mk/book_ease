@@ -20,22 +20,23 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
-import playlist
-import signal_
-import db
-import sqlite3
+"""
+This module is all of the classes responsible for being a book
+this includes the book model, database interfaces for the book, and the main controller class for the book
+"""
 import re
 import os
 import configparser
 from pathlib import Path
-import sqlite_tables
 import mutagen
+import playlist
+import signal_
+import sqlite_tables
 from gui.gtk import book_view
-from gui.gtk import pinned_books_view
 import book_columns
 
 
-class DBConnection:
+class DBConnection: #pylint: disable=too-few-public-methods
     """module wide db connection for multi queries"""
 
     def __init__(self):
@@ -83,46 +84,35 @@ def query_end(con):
         con.commit()
         con.close()
 
-#metadata_col_list =[book_columns.md_title,  book_columns.md_author, book_columns.md_read_by,
-#                    book_columns.md_length, book_columns.md_track_number]
 
-
-# TODO: file_list can be removed from the constructor all together. create_book can get it from self.files
 class Book(playlist.Playlist, signal_.Signal):
-    def __init__(self, path, file_list, config, files, book_reader):
+    """Book is the model for a book"""
+
+    def __init__(self, path, file_list):
         playlist.Playlist.__init__(self)
         signal_.Signal.__init__(self)
         self.index = None
         self.playlist_data = PlaylistData(title='New Book', path=path)
-        self.config = config
-        self.files = files
-        self.book_section = 'books'
-        self.book_reader = book_reader
         #database interfaces
         self.track_dbi = TrackDBI()
         self.playlist_dbi = PlaylistDBI()
-        # track metadata
+        # track to scrape for metadata
         self.file_list = file_list
-        # playlist_filetypes key has values given in a comma separated list
-        file_types = config[self.book_section]['playlist_filetypes'].split(",")
-        # build compiled regexes for matching list of media suffixes.
-        self.f_type_re = []
-        for i in file_types:
-            i = '.*.\\' + i.strip() + '$'
-            self.f_type_re.append(re.compile(i))
 
         # initialize the callback system
         self.add_signal('book_data_loaded')
         self.add_signal('book_data_created')
         self.add_signal('book_saved')
+        # a counter to determine the size of the playlist that will be use to cleanup deleted files
+        # this is used during the saving process.
+        self.pl_track_counter = 0
 
-
-    # get list of playlists associated with current path
     def get_cur_pl_list(self):
+        """get list of playlists associated with current path"""
         return self.playlist_dbi.get_by_path(self.playlist_data)
 
     def get_playlist_data(self) -> 'PlaylistData':
-        # get playlist data attached to this Book instance
+        """get playlist data attached to this Book instance"""
         return self.playlist_data
 
     def get_playlist_id(self):
@@ -130,27 +120,33 @@ class Book(playlist.Playlist, signal_.Signal):
         return self.playlist_data.get_id()
 
     def get_track_list(self):
+        """get a list of Tracks associated with this book"""
         return self.track_list
 
     def get_index(self):
+        """get the index of this book's position in the BookReader's list of books"""
         return self.index
 
     def set_index(self, index):
+        """set the index of this book's position in the BookReader's list of books"""
         self.index = index
 
     def assert_playlist_exists(self, playlist_data):
-        # assert that playlist actually exists before trying to load
-        # raising exception f not found
+        """
+        assert that playlist actually exists before trying to load
+        raising exception f not found
+        """
         found_playlist = None
-        for pl in self.get_cur_pl_list():
-            if pl.get_id() == playlist_data.get_id():
-                found_playlist = pl
+        for pl_list in self.get_cur_pl_list():
+            if pl_list.get_id() == playlist_data.get_id():
+                found_playlist = pl_list
                 break
-        if found_playlist == None:
-            raise KeyError(self.playlist_data.get_id(), 'not found in currently saved playlists associated with this path')
+        if found_playlist is None:
+            raise KeyError(self.playlist_data.get_id(),
+                'not found in currently saved playlists associated with this path')
 
     def book_data_load(self, playlist_data):
-        # load a saved playlist from the database
+        """load a saved playlist from the database"""
 
         # check that playlist actually exists before trying to load
         self.assert_playlist_exists(playlist_data)
@@ -158,13 +154,13 @@ class Book(playlist.Playlist, signal_.Signal):
 
         # retrieve a list of tracks belonging to this playlist
         # edit those tracks and append them to self.track_list
-        for tr in self.track_dbi.get_track_list_by_pl_id(self.playlist_data.get_id()):
-            tr.set_saved(True)
-            self.track_list.append(tr)
+        for track in self.track_dbi.get_track_list_by_pl_id(self.playlist_data.get_id()):
+            track.set_saved(True)
+            self.track_list.append(track)
             # populate track metadata
             for col in book_columns.metadata_col_list:
-                entry_list = self.track_dbi.get_metadata_list(col['key'], tr.get_pl_track_id())
-                tr.set_entry(col['key'], entry_list)
+                entry_list = self.track_dbi.get_metadata_list(col['key'], track.get_pl_track_id())
+                track.set_entry(col['key'], entry_list)
 
         self.saved_playlist = True
         # sort playlist by  number
@@ -172,13 +168,12 @@ class Book(playlist.Playlist, signal_.Signal):
         # notify listeners that book data has been loaded
         self.send('book_data_loaded')
 
-    # initialize the playlist
     def create_book_data(self):
-        #dont enumerate filelist, we nee more control over i
-        i = 0
-        for f in self.file_list:
+        """initialize a new playlist with data scraped from file metadata"""
+
+        for file_ in self.file_list:
             # populate track data
-            file_path = os.path.join(self.playlist_data.get_path(), f[1])
+            file_path = os.path.join(self.playlist_data.get_path(), file_[1])
             try:
                 # create the track
                 track = TrackFI.get_track(file_path)
@@ -188,7 +183,6 @@ class Book(playlist.Playlist, signal_.Signal):
 
             # do the appending
             self.track_list.append(track)
-            i+=1
 
             # load alt values if this entry is empty
             for col in book_columns.metadata_col_list:
@@ -205,29 +199,35 @@ class Book(playlist.Playlist, signal_.Signal):
         self.send('book_data_created')
 
     def track_list_update(self, track):
+        """
+        Update self.tracklist with any changes made by the user.
+        find an existing track in self.tracklist with an id matching that of the passed track.
+        Apply the difference between the two to the existing track in the tracklist, or create a new track.
+        """
         # find existing track
         e_track = None
-        for tr in self.track_list:
-            if tr.get_pl_track_id() == track.get_pl_track_id():
-                e_track = tr
+        for potential_track in self.track_list:
+            if potential_track.get_pl_track_id() == track.get_pl_track_id():
+                e_track = potential_track
                 break
-        if e_track == None:
+        if e_track is None:
             # add new track
             self.track_list.append(track)
         else:
             # modify existing track
-            [e_track.set_entry(key, track.get_entries(key)) for key in track.get_key_list()]
+            for key in track.get_key_list():
+                e_track.set_entry(key, track.get_entries(key))
             e_track.set_number(track.get_number())
 
     def set_unique_playlist_title(self, playlist_data) -> 'title:str':
-        # add a incremented suffix to self.playlist_data.title if there are duplicates
+        """add a incremented suffix to self.playlist_data.title if there are duplicates"""
         suffix = ''
-        ct = 1
+        count = 1
         while self.playlist_dbi.count_duplicates(playlist_data) > 0:
             title = playlist_data.get_title().rstrip(suffix)
-            suffix = '_' + str(ct)
+            suffix = '_' + str(count)
             playlist_data.set_title(title + suffix)
-            ct += 1
+            count += 1
         return playlist_data
 
     def save_playlist_data(self):
@@ -285,13 +285,16 @@ class Book(playlist.Playlist, signal_.Signal):
 
 
 class PlaylistDBI():
+    """Interface to help the Book save playlist specific data"""
 
     def __init__(self):
         self.playlist = sqlite_tables.Playlist()
 
     def count_duplicates(self, pl_data) -> 'int':
-        # get a count of the number of playlist titles associated with this path
-        # that have the same title, but exclude playlist_id from the list
+        """
+        get a count of the number of playlist titles associated with this path
+        that have the same title, but exclude playlist_id from the list
+        """
         con = query_begin()
         count = self.playlist.count_duplicates(pl_data.get_title(),
                                                pl_data.get_path(),
@@ -301,26 +304,26 @@ class PlaylistDBI():
         return count[0]
 
     def exists_in_path(self, pl_data) -> 'bool':
-        # tell if any playlists are associated with this path
+        """tell if any playlists are associated with this path"""
         if self.get_by_path(pl_data) is not None:
             return True
         return False
 
     def get_by_path(self, pl_data) -> '[PlaylistData, ...]':
-        # get playlists associated with path
+        """get playlists associated with path"""
         playlists = []
         con = query_begin()
         # execute query
         pl_list = self.playlist.get_rows_by_path(con, pl_data.get_path())
         query_end(con)
         # build playlists list
-        for pl in pl_list:
-            playlist = PlaylistData(title=pl['title'], path=pl['path'], id_=pl['id'])
-            playlists.append(playlist)
+        for plst in pl_list:
+            play_list = PlaylistData(title=plst['title'], path=plst['path'], id_=plst['id'])
+            playlists.append(play_list)
         return playlists
 
     def save(self, pl_data) -> 'playlist_id:int':
-        # insert or update playlist
+        """"insert or update playlist"""
         con = query_begin()
         id_ = pl_data.get_id()
         if self.playlist.get_row(con, id_) is None:
@@ -332,6 +335,7 @@ class PlaylistDBI():
 
 
 class PlaylistData:
+    """Class to encapsulate the data that describes a playlist"""
 
     def __init__(self, title=None, path=None, id_=None):
         self.title = title
@@ -339,40 +343,50 @@ class PlaylistData:
         self.id_ = id_
 
     def get_title(self):
+        """get title attribute from PlaylistData"""
         return self.title
 
     def set_title(self, title):
+        """set title attribute of PlaylistData"""
         self.title = title
 
     def get_path(self):
+        """get path attribute from PlaylistData"""
         return self.path
 
     def set_path(self, path):
+        """set path attribute of PlaylistData"""
         self.path = path
 
     def get_id(self):
+        """get id attribute from PlaylistData"""
         return self.id_
 
     def set_id(self, id_):
+        """set id attribute of PlaylistData"""
         self.id_ = id_
 
 
 class TrackDBI():
-    # Class to interface the database with the rest of the module.
-    # manage the connections to the database table classes.
-    # manage converting the data to module specific format(Track) for
-    # consumption by the other classes in this module.
+    """
+    Class to interface the database with the rest of the module.
+    manage the connections to the database table classes.
+    manage converting the data to module specific format(Track) for
+    consumption by the other classes in this module.
+    """
 
     def __init__(self):
-        # create database table objects
+        """create database table objects"""
         self.pl_track = sqlite_tables.PlTrack()
         self.pl_track_metadata = sqlite_tables.PlTrackMetadata()
         self.playlist = sqlite_tables.Playlist()
         self.track_file = sqlite_tables.TrackFile()
 
     def save_track_file(self, track) -> 'track_file_id:int':
-        # save to database track_file information held in Track
-        # returns track_file_id
+        """
+        save to database track_file information held in Track
+        returns track_file_id
+        """
         con = query_begin()
         # add entry to track_file table
         self.track_file.add_row(con, path=track.get_file_path())
@@ -381,7 +395,7 @@ class TrackDBI():
         return track_file_id
 
     def save_pl_track(self, playlist_id, track_file_id, track) -> 'int':
-        # add entry to pl_track table
+        """add entry to pl_track table"""
         con = query_begin()
         track_number = track.get_number()
         # null pl_track_numbers to avoid duplicates in case they were reordered in the view
@@ -395,7 +409,7 @@ class TrackDBI():
         return pl_track_id
 
     def save_track_metadata(self, md_entry, pl_track_id, key):
-        # save a TrackMDEntry instance to database
+        """save a TrackMDEntry instance to database"""
         con = query_begin()
         # extract info from TrackMDEntry oject
         id_ = md_entry.get_id()
@@ -422,37 +436,43 @@ class TrackDBI():
         return id_
 
     def remove_deleted_metadata(self, max_index, pl_track_id, key):
-        # remove deleted entries from table.pl_track_metadata by looking for null indices
-        # and indices greater than the current max_index
+        """
+        remove deleted entries from table.pl_track_metadata by looking for null indices
+        and indices greater than the current max_index
+        """
         con = query_begin()
         id_list = self.pl_track_metadata.get_ids_by_max_index_or_null(con, max_index, pl_track_id, key)
-        [self.pl_track_metadata.remove_row_by_id(con, row['id']) for row in id_list]
+        for row in id_list:
+            self.pl_track_metadata.remove_row_by_id(con, row['id'])
         query_end(con)
 
     def remove_deleted_pl_tracks(self, playlist_id, max_index):
-        # remove deleted entries from table.pl_track by looking for null indices
-        # pl_track.track_number entries are a one based index
+        """
+        remove deleted entries from table.pl_track by looking for null indices
+        pl_track.track_number entries are a one based index
+        """
         con = query_begin()
         id_list = self.pl_track.get_ids_by_max_index_or_null(con, max_index, playlist_id)
-        [self.pl_track.remove_row_by_id(con, row['id']) for row in id_list]
+        for row in id_list:
+            self.pl_track.remove_row_by_id(con, row['id'])
         query_end(con)
 
-    def get_track_list_by_pl_id(self, playlist_id) -> 'playlist.Track':
-        # create list of Track objects
+    def get_track_list_by_pl_id(self, playlist_id) -> '[playlist.Track, ...]':
+        """create list of Track objects by searching the database for pl_tracks matching playlist ids"""
         track_list = []
         con = query_begin()
         # create Track instances and populate the simple instance variables
-        for tr in self.pl_track.get_rows_by_playlist_id(con, playlist_id):
-            path = self.track_file.get_row_by_id(con, tr['track_id'])['path']
+        for trak in self.pl_track.get_rows_by_playlist_id(con, playlist_id):
+            path = self.track_file.get_row_by_id(con, trak['track_id'])['path']
             track = playlist.Track(file_path=path)
-            track.set_number(tr['track_number'])
-            track.set_pl_track_id(tr['playlist_id'])
+            track.set_number(trak['track_number'])
+            track.set_pl_track_id(trak['playlist_id'])
             track_list.append(track)
         query_end(con)
         return track_list
 
     def get_metadata_list(self, key, pl_track_id):
-        # create a list of TrackMDEntry by searching for pl_track_id
+        """create a list of TrackMDEntry by searching for pl_track_id"""
         md_list = []
         con = query_begin()
 
@@ -468,7 +488,9 @@ class TrackDBI():
 
 
 class UnsupportedFileType(Exception):
-    pass
+    """
+    custom exception raised when TrackFi tries to scrape data from an unsupported file type
+    """
 
 
 class TrackFI:
@@ -537,17 +559,22 @@ class TrackFI:
         return False
 
 
-class Book_C:
+class BookC:
+    """
+    This class handles comms between Book module and Book_reader
+    This class coordinates actions among the component view controllers
+    Tis class instantiates the Book model and handles the signals sent from the model
+    """
 
-    #the list of signals that Book_C is allowed to send to the component views
+    #the list of signals that BookC is allowed to send to the component views
     book_tx_api = ['update', 'get_view', 'close', 'begin_edit_mode', 'begin_display_mode', 'save_title', 'save']
-    # the list of signals that the component views is allowed to send to Book_C
+    # the list of signals that the component views is allowed to send to BookC
     component_tx_api = ['save_button', 'cancel_button', 'edit_button']
 
-    def __init__(self, path, file_list, config, files, book_reader):
+    def __init__(self, path, file_list, book_reader):
         # the model
-        self.book = Book(path, file_list, config, files, book_reader)
-        # allow BookReader to track Book_C's position in its books list
+        self.book = Book(path, file_list)
+        # allow BookReader to track BookC's position in its books list
         self.index = None
 
         # set up the callback system in the observer interface of the component view controllers
@@ -582,8 +609,8 @@ class Book_C:
         # controller.
         book_reader.pinned_books.get_pinned_button_new(self.book, self.transmitter, book_view_builder)
 
-        # connect to the signals from the Book that Book_C is interested in
-        self.book.connect('book_data_created', self.on_book_data_ready, is_sorted=False)
+        # connect to the signals from the Book that BookC is interested in
+        self.book.connect('book_data_created', self.on_book_data_ready)
 
         # bk.connect('book_saved', book_view.book_data_load_th)
         # bk.connect('book_data_loaded', book_view.on_book_data_ready_th, is_sorted=True)
@@ -594,6 +621,7 @@ class Book_C:
         # connect the book_data_loaded to the add book_updated callback
         # bk.connect('book_data_loaded', self.book_updated, index=index)
     def get_view(self):
+        """get the main outer most view"""
         return self.book_vc.get_view()
 
     def get_playlist_id(self):
@@ -613,13 +641,14 @@ class Book_C:
         self.book.create_book_data()
 
     def get_title(self):
+        """get this books title from the model"""
         return self.book.get_playlist_data().get_title()
 
     def open_existing_playlist(self, playlist_data):
         """open a previously saved book"""
         self.book.book_data_load(playlist_data)
 
-    def on_book_data_ready(self, is_sorted):
+    def on_book_data_ready(self):
         """
         model is finished creating the book data from scraping the media files
         load the book into the view
@@ -647,10 +676,10 @@ class Book_C:
         self.transmitter.send('begin_display_mode')
 
     def edit(self):
-        pass
+        """pass"""
 
     def cancel_edit(self):
-        pass
+        """pass"""
 
     def receive(self, control_signal):
         """convert signals from the component views into actions by calling the appropriate methods"""

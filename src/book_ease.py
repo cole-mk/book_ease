@@ -636,7 +636,7 @@ class BookReader_:
         create a new Book instance and tell it to load a saved playlist.
         append the new Book to the booklist for later usage
         """
-        book_ = book.Book_C(self.cur_path, None, self.config, self.files, self)
+        book_ = book.BookC(self.cur_path, None, self)
         book_.page = self.book_reader_view.append_book(book_.get_view, book_.get_title())
         self.append_book(book_)
         # load the playlist metadata
@@ -653,7 +653,7 @@ class BookReader_:
         """
         f_list = self.files.get_file_list_new()
         self.files.populate_file_list(f_list, self.cur_path)
-        book_ = book.Book_C(self.cur_path, f_list, self.config, self.files, self)
+        book_ = book.BookC(self.cur_path, f_list, self)
         self.append_book(book_)
         book_.page = self.book_reader_view.append_book(book_.get_view(), book_.get_title())
         # clear book_reader_view.has_new_media flag
@@ -684,7 +684,7 @@ class BookReader_:
         callback for when a book view's cancel editing button has been pressed
         close the book if it wasn't already saved and reload if it was
         This is bookreader playing repeater for the Book system again.
-        It needs to be moved to Book_C.
+        It needs to be moved to BookC.
         """
         book_ = self.get_book(books_index)[0]
         if book_.is_saved():

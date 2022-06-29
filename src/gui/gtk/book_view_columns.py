@@ -74,7 +74,7 @@ pl_track_id         |= {'g_col':6,  'g_typ':int, 'name':'pl_track_id'}
 
 
 # The playlist_row_id is a unique row id that is only used by
-# The V and VC classes. It never touches Book or Book_C.
+# The V and VC classes. It never touches Book or BookC.
 playlist_row_id      = {'g_col':13, 'g_typ':int, 'name':'playlist_row_id'}
 
 # The columns that will be displayed in the playlist treeview column
