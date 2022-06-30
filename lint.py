@@ -45,7 +45,6 @@ for file_ in file_to_be_linted.decode().split('\n'):
     run = lint.Run([file_], do_exit=False)
     # Get and assess the score.
     score = run.linter.stats.global_note
-    print()
     # Store the results for printing at the end of the script.
     results.append(['Success', score, file_])
     if score < MINIMUM_SCORE:
