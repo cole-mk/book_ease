@@ -331,15 +331,6 @@ class PlaylistVC:
         # assign the playlist to the view
         self.playlist_v.set_model(self.playlist_model.get_model())
 
-        # each track metadata entry is a list. This secondary_metadata list is used to hold
-        # track metadata beyond the first entry in each track's metadata list
-        # that gets displayed in the playlist view. The secondary_metadata
-        # will be used to populate combo box popups on demand when the user
-        # wants to see or edit more than just the first metadata entry. Entries will
-        # come in the form of a tuple (FK->playlist_row_id, key, TrackMDEntry)
-        # *FK = foreign key
-        self.secondary_metadata = SecondaryMetadata()
-
     def update(self):
         """get the tracklist from the Book and add the data to the playlist_model and secondary_metadata models"""
         # clear the playlist view
@@ -349,8 +340,7 @@ class PlaylistVC:
             track = self.book.pop_track()
             if track is None:
                 break
-            playlist_row_id = self.playlist_model.add_track(track)
-            self.secondary_metadata.add_track(playlist_row_id, track)
+            self.playlist_model.add_track(track)
 
     def begin_edit_mode(self):
         """pass"""
@@ -393,6 +383,15 @@ class PlaylistVM:
 
         # The model of the playlist data that will be displayed in the view
         self.playlist = self.get_playlist_new()
+        # each track metadata entry is a list. This secondary_metadata list is used to hold
+        # track metadata beyond the first entry in each track's metadata list
+        # that gets displayed in the playlist view. The secondary_metadata
+        # will be used to populate combo box popups on demand when the user
+        # wants to see or edit more than just the first metadata entry. Entries will
+        # come in the form of a tuple (FK->playlist_row_id, key, TrackMDEntry)
+        # *FK = foreign key
+        self.secondary_metadata = SecondaryMetadata()
+
 
     def get_playlist_new(self):
         """create a new model for the playlist"""
@@ -408,12 +407,12 @@ class PlaylistVM:
         """add data from a track object into the playlist view"""
         # append a new row to the playlist
         cur_row = self.playlist.append()
-        # load the metadata columns
-        self.__add_metadata_columns(track, cur_row)
-        # load track data not stored in the metadata dictionary
-        self.__add_track_columns(track, cur_row)
         # add the column that holds the unique row id specific to this instance of the BookVC
         playlist_row_id = self.__add_row_id_column(cur_row)
+        # load the metadata columns
+        self.__add_metadata_columns(track, cur_row, playlist_row_id)
+        # load track data not stored in the metadata dictionary
+        self.__add_track_columns(track, cur_row)
         return playlist_row_id
 
     def __add_row_id_column(self, cur_row) -> 'row_id:int':
@@ -433,17 +432,24 @@ class PlaylistVM:
         track.set_file_path(self.playlist.get_value(cur_row, book_view_columns.track_path['g_col']))
         track.set_pl_track_id(self.playlist.get_value(cur_row, book_view_columns.pl_track_id['g_col']))
 
-    def __add_metadata_columns(self, track, cur_row):
-        """load the first entry of all of the track metadata"""
+    def __add_metadata_columns(self, track, cur_row, playlist_row_id):
+        """
+        Load the first entry of all of the track metadata into self.playlist.
+        Load subsequent entries into self.secondary_metadata.
+        """
         for col in book_view_columns.metadata_col_list:
             track_md_entry_list = track.get_entries(col['key'])
-            if track_md_entry_list:
-                # load the entry portion of the first TrackMDEntry
-                self.playlist.set_value(cur_row, col['g_col'], track_md_entry_list[0].get_entry())
-                # load the id portion of the first TrackMDEntry
-                self.playlist.set_value(cur_row, col['id_column']['g_col'], track_md_entry_list[0].get_id())
+            for track_md_entry in track_md_entry_list:
+                if track_md_entry.get_index() == 0:
+                    # index zero goes into self.playlist. first the entry portion then id.
+                    # The index portion is always zero for the playlist, so its not kept.
+                    self.playlist.set_value(cur_row, col['g_col'], track_md_entry_list[0].get_entry())
+                    self.playlist.set_value(cur_row, col['id_column']['g_col'], track_md_entry_list[0].get_id())
+                else:
+                    # Subsequent entries go into self.secondary_metadata
+                    self.secondary_metadata.add_entry(playlist_row_id, col['key'], track_md_entry)
 
-    def __load_metadata_columns(self, track, cur_row):
+    def __load_metadata_columns(self, track, cur_row, row_id):
         """
         Copy data from the displayed Gtk.Liststore (self.playlist) to Track object
         This method copies the track metadata stored in the playlist, referenced by the columns in the metadata_col_list
@@ -461,6 +467,9 @@ class PlaylistVM:
             md_entry.set_index(0)
             # add the TrackMDEntry to the list
             entry_list.append(md_entry)
+            # Add any secondary metadata entries to the entry_list.
+            secondary_md_entries = self.secondary_metadata.get_entries(row_id, col['key'])
+            entry_list.extend(secondary_md_entries)
             # put the metadata entries in the Track object
             track.set_entry(col['key'], entry_list)
 
@@ -488,8 +497,10 @@ class PlaylistVM:
         cur_row_num = track.get_number()
         # retrieve gtk iter that referenes the last row from the playlist
         cur_row_iter = self.playlist.get_iter((cur_row_num-1,))
+        # The gtk row_id for the track
+        row_id = self.get_row_id(cur_row_iter)
         # load the metadata columns
-        self.__load_metadata_columns(track, cur_row_iter)
+        self.__load_metadata_columns(track, cur_row_iter, row_id)
         # load track data not stored in the metadata dictionary
         self.__load_track_columns(track, cur_row_iter)
         # remove the row from the playlist
@@ -503,6 +514,10 @@ class PlaylistVM:
         """
         last_row_num = len(self.playlist)
         track.set_number(last_row_num)
+
+    def get_row_id(self, cur_row):
+        """get the unique row id for cur_row in self.playlist"""
+        return self.playlist.get_value(cur_row, book_view_columns.playlist_row_id['g_col'])
 
 class SecondaryMetadata:
     """
@@ -532,3 +547,7 @@ class SecondaryMetadata:
                 if entry.get_index() == 0:
                     continue
                 self.add_entry(playlist_row_id, key, entry)
+
+    def get_entries(self, row_id, key):
+        """get a list of trackMdEntries that match that the row id and key"""
+        return [entry[2] for entry in self.secondary_metadata if entry[0] == row_id and entry[1] == key]
