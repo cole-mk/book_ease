@@ -279,7 +279,6 @@ class Book(playlist.Playlist, signal_.Signal):
         """pop and return a Track object from the self.track_list"""
         try:
             track = self.track_list.pop()
-            entry = track.get_entries('tracknumber')[0]
         except IndexError:
             track = None
         return track
