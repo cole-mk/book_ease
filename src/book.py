@@ -279,6 +279,7 @@ class Book(playlist.Playlist, signal_.Signal):
         """pop and return a Track object from the self.track_list"""
         try:
             track = self.track_list.pop()
+            entry = track.get_entries('tracknumber')[0]
         except IndexError:
             track = None
         return track
@@ -611,6 +612,7 @@ class BookC:
 
         # connect to the signals from the Book that BookC is interested in
         self.book.connect('book_data_created', self.on_book_data_ready)
+        self.book.connect('book_data_loaded', self.on_book_data_ready)
 
         # bk.connect('book_saved', book_view.book_data_load_th)
         # bk.connect('book_data_loaded', book_view.on_book_data_ready_th, is_sorted=True)
@@ -671,9 +673,10 @@ class BookC:
         self.transmitter.send('save')
         # Tell the book that it is finished saving and can cleanup
         self.book.save_book_finished()
+        self.book.book_data_load(self.book.playlist_data)
         # tell the VC classes to update their views and switch to display mode
-        self.transmitter.send('update')
-        self.transmitter.send('begin_display_mode')
+        #self.transmitter.send('update')
+        #self.transmitter.send('begin_display_mode')
 
     def edit(self):
         """pass"""
