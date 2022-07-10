@@ -466,7 +466,7 @@ class TrackDBI():
             path = self.track_file.get_row_by_id(con, trak['track_id'])['path']
             track = playlist.Track(file_path=path)
             track.set_number(trak['track_number'])
-            track.set_pl_track_id(trak['playlist_id'])
+            track.set_pl_track_id(trak['id'])
             track_list.append(track)
         query_end(con)
         return track_list
@@ -484,6 +484,7 @@ class TrackDBI():
             md_entry.set_index(row['idx'])
             md_entry.set_entry(row['entry'])
             md_list.append(md_entry)
+        query_end(con)
         return md_list
 
 
