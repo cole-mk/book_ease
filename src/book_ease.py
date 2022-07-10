@@ -637,7 +637,7 @@ class BookReader_:
         append the new Book to the booklist for later usage
         """
         book_ = book.BookC(self.cur_path, None, self)
-        book_.page = self.book_reader_view.append_book(book_.get_view, book_.get_title())
+        book_.page = self.book_reader_view.append_book(book_.get_view(), book_.get_title())
         self.append_book(book_)
         # load the playlist metadata
         book_.open_existing_playlist(pl_row)
