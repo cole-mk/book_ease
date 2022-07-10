@@ -31,6 +31,7 @@ gi.require_version("Gtk", "3.0")
 #pylint: enable=wrong-import-position
 from gi.repository import Gtk
 import playlist
+import signal_
 from gui.gtk import book_view_columns
 import pdb #pylint: disable=unused-import, wrong-import-order
 
@@ -248,14 +249,22 @@ class  PlaylistV:
     def __init__(self, display_columns, book_view_builder):
         # display the playlist in a gtk treeview
         self.playlist_view = book_view_builder.get_object('playlist_view')
-
+        self.playlist_view.set_reorderable(True)
         # a list of cell renderers used in the playlist view
         self.cell_renderers = []
+        # Relay Gtk signals back to the controller
+        self.transmitter = signal_.Signal()
+        self.transmitter.add_signal('col_header_clicked')
 
+        self.tvc_list = []
         # initialize the TreeView columns and add them to the playlist view
         for col in display_columns:
             rend = self.init_cell_renderer(col)
             tvc = self.init_tree_view_column(col, rend)
+            # track number is the default sort column for the playlist
+            if col is book_view_columns.md_track_number:
+                self.default_sort_tree_view_col = tvc
+            self.tvc_list.append(tvc)
             self.playlist_view.append_column(tvc)
             self.cell_renderers.append(rend)
             #rend.connect("edited", self.on_edited, col)
@@ -276,17 +285,17 @@ class  PlaylistV:
         rend.set_property("model", Gtk.ListStore(col['g_typ'], int))
         return rend
 
-    def init_tree_view_column(self, col, rend):
+    def init_tree_view_column(self, col, rend) -> Gtk.TreeViewColumn:
         """initialize a single column for display in the treeview"""
         tvc = Gtk.TreeViewColumn(col['name'])
         tvc.pack_start(rend, True)
         tvc.add_attribute(rend, "text", col['g_col'])
         tvc.set_sort_order(Gtk.SortType.DESCENDING)
         tvc.set_clickable(True)
-        #tvc.connect("clicked", self.on_clicked, col['g_col'])
+        tvc.connect('clicked', self.on_header_clicked, col)
         return tvc
 
-    def get_cell_renderers(self) -> 'list':
+    def get_cell_renderers(self) -> list:
         """
         get the list of Gtk.CellRenderersCombo's
         associated with the playlist view
@@ -308,6 +317,45 @@ class  PlaylistV:
         """close all gui components in preperation for this object to close"""
         self.playlist_view.destroy()
 
+    def on_header_clicked(self, tvc, col):
+        """repeat the clicked/col_header_clicked signal on self's own transmitter"""
+        self.transmitter.send('col_header_clicked', tvc, col)
+
+
+class PlaylistSortable:
+    """
+    A Data container that overrides __lt__ so numeric data can be displayed as strings but be sorted like numbers.
+    __lt__ is overridden if the passed in col info dict has a 'data_type' key with a value of 'numeric'.
+    """
+
+    def __init__(self, value, col):
+        self.value = value
+        self.type_ = col['data_type'] if 'data_type' in col else None
+
+    def __lt__(self, other):
+        """overidee the lt comparison if self.value is a string representing a numeric type"""
+        if self.type_ == 'numeric':
+            return self.less_than_str_as_num(other)
+        return self.value < other.value
+
+    def less_than_str_as_num(self, other):
+        """
+        convert strings (self.value and other.value) to ints before comparing.
+        All strings that are not proper numbers are evaluated equal to each other, but less than numbers.
+        """
+        try:
+            num1 = int(self.value)
+        except ValueError:
+            num1 = -1
+        try:
+            num2 = int(other.value)
+        except ValueError:
+            num2 = -1
+
+        if num1 < num2:
+            return True
+        return False
+
 
 class PlaylistVC:
     """Controller for the treeview that displays a playlist"""
@@ -319,15 +367,21 @@ class PlaylistVC:
         book_transmitter.connect('close', self.close)
         book_transmitter.connect('update', self.update)
         book_transmitter.connect('save', self.save)
-        # copy the default list of columns that will be displayed
+
+        # Set up the playlist view.
+        # Copy the default list of columns that will be displayed.
         self.display_cols = book_view_columns.display_cols.copy()
         # the view
         self.playlist_v = PlaylistV(self.display_cols, book_view_builder)
+        self.playlist_v.transmitter.connect('col_header_clicked', self.on_sort_by_column)
+
         # the Book model that holds the playlist data
         self.book = book_
 
         # generate the playlist model for display
         self.playlist_model = PlaylistVM()
+        # clear sort indicators when a row is manually moved by drag and drop
+        self.playlist_model.transmitter.connect('row_deleted', self.clear_col_sort_indicators)
         # assign the playlist to the view
         self.playlist_v.set_model(self.playlist_model.get_model())
 
@@ -341,6 +395,7 @@ class PlaylistVC:
             if track is None:
                 break
             self.playlist_model.add_track(track)
+        self.init_default_sort_order()
 
     def begin_edit_mode(self):
         """pass"""
@@ -362,6 +417,38 @@ class PlaylistVC:
                 break
             self.book.save_track(track)
 
+    def get_toggled_tv_col_direction(self, tree_view_column):
+        """Get the current sort order (Gtk.SortType) for a tree view column and return the opposite Gtk.SortType"""
+        if tree_view_column.get_sort_order() == Gtk.SortType.DESCENDING:
+            return Gtk.SortType.ASCENDING
+        return Gtk.SortType.DESCENDING
+
+    def on_sort_by_column(self, tree_view_column, col):
+        """
+        Sort the playlist view by the data in one column.
+        callback triggered when a column header in the view is clicked
+        """
+        new_sort_direction = self.get_toggled_tv_col_direction(tree_view_column)
+        tree_view_column.set_sort_order(new_sort_direction)
+        self.playlist_model.sort_by_col(col, new_sort_direction)
+        # make it so that tree_view_column is the only column with its sort indicator set
+        self.clear_col_sort_indicators()
+        tree_view_column.set_sort_indicator(True)
+
+    def clear_col_sort_indicators(self):
+        """hide the sort indicator from all of the displayed treeview columns"""
+        for tv_c in self.playlist_v.tvc_list:
+            tv_c.set_sort_indicator(False)
+
+    def init_default_sort_order(self):
+        """
+        When openning a new book, sort the playlist by the default sort column, set in the view.
+        Do nothing if the playlist is being pulled from the database
+        """
+        if not self.book.is_saved():
+            self.playlist_v.default_sort_tree_view_col.clicked()
+
+
 class PlaylistVM:
     """
     wrapper for the PlaylistVC.playlist, Gtk.Liststore.
@@ -369,6 +456,9 @@ class PlaylistVM:
     """
 
     def __init__(self):
+        # send notifications to the controller
+        self.transmitter = signal_.Signal()
+        self.transmitter.add_signal('row_deleted')
         # unique id generator for the rows in the playlist model
         self.row_id_iter = itertools.count()
 
@@ -383,6 +473,7 @@ class PlaylistVM:
 
         # The model of the playlist data that will be displayed in the view
         self.playlist = self.get_playlist_new()
+        self.playlist.connect("row_deleted", self.on_row_deleted)
         # each track metadata entry is a list. This secondary_metadata list is used to hold
         # track metadata beyond the first entry in each track's metadata list
         # that gets displayed in the playlist view. The secondary_metadata
@@ -518,6 +609,36 @@ class PlaylistVM:
     def get_row_id(self, cur_row):
         """get the unique row id for cur_row in self.playlist"""
         return self.playlist.get_value(cur_row, book_view_columns.playlist_row_id['g_col'])
+
+    def sort_by_col(self, col, new_sort_direction):
+        """
+        Sort the playlist model based on the data in a single column.
+
+        Create sortable list of lists of column data:
+                    current row numner,
+                    data being sorted on
+
+        Use that sortable list to create the required arguments for the Gtk.Liststore.reorder method.
+
+        Use Gtk.Liststore.reorder() to set the playlist model to the new sort order.
+        """
+        sorting_list = []
+        for row_num, row in enumerate(self.playlist):
+            # Use PlaylistSortable because columns with a datatype key defined as numeric need to be sorted differently
+            row_data = PlaylistSortable(row[col['g_col']], col)
+            sorting_list.append([row_num, row_data])
+
+        sorting_list.sort(
+                key=lambda row: row[1],
+                reverse=(new_sort_direction == Gtk.SortType.DESCENDING)
+            )
+
+        self.playlist.reorder([item[0] for item in sorting_list])
+
+    def on_row_deleted(self, *args) -> None: #pylint: disable=unused-argument
+        """repeat signal that a row in the playlist model has been deleted"""
+        self.transmitter.send('row_deleted')
+
 
 class SecondaryMetadata:
     """
