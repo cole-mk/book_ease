@@ -52,15 +52,15 @@ metadata_id_col_list = (md_title_id, md_author_id, md_read_by_id, md_length_id, 
 
 
 # TrackMDEntry.entry columns; The playlist metadata column setup.
-md_title            |= {'g_col':0,  'g_typ':str, 'name':'Title',   'id_column':md_title_id}
+md_title            |= {'g_col':0,  'g_typ':str, 'data_type':'textual', 'name':'Title',   'id_column':md_title_id}
 
-md_author           |= {'g_col':1,  'g_typ':str, 'name':'Author',  'id_column':md_author_id}
+md_author           |= {'g_col':1,  'g_typ':str, 'data_type':'textual', 'name':'Author',  'id_column':md_author_id}
 
-md_read_by          |= {'g_col':2,  'g_typ':str, 'name':'Read by', 'id_column':md_read_by_id}
+md_read_by          |= {'g_col':2,  'g_typ':str, 'data_type':'textual', 'name':'Read by', 'id_column':md_read_by_id}
 
-md_length           |= {'g_col':3,  'g_typ':str, 'name':'Length',  'id_column':md_length_id}
+md_length           |= {'g_col':3,  'g_typ':str, 'data_type':'numeric', 'name':'Length',  'id_column':md_length_id}
 
-md_track_number     |= {'g_col':4,  'g_typ':str, 'name':'Track',   'id_column':md_track_number_id}
+md_track_number     |= {'g_col':4,  'g_typ':str, 'data_type':'numeric', 'name':'Track', 'id_column':md_track_number_id}
 
 
 # The track column setup
