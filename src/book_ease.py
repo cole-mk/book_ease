@@ -638,7 +638,8 @@ class BookReader_:
         """
         book_ = book.BookC(self.cur_path, None, self)
         book_.page = self.book_reader_view.append_book(book_.get_view(), book_.get_title())
-        self.append_book(book_)
+        index = self.append_book(book_)
+        book_.transmitter.connect('close', self.remove_book, index)
         # load the playlist metadata
         book_.open_existing_playlist(pl_row)
         # load the playlist metadata in background
@@ -654,7 +655,8 @@ class BookReader_:
         f_list = self.files.get_file_list_new()
         self.files.populate_file_list(f_list, self.cur_path)
         book_ = book.BookC(self.cur_path, f_list, self)
-        self.append_book(book_)
+        index = self.append_book(book_)
+        book_.transmitter.connect('close', self.remove_book, index)
         book_.page = self.book_reader_view.append_book(book_.get_view(), book_.get_title())
         # clear book_reader_view.has_new_media flag
         self.book_reader_view.on_has_new_media(False)
@@ -671,13 +673,6 @@ class BookReader_:
             if i.match(file_):
                 return True
         return False
-
-    def close_book(self, books_index):
-        """remove a book from the books list and tel its view to close"""
-        self.remove_book(books_index)
-        # close the bookview
-        book_v = self.get_book(books_index)[1]
-        book_v.close()
 
 
 class Files_(signal_.Signal):
