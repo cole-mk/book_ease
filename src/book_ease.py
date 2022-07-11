@@ -638,7 +638,8 @@ class BookReader_:
         """
         book_ = book.BookC(self.cur_path, None, self)
         book_.page = self.book_reader_view.append_book(book_.get_view(), book_.get_title())
-        self.append_book(book_)
+        index = self.append_book(book_)
+        book_.transmitter.connect('close', self.remove_book, index)
         # load the playlist metadata
         book_.open_existing_playlist(pl_row)
         # load the playlist metadata in background
@@ -654,7 +655,8 @@ class BookReader_:
         f_list = self.files.get_file_list_new()
         self.files.populate_file_list(f_list, self.cur_path)
         book_ = book.BookC(self.cur_path, f_list, self)
-        self.append_book(book_)
+        index = self.append_book(book_)
+        book_.transmitter.connect('close', self.remove_book, index)
         book_.page = self.book_reader_view.append_book(book_.get_view(), book_.get_title())
         # clear book_reader_view.has_new_media flag
         self.book_reader_view.on_has_new_media(False)
@@ -671,30 +673,6 @@ class BookReader_:
             if i.match(file_):
                 return True
         return False
-
-    def close_book(self, books_index):
-        """remove a book from the books list and tel its view to close"""
-        self.remove_book(books_index)
-        # close the bookview
-        book_v = self.get_book(books_index)[1]
-        book_v.close()
-
-    def book_editing_cancelled(self, books_index):
-        """
-        callback for when a book view's cancel editing button has been pressed
-        close the book if it wasn't already saved and reload if it was
-        This is bookreader playing repeater for the Book system again.
-        It needs to be moved to BookC.
-        """
-        book_ = self.get_book(books_index)[0]
-        if book_.is_saved():
-            # clear the tracklist and reload from DB
-            pl_row = book_.get_cur_pl_row()
-            book_.clear_track_list()
-            book_.book_data_load(pl_row)
-        else:
-            # close the playlist
-            self.close_book(books_index)
 
 
 class Files_(signal_.Signal):
