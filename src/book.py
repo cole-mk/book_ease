@@ -690,6 +690,6 @@ class BookC:
             case 'save_button':
                 self.save()
             case 'cancel_button':
-                self.edit()
-            case 'edit_button':
                 self.cancel_edit()
+            case 'edit_button':
+                self.edit()
