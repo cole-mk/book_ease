@@ -57,7 +57,7 @@ class BookV:
     def close(self):
         """close all gui components in preperation for this object to close"""
         self.book_v_box.destroy()
-        self.pinned_v_box.destroy()
+        #self.pinned_v_box.destroy()
 
     def get_gui_builder(self) -> 'Gtk.builder':
         """return the gtk.builder object"""
@@ -367,6 +367,8 @@ class PlaylistVC:
         book_transmitter.connect('close', self.close)
         book_transmitter.connect('update', self.update)
         book_transmitter.connect('save', self.save)
+        book_transmitter.connect('begin_edit_mode', self.begin_edit_mode)
+        book_transmitter.connect('begin_display_mode', self.begin_display_mode)
 
         # Set up the playlist view.
         # Copy the default list of columns that will be displayed.
