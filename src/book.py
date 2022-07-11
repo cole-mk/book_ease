@@ -679,7 +679,7 @@ class BookC:
         #self.transmitter.send('begin_display_mode')
 
     def edit(self):
-        """pass"""
+        self.transmitter.send('begin_edit_mode')
 
     def cancel_edit(self):
         """pass"""
