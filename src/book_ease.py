@@ -679,23 +679,6 @@ class BookReader_:
         book_v = self.get_book(books_index)[1]
         book_v.close()
 
-    def book_editing_cancelled(self, books_index):
-        """
-        callback for when a book view's cancel editing button has been pressed
-        close the book if it wasn't already saved and reload if it was
-        This is bookreader playing repeater for the Book system again.
-        It needs to be moved to BookC.
-        """
-        book_ = self.get_book(books_index)[0]
-        if book_.is_saved():
-            # clear the tracklist and reload from DB
-            pl_row = book_.get_cur_pl_row()
-            book_.clear_track_list()
-            book_.book_data_load(pl_row)
-        else:
-            # close the playlist
-            self.close_book(books_index)
-
 
 class Files_(signal_.Signal):
     """class to manage the file management features of book_ease"""
