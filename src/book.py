@@ -679,10 +679,15 @@ class BookC:
         #self.transmitter.send('begin_display_mode')
 
     def edit(self):
+        """Inform the component views that they need to enter edit_mode"""
         self.transmitter.send('begin_edit_mode')
 
     def cancel_edit(self):
-        """pass"""
+        """close book if it is not saved or tell component views to enter display mode"""
+        if self.book.is_saved():
+            self.transmitter.send('begin_display_mode')
+        else:
+            self.transmitter.send('close')
 
     def receive(self, control_signal):
         """convert signals from the component views into actions by calling the appropriate methods"""
