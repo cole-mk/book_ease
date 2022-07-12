@@ -153,7 +153,9 @@ class PinnedButtonVC:
         """if book is saved, tell PinnedBooksC to update list of pinned books"""
         if self.book.is_saved():
             if self.pinned_books_c.is_pinned(self.get_playlist_id()):
+                self.button_transmitter.mute_signal('toggled')
                 self.view.pinned_button.set_active(True)
+                self.button_transmitter.unmute_signal('toggled')
             self.button_transmitter.send('book_updated', playlist_id=self.book.get_playlist_id())
 
     def begin_edit_mode(self):
