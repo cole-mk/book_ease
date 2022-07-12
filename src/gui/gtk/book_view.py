@@ -401,9 +401,12 @@ class PlaylistVC:
 
     def begin_edit_mode(self):
         """pass"""
+        self.set_column_clickability(True)
 
     def begin_display_mode(self):
-        """pass"""
+        """put the Playlist view in display mode"""
+        self.clear_col_sort_indicators()
+        self.set_column_clickability(False)
 
     def close(self):
         """relay the message to close the view"""
@@ -450,6 +453,13 @@ class PlaylistVC:
         if not self.book.is_saved():
             self.playlist_v.default_sort_tree_view_col.clicked()
 
+    def set_column_clickability(self, active:bool):
+        """
+        Set all treview column headers to be either clickable or unclickable.
+        This changes the ability to sort the playlist by column.
+        """
+        for tree_view_column in self.playlist_v.tvc_list:
+            tree_view_column.set_clickable(active)
 
 class PlaylistVM:
     """
