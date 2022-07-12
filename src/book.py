@@ -682,6 +682,7 @@ class BookC:
     def cancel_edit(self):
         """close book if it is not saved or tell component views to enter display mode"""
         if self.book.is_saved():
+            self.book.book_data_load(self.book.get_playlist_data())
             self.transmitter.send('begin_display_mode')
         else:
             self.transmitter.send('close')
