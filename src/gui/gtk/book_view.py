@@ -92,8 +92,10 @@ class TitleV:
         self.title_view = book_view_builder.get_object('title_v_box')
         # The label used to display the title of the book
         self.title_label = book_view_builder.get_object('title_label')
+        self.title_label.set_max_width_chars(40)
         # The entry that allows the user to change the title of the book
         self.title_entry = book_view_builder.get_object('title_entry')
+        self.title_entry.set_max_width_chars(40)
 
     def close(self):
         """delete the objects controlled by this view"""
@@ -132,15 +134,13 @@ class TitleVC:
         """get title from book and load it into the view"""
         # get title from book
         book_title = self.book.get_playlist_data().get_title()
-        # load existing title into entry widget
-        self.title_v.title_entry.set_text(book_title)
-        self.title_v.title_entry.set_max_width_chars(40)
         # load the title into the title label thats shown during display mode
-        self.title_v.title_label.set_max_width_chars(40)
         self.title_v.title_label.set_label(book_title)
 
     def begin_edit_mode(self):
         """set the Title view to the proper mode for editing the title"""
+        # load existing title into entry widget
+        self.title_v.title_entry.set_text(self.title_v.title_label.get_text())
         self.title_v.title_entry.show()
         self.title_v.title_label.hide()
 
