@@ -403,7 +403,8 @@ class PlaylistVC:
         """pass"""
 
     def begin_display_mode(self):
-        """pass"""
+        """put the Playlist view in display mode"""
+        self.clear_col_sort_indicators()
 
     def close(self):
         """relay the message to close the view"""
