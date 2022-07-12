@@ -43,10 +43,6 @@ class Track:
         """set the pl_track_id"""
         self.pl_track_id = pl_track_id
 
-    def is_saved(self):
-        """determine if this track has already been saved to the database"""
-        return self.saved
-
     def set_saved(self, is_saved):
         """establish that this track has already been saved to the database"""
         self.saved = is_saved
