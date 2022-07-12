@@ -142,7 +142,7 @@ class Playlist():
 
     def track_list_sort_number(self):
         """sort self.track_list in place"""
-        self.track_list.sort(key=lambda row: row.number)
+        self.track_list.sort(key=lambda row: row.number, reverse=True)
 
 class TrackEdit(Track):
     """
