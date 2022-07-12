@@ -36,12 +36,17 @@ class Signal():
         create empty signal handler container, dict
         note: instantiated/inherited by server
 
+        _sig_handlers:
         for each key/val pair,
         the key will be the signal handle
         and the val will hold a list of containers that hold
         the data for a signal call. the container is defined in connect()
+
+        _muted_signals:
+        This list contains signal handles that are to be ignored when sending a signal.
         """
         self._sig_handlers = {}
+        self._muted_signals = []
 
     def add_signal(self, handle):
         """
@@ -82,5 +87,15 @@ class Signal():
         signal[1]: cb_args
         signal[2]: cb_kwargs
         """
-        for signal in self._sig_handlers[handle]:
-            signal[0](*signal[1], *extra_args, **signal[2], **extra_kwargs)
+        if not handle in self._muted_signals:
+            for signal in self._sig_handlers[handle]:
+                signal[0](*signal[1], *extra_args, **signal[2], **extra_kwargs)
+
+    def mute_signal(self, handle):
+        """add a signal handle to the list of signals to be ignored while sending"""
+        if not handle in self._muted_signals:
+            self._muted_signals.append(handle)
+
+    def unmute_signal(self, handle):
+        """remove a signal handle from the list of signals to be ignored while sending"""
+        self._muted_signals.remove(handle)
