@@ -345,11 +345,11 @@ class PlaylistSortable:
         """
         try:
             num1 = int(self.value)
-        except ValueError:
+        except (ValueError, TypeError):
             num1 = -1
         try:
             num2 = int(other.value)
-        except ValueError:
+        except (ValueError, TypeError):
             num2 = -1
 
         if num1 < num2:
