@@ -129,7 +129,7 @@ class PinnedButtonVC:
     this class is connected to the pinned_books module as well as book.BookC
     """
 
-    def __init__(self, book, book_transmitter, book_view_builder):
+    def __init__(self, pinned_books_c, book, book_transmitter, book_view_builder):
         # subscribe to the signals relevant to this class
         book_transmitter.connect('close', self.close)
         book_transmitter.connect('begin_edit_mode', self.begin_edit_mode)
@@ -142,6 +142,8 @@ class PinnedButtonVC:
         self.button_transmitter = signal_.Signal()
         self.button_transmitter.add_signal('toggled')
         self.button_transmitter.add_signal('book_updated')
+        # The PinnedBooksC that instantiated this class
+        self.pinned_books_c = pinned_books_c
 
     def get_view(self):
         """return self.view.pinned_button"""
@@ -150,6 +152,8 @@ class PinnedButtonVC:
     def update(self):
         """if book is saved, tell PinnedBooksC to update list of pinned books"""
         if self.book.is_saved():
+            if self.pinned_books_c.is_pinned(self.get_playlist_id()):
+                self.view.pinned_button.set_active(True)
             self.button_transmitter.send('book_updated', playlist_id=self.book.get_playlist_id())
 
     def begin_edit_mode(self):
