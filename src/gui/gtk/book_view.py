@@ -344,15 +344,15 @@ class PlaylistSortable:
         All strings that are not proper numbers are evaluated equal to each other, but less than numbers.
         """
         try:
-            num1 = int(self.value)
+            s_val = int(self.value)
         except (ValueError, TypeError):
-            num1 = -1
+            s_val = -1
         try:
-            num2 = int(other.value)
+            o_val = int(other.value)
         except (ValueError, TypeError):
-            num2 = -1
+            o_val = -1
 
-        if num1 < num2:
+        if s_val < o_val:
             return True
         return False
 
