@@ -28,7 +28,7 @@ It also includes a TrackEdit class that implements Track but has an additional c
 class Track:
     """the data type that represents everything about a Track in a playlist"""
 
-    def __init__(self, file_path=None, number=None, is_saved=False, pl_track_id=None):
+    def __init__(self, file_path=None, number=None, pl_track_id=None):
         self.metadata = {}
         self.file_path = file_path
         self.number = number
