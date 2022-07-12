@@ -400,8 +400,8 @@ class TrackDBI():
         track_number = track.get_number()
         # null pl_track_numbers to avoid duplicates in case they were reordered in the view
         self.pl_track.null_duplicate_track_number(con, playlist_id, track_number)
-        if track.is_saved():
-            pl_track_id = track.get_pl_track_id()
+        pl_track_id = track.get_pl_track_id()
+        if pl_track_id:
             self.pl_track.update_track_number_by_id(con, track_number, pl_track_id)
         else:
             pl_track_id = self.pl_track.add(con, playlist_id, track_number, track_file_id)
