@@ -155,7 +155,6 @@ class Book(playlist.Playlist, signal_.Signal):
         # retrieve a list of tracks belonging to this playlist
         # edit those tracks and append them to self.track_list
         for track in self.track_dbi.get_track_list_by_pl_id(self.playlist_data.get_id()):
-            track.set_saved(True)
             self.track_list.append(track)
             # populate track metadata
             for col in book_columns.metadata_col_list:
@@ -258,8 +257,6 @@ class Book(playlist.Playlist, signal_.Signal):
                 md_entry.set_id(id_)
             # remove deleted entries from database
             self.track_dbi.remove_deleted_metadata(len(md_entry_l) - 1, pl_track_id, col['key'])
-        # set track saved state
-        track.set_saved(True)
 
     def save_book_finished(self):
         """cleanup after saving the book and close the connection to the database."""

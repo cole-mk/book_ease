@@ -32,7 +32,6 @@ class Track:
         self.metadata = {}
         self.file_path = file_path
         self.number = number
-        self.saved = is_saved
         self.pl_track_id = pl_track_id
 
     def get_pl_track_id(self) -> 'int or None':
@@ -42,10 +41,6 @@ class Track:
     def set_pl_track_id(self, pl_track_id):
         """set the pl_track_id"""
         self.pl_track_id = pl_track_id
-
-    def set_saved(self, is_saved):
-        """establish that this track has already been saved to the database"""
-        self.saved = is_saved
 
     def set_number(self, number):
         """
