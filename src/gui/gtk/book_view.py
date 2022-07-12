@@ -506,6 +506,7 @@ class PlaylistVM:
         self.__add_metadata_columns(track, cur_row, playlist_row_id)
         # load track data not stored in the metadata dictionary
         self.__add_track_columns(track, cur_row)
+        self.__add_pl_track_columns(track, cur_row)
         return playlist_row_id
 
     def __add_row_id_column(self, cur_row) -> 'row_id:int':
@@ -523,7 +524,6 @@ class PlaylistVM:
         """load track file path data from the playlist into the Track"""
         # The playlist displays both path and filename, but Tracks only store the path, so only get the path
         track.set_file_path(self.playlist.get_value(cur_row, book_view_columns.track_path['g_col']))
-        track.set_pl_track_id(self.playlist.get_value(cur_row, book_view_columns.pl_track_id['g_col']))
 
     def __add_metadata_columns(self, track, cur_row, playlist_row_id):
         """
@@ -596,6 +596,7 @@ class PlaylistVM:
         self.__load_metadata_columns(track, cur_row_iter, row_id)
         # load track data not stored in the metadata dictionary
         self.__load_track_columns(track, cur_row_iter)
+        self.__load_pl_track_columns(track, cur_row_iter)
         # remove the row from the playlist
         self.playlist.remove(cur_row_iter)
         return track
@@ -640,6 +641,15 @@ class PlaylistVM:
     def on_row_deleted(self, *args) -> None: #pylint: disable=unused-argument
         """repeat signal that a row in the playlist model has been deleted"""
         self.transmitter.send('row_deleted')
+
+    def __add_pl_track_columns(self, track, cur_row):
+        """add pl_track data from a track object into the playlist view model"""
+        self.playlist.set_value(cur_row, book_view_columns.pl_track_id['g_col'], track.get_pl_track_id())
+
+    def __load_pl_track_columns(self, track, cur_row):
+        """load pl_track data from the playlist into the Track"""
+        track.set_pl_track_id(self.playlist.get_value(cur_row, book_view_columns.pl_track_id['g_col']))
+
 
 
 class SecondaryMetadata:

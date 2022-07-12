@@ -28,11 +28,10 @@ It also includes a TrackEdit class that implements Track but has an additional c
 class Track:
     """the data type that represents everything about a Track in a playlist"""
 
-    def __init__(self, file_path=None, number=None, is_saved=False, pl_track_id=None):
+    def __init__(self, file_path=None, number=None, pl_track_id=None):
         self.metadata = {}
         self.file_path = file_path
         self.number = number
-        self.saved = is_saved
         self.pl_track_id = pl_track_id
 
     def get_pl_track_id(self) -> 'int or None':
@@ -42,14 +41,6 @@ class Track:
     def set_pl_track_id(self, pl_track_id):
         """set the pl_track_id"""
         self.pl_track_id = pl_track_id
-
-    def is_saved(self):
-        """determine if this track has already been saved to the database"""
-        return self.saved
-
-    def set_saved(self, is_saved):
-        """establish that this track has already been saved to the database"""
-        self.saved = is_saved
 
     def set_number(self, number):
         """
