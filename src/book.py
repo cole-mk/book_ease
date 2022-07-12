@@ -37,52 +37,51 @@ import book_columns
 
 
 class DBConnection: #pylint: disable=too-few-public-methods
-    """module wide db connection for multi queries"""
+    """provide database connection management for multi queries"""
 
     def __init__(self):
         self.con = None
 
+    def multi_query_begin(self):
+        """
+        create a semi-persistent connection
+        for executing multiple transactions
+        """
+        if self.con is not None:
+            raise RuntimeError('connection already exists')
+        self.con = sqlite_tables.create_connection()
+        self.con.execute('BEGIN')
+
+    def multi_query_end(self):
+        """commit and close connection of a multi_query"""
+        if self.con is None:
+            raise RuntimeError('connection doesn\'t exist')
+        self.con.commit()
+        self.con.close()
+        self.con = None
+
+    def query_begin(self) -> 'sqlite3.Connection':
+        """
+        get an sqlite connection object
+        returns self.con if a multi_query is in effect.
+        Otherwise, create and return a new connection
+        """
+        if self.con is None:
+            return sqlite_tables.create_connection()
+        return self.con
+
+    def query_end(self, con):
+        """
+        commit and close connection if a multi_query
+        is not in effect.
+        """
+        if con is not self.con:
+            con.commit()
+            con.close()
 
 # the module wide reference to DBConnection
-__DB_CONNECTION = DBConnection()
+DB_CONNECTION = DBConnection()
 
-
-def multi_query_begin():
-    """
-    create a semi-persistent connection
-    for executing multiple transactions
-    """
-    if __DB_CONNECTION.con is not None:
-        raise RuntimeError('connection already exists')
-    __DB_CONNECTION.con = sqlite_tables.create_connection()
-    __DB_CONNECTION.con.execute('BEGIN')
-
-def multi_query_end():
-    """commit and close connection of a multi_query"""
-    if __DB_CONNECTION.con is None:
-        raise RuntimeError('connection doesn\'t exist')
-    __DB_CONNECTION.con.commit()
-    __DB_CONNECTION.con.close()
-    __DB_CONNECTION.con = None
-
-def query_begin() -> 'sqlite3.Connection':
-    """
-    get an sqlite connection object
-    returns __DB_CONNECTION.con if a multi_query is in effect.
-    Otherwise, create and return a new connection
-    """
-    if __DB_CONNECTION.con is None:
-        return sqlite_tables.create_connection()
-    return __DB_CONNECTION.con
-
-def query_end(con):
-    """
-    commit and close connection if a multi_query
-    is not in effect.
-    """
-    if con is not __DB_CONNECTION.con:
-        con.commit()
-        con.close()
 
 
 class Book(playlist.Playlist, signal_.Signal):
@@ -263,14 +262,14 @@ class Book(playlist.Playlist, signal_.Signal):
         # remove deleted entries from database using self.pl_track_counter to determine the actual size of the playlist
         self.track_dbi.remove_deleted_pl_tracks(self.playlist_data.get_id(), self.pl_track_counter)
         self.saved_playlist = True
-        multi_query_end()
+        DB_CONNECTION.multi_query_end()
 
     def save_book_begin(self):
         """prepare to begin saving book data by opening a connection to the database."""
         # initialize a counter to determine the size of the playlist that will be use to cleanup deleted files
         self.pl_track_counter = 0
         # open the book's module wide connection to the database for saving the book
-        multi_query_begin()
+        DB_CONNECTION.multi_query_begin()
 
     def pop_track(self) -> 'Track':
         """pop and return a Track object from the self.track_list"""
@@ -292,12 +291,12 @@ class PlaylistDBI():
         get a count of the number of playlist titles associated with this path
         that have the same title, but exclude playlist_id from the list
         """
-        con = query_begin()
+        con = DB_CONNECTION.query_begin()
         count = self.playlist.count_duplicates(pl_data.get_title(),
                                                pl_data.get_path(),
                                                pl_data.get_id(),
                                                con)
-        query_end(con)
+        DB_CONNECTION.query_end(con)
         return count[0]
 
     def exists_in_path(self, pl_data) -> 'bool':
@@ -309,10 +308,10 @@ class PlaylistDBI():
     def get_by_path(self, pl_data) -> '[PlaylistData, ...]':
         """get playlists associated with path"""
         playlists = []
-        con = query_begin()
+        con = DB_CONNECTION.query_begin()
         # execute query
         pl_list = self.playlist.get_rows_by_path(con, pl_data.get_path())
-        query_end(con)
+        DB_CONNECTION.query_end(con)
         # build playlists list
         for plst in pl_list:
             play_list = PlaylistData(title=plst['title'], path=plst['path'], id_=plst['id'])
@@ -321,13 +320,13 @@ class PlaylistDBI():
 
     def save(self, pl_data) -> 'playlist_id:int':
         """"insert or update playlist"""
-        con = query_begin()
+        con = DB_CONNECTION.query_begin()
         id_ = pl_data.get_id()
         if self.playlist.get_row(con, id_) is None:
             id_ = self.playlist.insert(con, pl_data.get_title(), pl_data.get_path())
         else:
             self.playlist.update(con, pl_data.get_title(), pl_data.get_path(), id_)
-        query_end(con)
+        DB_CONNECTION.query_end(con)
         return id_
 
 
@@ -384,16 +383,16 @@ class TrackDBI():
         save to database track_file information held in Track
         returns track_file_id
         """
-        con = query_begin()
+        con = DB_CONNECTION.query_begin()
         # add entry to track_file table
         self.track_file.add_row(con, path=track.get_file_path())
         track_file_id = self.track_file.get_id_by_path(con, track.get_file_path())['id']
-        query_end(con)
+        DB_CONNECTION.query_end(con)
         return track_file_id
 
     def save_pl_track(self, playlist_id, track_file_id, track) -> 'int':
         """add entry to pl_track table"""
-        con = query_begin()
+        con = DB_CONNECTION.query_begin()
         track_number = track.get_number()
         # null pl_track_numbers to avoid duplicates in case they were reordered in the view
         self.pl_track.null_duplicate_track_number(con, playlist_id, track_number)
@@ -402,12 +401,12 @@ class TrackDBI():
             self.pl_track.update_track_number_by_id(con, track_number, pl_track_id)
         else:
             pl_track_id = self.pl_track.add(con, playlist_id, track_number, track_file_id)
-        query_end(con)
+        DB_CONNECTION.query_end(con)
         return pl_track_id
 
     def save_track_metadata(self, md_entry, pl_track_id, key):
         """save a TrackMDEntry instance to database"""
-        con = query_begin()
+        con = DB_CONNECTION.query_begin()
         # extract info from TrackMDEntry oject
         id_ = md_entry.get_id()
         index = md_entry.get_index()
@@ -429,7 +428,7 @@ class TrackDBI():
             self.pl_track_metadata.null_duplicate_indices(con, pl_track_id, index, key)
             # update md_entry with id returned from new row
             id_ = self.pl_track_metadata.add_row(con, pl_track_id, entry, index, key)
-        query_end(con)
+        DB_CONNECTION.query_end(con)
         return id_
 
     def remove_deleted_metadata(self, max_index, pl_track_id, key):
@@ -437,27 +436,27 @@ class TrackDBI():
         remove deleted entries from table.pl_track_metadata by looking for null indices
         and indices greater than the current max_index
         """
-        con = query_begin()
+        con = DB_CONNECTION.query_begin()
         id_list = self.pl_track_metadata.get_ids_by_max_index_or_null(con, max_index, pl_track_id, key)
         for row in id_list:
             self.pl_track_metadata.remove_row_by_id(con, row['id'])
-        query_end(con)
+        DB_CONNECTION.query_end(con)
 
     def remove_deleted_pl_tracks(self, playlist_id, max_index):
         """
         remove deleted entries from table.pl_track by looking for null indices
         pl_track.track_number entries are a one based index
         """
-        con = query_begin()
+        con = DB_CONNECTION.query_begin()
         id_list = self.pl_track.get_ids_by_max_index_or_null(con, max_index, playlist_id)
         for row in id_list:
             self.pl_track.remove_row_by_id(con, row['id'])
-        query_end(con)
+        DB_CONNECTION.query_end(con)
 
     def get_track_list_by_pl_id(self, playlist_id) -> '[playlist.Track, ...]':
         """create list of Track objects by searching the database for pl_tracks matching playlist ids"""
         track_list = []
-        con = query_begin()
+        con = DB_CONNECTION.query_begin()
         # create Track instances and populate the simple instance variables
         for trak in self.pl_track.get_rows_by_playlist_id(con, playlist_id):
             path = self.track_file.get_row_by_id(con, trak['track_id'])['path']
@@ -465,13 +464,13 @@ class TrackDBI():
             track.set_number(trak['track_number'])
             track.set_pl_track_id(trak['id'])
             track_list.append(track)
-        query_end(con)
+        DB_CONNECTION.query_end(con)
         return track_list
 
     def get_metadata_list(self, key, pl_track_id):
         """create a list of TrackMDEntry by searching for pl_track_id"""
         md_list = []
-        con = query_begin()
+        con = DB_CONNECTION.query_begin()
 
         # find an existing entry that matches pl_track_id
         entry_l = self.pl_track_metadata.get_rows(con, key, pl_track_id)
@@ -481,7 +480,7 @@ class TrackDBI():
             md_entry.set_index(row['idx'])
             md_entry.set_entry(row['entry'])
             md_list.append(md_entry)
-        query_end(con)
+        DB_CONNECTION.query_end(con)
         return md_list
 
 
