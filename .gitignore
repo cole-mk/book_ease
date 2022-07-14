@@ -12,8 +12,5 @@ gitignore_local
 # python virtual environments
 venv/
 env/
-.venv/
-.env/
-# dia autosave files
-*.autosave
 *.png
+.idea/
