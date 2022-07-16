@@ -376,10 +376,10 @@ class PlTrackMetadata:
         """update pl_track_metadata entry"""
         sql = """
             UPDATE pl_track_metadata
-            SET pl_track_id  = (?)
-            AND entry = (?)
-            AND idx = (?)
-            AND _key = (?)
+            SET pl_track_id  = (?),
+            entry = (?),
+            idx = (?),
+            _key = (?)
             WHERE id = (?)
             """
         con.execute(sql, (pl_track_id, entry, index, key, id_))
