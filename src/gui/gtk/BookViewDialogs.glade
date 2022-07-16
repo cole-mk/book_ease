@@ -38,14 +38,6 @@ MA 02110-1301, USA.
       <column type="gint"/>
     </columns>
   </object>
-  <object class="GtkListStore" id="new_value">
-    <columns>
-      <!-- column-name value -->
-      <column type="gchararray"/>
-      <!-- column-name id -->
-      <column type="gint"/>
-    </columns>
-  </object>
   <object class="GtkDialog" id="edit_row_dialog">
     <property name="height_request">275</property>
     <property name="can_focus">False</property>
@@ -239,22 +231,14 @@ MA 02110-1301, USA.
           </packing>
         </child>
         <child>
-          <object class="GtkComboBox" id="new_value_combo">
+          <object class="GtkEntry" id="new_value_entry">
             <property name="visible">True</property>
-            <property name="can_focus">False</property>
+            <property name="can_focus">True</property>
             <property name="valign">end</property>
-            <property name="model">new_value</property>
-            <property name="has_entry">True</property>
-            <child internal-child="entry">
-              <object class="GtkEntry" id="new_value_entry">
-                <property name="can_focus">True</property>
-                <property name="valign">end</property>
-              </object>
-            </child>
           </object>
           <packing>
             <property name="expand">False</property>
-            <property name="fill">False</property>
+            <property name="fill">True</property>
             <property name="pack_type">end</property>
             <property name="position">4</property>
           </packing>
