@@ -376,10 +376,10 @@ class PlTrackMetadata:
         """update pl_track_metadata entry"""
         sql = """
             UPDATE pl_track_metadata
-            SET pl_track_id  = (?)
-            AND entry = (?)
-            AND idx = (?)
-            AND _key = (?)
+            SET pl_track_id  = (?),
+            entry = (?),
+            idx = (?),
+            _key = (?)
             WHERE id = (?)
             """
         con.execute(sql, (pl_track_id, entry, index, key, id_))
@@ -393,7 +393,7 @@ class PlTrackMetadata:
             SELECT id FROM pl_track_metadata
             WHERE pl_track_id = (?)
             AND _key = (?)
-            AND idx > (?)
+            AND (idx > (?) OR idx is NULL)
             """
         cur = con.execute(sql, (pl_track_id, key, max_index))
         return cur.fetchall()
@@ -404,7 +404,7 @@ class PlTrackMetadata:
             DELETE FROM pl_track_metadata
             WHERE id = (?)
             """
-        con.execute(sql, (id_))
+        con.execute(sql, (id_,))
 
 
 class TrackFile:

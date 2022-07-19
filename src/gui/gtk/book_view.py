@@ -255,6 +255,8 @@ class  PlaylistV:
         # Relay Gtk signals back to the controller
         self.transmitter = signal_.Signal()
         self.transmitter.add_signal('col_header_clicked')
+        self.transmitter.add_signal('button-release-event')
+        self.playlist_view.connect('button-release-event', self.on_button_release)
 
         self.tvc_list = []
         # initialize the TreeView columns and add them to the playlist view
@@ -292,6 +294,7 @@ class  PlaylistV:
         tvc.add_attribute(rend, "text", col['g_col'])
         tvc.set_sort_order(Gtk.SortType.DESCENDING)
         tvc.set_clickable(True)
+        tvc.column_info_dict = col
         tvc.connect('clicked', self.on_header_clicked, col)
         return tvc
 
@@ -320,6 +323,10 @@ class  PlaylistV:
     def on_header_clicked(self, tvc, col):
         """repeat the clicked/col_header_clicked signal on self's own transmitter"""
         self.transmitter.send('col_header_clicked', tvc, col)
+
+    def on_button_release(self, widget, event, data=None):
+        """repeat the treeview:button-release-event signal on self's own transmitter"""
+        self.transmitter.send('button-release-event', widget, event, data)
 
 
 class PlaylistSortable:
@@ -376,6 +383,7 @@ class PlaylistVC:
         # the view
         self.playlist_v = PlaylistV(self.display_cols, book_view_builder)
         self.playlist_v.transmitter.connect('col_header_clicked', self.on_sort_by_column)
+        self.playlist_v.transmitter.connect('button-release-event', self.on_button_release)
 
         # the Book model that holds the playlist data
         self.book = book_
@@ -386,6 +394,8 @@ class PlaylistVC:
         self.playlist_model.transmitter.connect('row_deleted', self.clear_col_sort_indicators)
         # assign the playlist to the view
         self.playlist_v.set_model(self.playlist_model.get_model())
+        # track if in editing or display mode
+        self.mode = None
 
     def update(self):
         """get the tracklist from the Book and add the data to the playlist_model and secondary_metadata models"""
@@ -401,10 +411,12 @@ class PlaylistVC:
 
     def begin_edit_mode(self):
         """pass"""
+        self.mode = 'editing'
         self.set_column_clickability(True)
 
     def begin_display_mode(self):
         """put the Playlist view in display mode"""
+        self.mode = 'display'
         self.clear_col_sort_indicators()
         self.set_column_clickability(False)
 
@@ -461,6 +473,25 @@ class PlaylistVC:
         for tree_view_column in self.playlist_v.tvc_list:
             tree_view_column.set_clickable(active)
 
+    def on_button_release(self, widget, event, data=None): #pylint: disable=unused-argument
+        """Start the TrackEditDialog if the playlist view was right clicked"""
+        if event.get_button()[0] is True:
+            if widget == self.playlist_v.playlist_view:
+                if event.get_button()[1] == 3:
+                    # right mouse button clicked
+                    if self.mode == 'editing':
+                        # run editing dialog on pressed column and first selected row
+                        pth, tvc, cel_x, cel_y = widget.get_path_at_pos(event.x,  event.y) #pylint: disable=unused-variable
+                        editing_track = self.playlist_model.get_row(pth[0])
+                        cur_row = self.playlist_model.playlist.get_iter(pth)
+                        playlist_row_id = self.playlist_model.get_row_id(cur_row)
+                        dialog = EditTrackDialog(tvc.column_info_dict, editing_track, playlist_row_id)
+                        response = dialog.run()
+                        if response == Gtk.ResponseType.OK:
+                            self.playlist_model.update_row(editing_track, playlist_row_id)
+                        dialog.destroy()
+
+
 class PlaylistVM:
     """
     wrapper for the PlaylistVC.playlist, Gtk.Liststore.
@@ -506,24 +537,23 @@ class PlaylistVM:
         return Gtk.ListStore(*playlist_col_types)
 
 
-    def add_track(self, track) -> 'playlist_row_id:int':
-        """add data from a track object into the playlist view"""
+    def add_track(self, track) -> int:
+        """
+        add data from a track object into self.playlist for display in the playlist view
+        Returns the unique row id for the row this method adds to self.playlist
+        """
         # append a new row to the playlist
         cur_row = self.playlist.append()
         # add the column that holds the unique row id specific to this instance of the BookVC
-        playlist_row_id = self.__add_row_id_column(cur_row)
-        # load the metadata columns
-        self.__add_metadata_columns(track, cur_row, playlist_row_id)
-        # load track data not stored in the metadata dictionary
-        self.__add_track_columns(track, cur_row)
-        self.__add_pl_track_columns(track, cur_row)
+        playlist_row_id = self.genereate_row_id()
+        self.add_row_id_column(playlist_row_id, cur_row)
+        # update everything except the playlist_row_id
+        self.update_row(track, playlist_row_id)
         return playlist_row_id
 
-    def __add_row_id_column(self, cur_row) -> 'row_id:int':
+    def add_row_id_column(self, row_id, cur_row) -> None:
         """get a unique id for the playlist row and add it to the playlist_row_id column for the current row"""
-        id_ = self.genereate_row_id()
-        self.playlist.set_value(cur_row, book_view_columns.playlist_row_id['g_col'], id_)
-        return id_
+        self.playlist.set_value(cur_row, book_view_columns.playlist_row_id['g_col'], row_id)
 
     def __add_track_columns(self, track, cur_row):
         """add the non metadata columns, track_file and track_path, to the current row in self.playlist"""
@@ -537,11 +567,13 @@ class PlaylistVM:
 
     def __add_metadata_columns(self, track, cur_row, playlist_row_id):
         """
-        Load the first entry of all of the track metadata into self.playlist.
+        Load the first entry of all the track metadata into self.playlist.
         Load subsequent entries into self.secondary_metadata.
         """
         for col in book_view_columns.metadata_col_list:
             track_md_entry_list = track.get_entries(col['key'])
+            if not track_md_entry_list:
+                self.playlist.set_value(cur_row, col['g_col'], None)
             for track_md_entry in track_md_entry_list:
                 if track_md_entry.get_index() == 0:
                     # index zero goes into self.playlist. first the entry portion then id.
@@ -552,21 +584,24 @@ class PlaylistVM:
                     # Subsequent entries go into self.secondary_metadata
                     self.secondary_metadata.add_entry(playlist_row_id, col['key'], track_md_entry)
 
-    def __load_metadata_columns(self, track, cur_row, row_id):
+    def __load_metadata_columns(self, track, playlist_iter):
         """
         Copy data from the displayed Gtk.Liststore (self.playlist) to Track object
         This method copies the track metadata stored in the playlist, referenced by the columns in the metadata_col_list
         """
+        # The gtk row_id for the track
+        row_id = self.get_row_id(playlist_iter)
+
         for col in book_view_columns.metadata_col_list:
             # Tracks store metadata as a list of TrackMDEntries(index, entry, id)
             entry_list = []
             md_entry = playlist.TrackMDEntry()
             # get the data for the first row of the TrackMDEntry list
-            md_entry.set_entry(self.playlist.get_value(cur_row,col['g_col']))
+            md_entry.set_entry(self.playlist.get_value(playlist_iter, col['g_col']))
             # don't add empty md_entries to the list even if it has an id. The Book will remove the deleted entry
             if not md_entry.get_entry():
                 continue
-            md_entry.set_id(self.playlist.get_value(cur_row,col['id_column']['g_col']))
+            md_entry.set_id(self.playlist.get_value(playlist_iter, col['id_column']['g_col']))
             md_entry.set_index(0)
             # add the TrackMDEntry to the list
             entry_list.append(md_entry)
@@ -589,35 +624,19 @@ class PlaylistVM:
         return next(self.row_id_iter)
 
     def pop(self):
-        """create a track object with data from the model (Gtk.Liststore)"""
+        """
+        Pop the last row from self.playlist.
+        Create a track object with data from that last row.
+        This includes any corresponding secondary metadata.
+        """
         # break out if there is nothing to do here
         if not self.playlist.get_iter_first():
             return None
-        # The Track that is built and returned.
-        track = playlist.Track()
-        # load the last row number into the Track
-        self.__load_last_row_number(track)
-        cur_row_num = track.get_number()
-        # retrieve gtk iter that referenes the last row from the playlist
-        cur_row_iter = self.playlist.get_iter((cur_row_num-1,))
-        # The gtk row_id for the track
-        row_id = self.get_row_id(cur_row_iter)
-        # load the metadata columns
-        self.__load_metadata_columns(track, cur_row_iter, row_id)
-        # load track data not stored in the metadata dictionary
-        self.__load_track_columns(track, cur_row_iter)
-        self.__load_pl_track_columns(track, cur_row_iter)
-        # remove the row from the playlist
-        self.playlist.remove(cur_row_iter)
+        # noinspection PyTypeChecker
+        last_row_num = len(self.playlist)-1
+        track = self.get_row(last_row_num)
+        self.remove_row(last_row_num)
         return track
-
-    def __load_last_row_number(self, track):
-        """
-        Determine the last row number (a one based index) of self.playlist by testing for length of the playlist.
-        Assign the last row number to the Track object.
-        """
-        last_row_num = len(self.playlist)
-        track.set_number(last_row_num)
 
     def get_row_id(self, cur_row):
         """get the unique row id for cur_row in self.playlist"""
@@ -628,7 +647,7 @@ class PlaylistVM:
         Sort the playlist model based on the data in a single column.
 
         Create sortable list of lists of column data:
-                    current row numner,
+                    current row number,
                     data being sorted on
 
         Use that sortable list to create the required arguments for the Gtk.Liststore.reorder method.
@@ -659,6 +678,41 @@ class PlaylistVM:
     def __load_pl_track_columns(self, track, cur_row):
         """load pl_track data from the playlist into the Track"""
         track.set_pl_track_id(self.playlist.get_value(cur_row, book_view_columns.pl_track_id['g_col']))
+
+    def get_row(self, row_num) -> playlist.Track:
+        """Build a Track from data in the specified row"""
+        # Gtk.TreeIter
+        row_iter = self.playlist.get_iter(row_num)
+        track = playlist.Track()
+        # load the row number into the track; row number is first index of returned Gtk.treepath
+        track.set_number(self.playlist.get_path(row_iter)[0])
+        # load the metadata and other track columns.
+        self.__load_metadata_columns(track, row_iter)
+        self.__load_track_columns(track, row_iter)
+        self.__load_pl_track_columns(track, row_iter)
+        return track
+
+    def remove_row(self, row_num):
+        """Remove a row from self.playlist and its corresponding metadata."""
+        cur_row = self.playlist.get_iter(row_num)
+        row_id = self.playlist.get_value(cur_row, book_view_columns.playlist_row_id['g_col'])
+        # remove corresponding metadata
+        self.secondary_metadata.remove_rows(row_id)
+        # Remove the row.
+        self.playlist.remove(cur_row)
+
+    def update_row(self, track, playlist_row_id) -> None:
+        """Create and populate one row of the model with data extracted from a Track"""
+        for row in self.playlist:
+            if playlist_row_id == row[book_view_columns.playlist_row_id['g_col']]:
+                cur_row_iter = row.iter
+                break
+        # load the metadata columns
+        self.secondary_metadata.remove_rows(playlist_row_id)
+        self.__add_metadata_columns(track, cur_row_iter, playlist_row_id)
+        # load track data not stored in the metadata dictionary
+        self.__add_track_columns(track, cur_row_iter)
+        self.__add_pl_track_columns(track, cur_row_iter)
 
 
 
@@ -694,3 +748,181 @@ class SecondaryMetadata:
     def get_entries(self, row_id, key):
         """get a list of trackMdEntries that match that the row id and key"""
         return [entry[2] for entry in self.secondary_metadata if entry[0] == row_id and entry[1] == key]
+
+    def remove_rows(self, row_id):
+        """Remove all entries in self.secondary_metadata where the row_id column matches the passed in row_id"""
+        # iterate secondary metadata backwards
+        for i in range(len(self.secondary_metadata) - 1, -1, -1):
+            if self.secondary_metadata[i][0] == row_id:
+                del self.secondary_metadata[i]
+
+
+def col_tv_get_move_destination(direction: str,
+                                current_iter: Gtk.TreeIter,
+                                model: Gtk.TreeModel) -> Gtk.TreeIter:
+    """
+    Get a Gtk.TreeIter that points to a move destination, either one row above or below current_iter.
+    target_iter will be wrapped around to point to the beginning or end of the model when necessary.
+    """
+    if direction == 'up':
+        target_iter = model.iter_previous(current_iter) or model.get_iter((len(model) - 1,))
+    else:
+        target_iter = model.iter_next(current_iter) or model.get_iter_first()
+    return target_iter
+
+
+class EditTrackDialog:
+    """This dialog allows for the editing of one Track object (or one row in the playlist, Gtk.Liststore)"""
+    # pylint: disable=too-many-instance-attributes
+    # Eight is reasonable in this case.
+
+
+    def __init__(self, col, track, playlist_row_id):
+        self.selected_col = col
+        self.track = track
+        self.playlist_row_id = playlist_row_id
+
+        builder = Gtk.Builder()
+        builder.add_from_file("gui/gtk/BookViewDialogs.glade")
+        self.dialog = builder.get_object("edit_row_dialog")
+
+        # buttons
+        add_button = builder.get_object("add_button")
+        add_button.connect('clicked', self.on_button_clicked, 'add')
+
+        remove_button = builder.get_object("remove_button")
+        remove_button.connect('clicked', self.on_button_clicked, 'remove')
+
+        ok_button = builder.get_object("ok_button")
+        ok_button.connect('clicked', self.on_button_clicked, 'ok')
+
+        up_button = builder.get_object("up_button")
+        up_button.connect('clicked', self.on_button_clicked, 'up')
+
+        down_button = builder.get_object("down_button")
+        down_button.connect('clicked', self.on_button_clicked, 'down')
+
+        # setup treeview with column and renderer.
+        # The col_tv_model is used to display a list of metadata tied to a key selected in self.col_combo.
+        self.col_tv_model = builder.get_object("col_value")
+        col_tv_r = Gtk.CellRendererText()
+        self.col_tv_c = Gtk.TreeViewColumn()
+        self.col_tv_c.pack_start(col_tv_r, True)
+        self.col_tv_c.add_attribute(col_tv_r, "text", 0)
+        self.col_tv_c.set_clickable(False)
+        #
+        self.col_treeview = builder.get_object("col_treeview")
+        self.col_treeview.append_column(self.col_tv_c)
+        self.col_treeview.unset_rows_drag_dest()
+        self.col_treeview.unset_rows_drag_source()
+        self.col_treeview.set_reorderable(True)
+
+        # entry widget for new user entries. Text entered here is meant to added to a Track's metadata.
+        self.new_value_entry = builder.get_object("new_value_entry")
+
+        # combo to let user select column to edit. The selections are metadata keys. eg title, author, length, etc
+        col_combo = builder.get_object("col_combo")
+        col_combo.set_entry_text_column(0)
+        # add list of displayed columns to combo entries (metadata keys).
+        for i, column in enumerate(book_view_columns.display_cols):
+            col_combo.append_text(column['name'])
+            # The selected column is the column in the main playlist that the user clicked to trigger this dialog.
+            # Make the selected column the active column in the col_combo
+            if column['g_col'] == self.selected_col['g_col']:
+                col_combo.set_active(i)
+        # Populate the col_tv_model (metadata entries) with metadata entries corresponding to the key in selected column
+        self.col_tv_model_load(self.selected_col)
+        # Watch col_combo for changes so that the col_tv_model can be updated with corresponding metadata.
+        col_combo.connect("changed", self.on_combo_changed)
+
+    def destroy(self):
+        """Get rid of this dialog."""
+        self.dialog.destroy()
+
+    def run(self):
+        """Tell the dialog to display itself."""
+        return self.dialog.run()
+
+    def col_tv_move_entry(self, direction='up'):
+        """
+        Move entry in col_tv_model either up or down, with the ability to wrap around to the beginning or end as needed.
+        """
+        sel = self.col_treeview.get_selection()
+        model, paths = sel.get_selected_rows()
+        sel.unselect_all()
+        for path in paths:
+            selected_itr = model.get_iter(path)
+            target_iter = col_tv_get_move_destination(direction, selected_itr, model)
+            model.swap(selected_itr, target_iter)
+            sel.select_iter(selected_itr)
+
+    def col_tv_remove_entry(self):
+        """remove entry from treeview"""
+        sel = self.col_treeview.get_selection()
+        model, paths = sel.get_selected_rows()
+        sel.unselect_all()
+        # reversed so the itr isn't corrupted on multiselect
+        for path in reversed(paths):
+            itr = model.get_iter(path)
+            model.remove(itr)
+
+    def on_button_clicked(self, widget, command):  # pylint: disable=unused-argument
+        """One of the control buttons was clicked. call method associated with the clicked button"""
+        if 'ok' == command:
+            # update the Track because this dialog is closing, and the Track data is about to be consumed by the caller.
+            self.update_track()
+        elif 'add' == command:
+            self.col_tv_add_entry(self.new_value_entry)
+        elif 'remove' == command:
+            self.col_tv_remove_entry()
+        elif 'up' == command:
+            self.col_tv_move_entry('up')
+        elif 'down' == command:
+            self.col_tv_move_entry('down')
+
+    def col_tv_model_load(self, col: dict):
+        """load metadata entries from self.track into the displayed treeview"""
+        self.col_tv_model.clear()
+        for md_entry in self.track.get_entries(col['key']):
+            self.col_tv_model.append([md_entry.get_entry(), md_entry.get_id()])
+        # set column title
+        self.col_tv_c.set_title(col['name'])
+
+    def set_selected_col(self, col_title: str) -> None:
+        """Set self.selected_col to point to the column in book_view_columns.display_cols that matches title."""
+        for col in book_view_columns.display_cols:
+            if col['name'] == col_title:
+                self.selected_col = col
+                break
+
+    def on_combo_changed(self, combo, data=None): #pylint: disable=unused-argument
+        """The combo box containing the column titles has changed its selection.
+        Update col_tv_model with the correct metadata entries.
+        """
+        # update the track, since the data in the treeview model is about to get wiped.
+        self.update_track()
+        # clear the entry widget
+        self.new_value_entry.set_text('')
+        # switch to the newly selected column
+        column_title = combo.get_active_text()
+        self.set_selected_col(column_title)
+        self.col_tv_model_load(self.selected_col)
+
+    def col_tv_add_entry(self, entry=None, user_data=None): #pylint: disable=unused-argument
+        """Add user text to the treeview (strip whitespace), creating a new metadata entry."""
+        text = entry.get_text().strip()
+        entry.set_text('')
+        if text:
+            self.col_tv_model.append([text, None])
+
+    def update_track(self):
+        """
+        Copy the contents of the self.col_tv_model to a list of TrackMDEntries.
+        Move that list to Track.metadata with the correct key/val placement
+        """
+        entry_list = []
+        # noinspection PyTypeChecker
+        for i, row in enumerate(self.col_tv_model):
+            md_entry = playlist.TrackMDEntry(entry=row[0], index=i, id_=row[1])
+            entry_list.append(md_entry)
+        self.track.set_entry(self.selected_col['key'], entry_list)
