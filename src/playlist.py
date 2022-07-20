@@ -33,6 +33,7 @@ class Track:
         self.file_path = file_path
         self.number = number
         self.pl_track_id = pl_track_id
+        self.pl_row_id = None
 
     def get_pl_track_id(self) -> 'int or None':
         """get the get_pl_track_id"""
