@@ -26,9 +26,7 @@ This module is responsible for displaying books in the view
 from pathlib import Path
 import itertools
 import gi
-#pylint: disable=wrong-import-position
-gi.require_version("Gtk", "3.0")
-#pylint: enable=wrong-import-position
+gi.require_version("Gtk", "3.0") # pylint: disable=wrong-import-position
 from gi.repository import Gtk
 import playlist
 import signal_
@@ -247,19 +245,22 @@ class  PlaylistV:
     """dislay the playlist in a Gtk.Treeview"""
 
     def __init__(self, display_columns, book_view_builder):
-        # display the playlist in a gtk treeview
-        self.playlist_view = book_view_builder.get_object('playlist_view')
-        self.playlist_view.set_reorderable(True)
-        # a list of cell renderers used in the playlist view
-        self.cell_renderers = []
-        # Relay Gtk signals back to the controller
+        # Relay Gtk signals back to a controller
         self.transmitter = signal_.Signal()
         self.transmitter.add_signal('col_header_clicked')
         self.transmitter.add_signal('button-release-event')
+        self.transmitter.add_signal('editing-started')
+        self.transmitter.add_signal('edited')
+        self.transmitter.add_signal('editing-canceled')
+        # display the playlist in a gtk treeview
+        self.playlist_view = book_view_builder.get_object('playlist_view')
+        self.playlist_view.set_reorderable(True)
         self.playlist_view.connect('button-release-event', self.on_button_release)
 
-        self.tvc_list = []
+        # a list of cell renderers used in the playlist view
+        self.cell_renderers = []
         # initialize the TreeView columns and add them to the playlist view
+        self.tvc_list = []
         for col in display_columns:
             rend = self.init_cell_renderer(col)
             tvc = self.init_tree_view_column(col, rend)
@@ -269,9 +270,6 @@ class  PlaylistV:
             self.tvc_list.append(tvc)
             self.playlist_view.append_column(tvc)
             self.cell_renderers.append(rend)
-            #rend.connect("edited", self.on_edited, col)
-            #rend.connect("editing-started", self.on_editing_started, col)
-            #rend.connect("editing-canceled", self.on_editing_cancelled)
 
     def init_cell_renderer(self, col):
         """
@@ -285,6 +283,10 @@ class  PlaylistV:
         # col 0 is playlist.TrackMDEntry.entry(type depends on column);
         # col 1 is playlist.TrackMDEntry.id_ (int for all columns)
         rend.set_property("model", Gtk.ListStore(col['g_typ'], int))
+        rend.connect("editing-started", self.on_editing_started, col)
+        rend.connect("edited", self.on_edited, col)
+        rend.connect("editing-canceled", self.on_editing_cancelled)
+
         return rend
 
     def init_tree_view_column(self, col, rend) -> Gtk.TreeViewColumn:
@@ -327,6 +329,19 @@ class  PlaylistV:
     def on_button_release(self, widget, event, data=None):
         """repeat the treeview:button-release-event signal on self's own transmitter"""
         self.transmitter.send('button-release-event', widget, event, data)
+
+    def on_editing_started(self, renderer, editable, path, col):
+        """repeat the tvc renderer:editing-started signal on self's own transmitter"""
+        print('on_editing_started')
+        self.transmitter.send('editing-started', renderer, editable, path, col)
+
+    def on_edited(self, renderer, path, text, col):
+        """repeat the tvc renderer:edited signal on self's own transmitter"""
+        self.transmitter.send('edited', renderer, path, text, col)
+
+    def on_editing_cancelled(self, renderer):
+        """repeat the tvc renderer:editing-cancelled signal on self's own transmitter"""
+        self.transmitter.send('editing-canceled', renderer)
 
 
 class PlaylistSortable:
@@ -394,8 +409,7 @@ class PlaylistVC:
         self.playlist_model.transmitter.connect('row_deleted', self.clear_col_sort_indicators)
         # assign the playlist to the view
         self.playlist_v.set_model(self.playlist_model.get_model())
-        # track if in editing or display mode
-        self.mode = None
+        PlaylistVMetadataComboC(self.playlist_model, self.playlist_v)
 
     def update(self):
         """get the tracklist from the Book and add the data to the playlist_model and secondary_metadata models"""
@@ -411,12 +425,12 @@ class PlaylistVC:
 
     def begin_edit_mode(self):
         """pass"""
-        self.mode = 'editing'
+        self.playlist_model.mode = 'editing'
         self.set_column_clickability(True)
 
     def begin_display_mode(self):
         """put the Playlist view in display mode"""
-        self.mode = 'display'
+        self.playlist_model.mode = 'display'
         self.clear_col_sort_indicators()
         self.set_column_clickability(False)
 
@@ -479,7 +493,7 @@ class PlaylistVC:
             if widget == self.playlist_v.playlist_view:
                 if event.get_button()[1] == 3:
                     # right mouse button clicked
-                    if self.mode == 'editing':
+                    if self.playlist_model.mode == 'editing':
                         # run editing dialog on pressed column and first selected row
                         pth, tvc, cel_x, cel_y = widget.get_path_at_pos(event.x,  event.y) #pylint: disable=unused-variable
                         editing_track = self.playlist_model.get_row(pth[0])
@@ -525,6 +539,8 @@ class PlaylistVM:
         # come in the form of a tuple (FK->playlist_row_id, key, TrackMDEntry)
         # *FK = foreign key
         self.secondary_metadata = SecondaryMetadata()
+        # track if in editing or display mode
+        self.mode = None
 
 
     def get_playlist_new(self):
@@ -564,6 +580,10 @@ class PlaylistVM:
         """load track file path data from the playlist into the Track"""
         # The playlist displays both path and filename, but Tracks only store the path, so only get the path
         track.set_file_path(self.playlist.get_value(cur_row, book_view_columns.track_path['g_col']))
+
+    def __load_row_id_column(self, track, cur_row):
+        """Load the row_id from the playlist into the Track"""
+        track.pl_row_id = self.playlist.get_value(cur_row, book_view_columns.playlist_row_id['g_col'])
 
     def __add_metadata_columns(self, track, cur_row, playlist_row_id):
         """
@@ -690,6 +710,7 @@ class PlaylistVM:
         self.__load_metadata_columns(track, row_iter)
         self.__load_track_columns(track, row_iter)
         self.__load_pl_track_columns(track, row_iter)
+        self.__load_row_id_column(track, row_iter)
         return track
 
     def remove_row(self, row_num):
@@ -714,6 +735,61 @@ class PlaylistVM:
         self.__add_track_columns(track, cur_row_iter)
         self.__add_pl_track_columns(track, cur_row_iter)
 
+
+class PlaylistVMetadataComboC:
+    """
+    Controller for the combo box popups generated by the playlist's Gtk.CellRendererCombo.
+    These popups allow the user to see all SecondaryMetadataEntries when a user clicks on a track row.
+    """
+
+    def __init__(self, playlist_view_model: PlaylistVM, playlist_view: PlaylistV):
+        self.playlist_view_model = playlist_view_model
+        self.playlist_view = playlist_view
+        self.playlist_view.transmitter.connect('edited', self.on_edited)
+        self.playlist_view.transmitter.connect('editing-canceled', self.on_editing_cancelled)
+        self.playlist_view.transmitter.connect('editing-started', self.on_editing_started)
+        self.edited_track = None
+        self.edited_col = None
+
+    def on_edited(self, renderer, path, text, col): # pylint: disable=unused-argument
+        """
+        The order of the Track metadata entries may have been changed.
+        Propagate those changes to the playlist view.
+        """
+        md_entry_combo = renderer.get_property('model')
+        # move the selected entry to the beginning
+        matched_text = False
+        md_entry_list = [None]
+        for i, row in enumerate(md_entry_combo):
+            if row[0] == text:
+                md_entry_list[0] = playlist.TrackMDEntry(id_=row[1], index=0, entry=row[0])
+                matched_text = True
+            elif not matched_text:
+                md_entry_list.append(playlist.TrackMDEntry(id_=row[1], index=i+1, entry=row[0]))
+            else:
+                md_entry_list.append(playlist.TrackMDEntry(id_=row[1], index=i, entry=row[0]))
+        md_entry_combo.clear()
+        # update the playlist view
+        self.edited_track.set_entry(self.edited_col['key'], md_entry_list)
+        self.playlist_view_model.update_row(self.edited_track, self.edited_track.pl_row_id)
+
+    def on_editing_cancelled(self, renderer: Gtk.CellRendererCombo) -> None:
+        """Clear the metadata combo box popup of any data."""
+        md_entry_combo = renderer.get_property('model')
+        md_entry_combo.clear()
+        self.edited_track = None
+        self.edited_col = None
+
+    def on_editing_started(self, renderer, editable, path, col): # pylint: disable=unused-argument
+        """Build the dropdown menu in the playlist with the selected track's metadata entries."""
+        md_entry_combo = editable.get_model()
+        md_entry_combo.clear()
+        # append track entries to combo model
+        selected_track = self.playlist_view_model.get_row(path[0])
+        for entry in selected_track.get_entries(col['key']):
+            md_entry_combo.append([entry.get_entry(), entry.get_id()])
+        self.edited_track = selected_track
+        self.edited_col = col
 
 
 class SecondaryMetadata:
@@ -757,18 +833,6 @@ class SecondaryMetadata:
                 del self.secondary_metadata[i]
 
 
-def col_tv_get_move_destination(direction: str,
-                                current_iter: Gtk.TreeIter,
-                                model: Gtk.TreeModel) -> Gtk.TreeIter:
-    """
-    Get a Gtk.TreeIter that points to a move destination, either one row above or below current_iter.
-    target_iter will be wrapped around to point to the beginning or end of the model when necessary.
-    """
-    if direction == 'up':
-        target_iter = model.iter_previous(current_iter) or model.get_iter((len(model) - 1,))
-    else:
-        target_iter = model.iter_next(current_iter) or model.get_iter_first()
-    return target_iter
 
 
 class EditTrackDialog:
@@ -852,9 +916,23 @@ class EditTrackDialog:
         sel.unselect_all()
         for path in paths:
             selected_itr = model.get_iter(path)
-            target_iter = col_tv_get_move_destination(direction, selected_itr, model)
+            target_iter = self.col_tv_get_move_destination(direction, selected_itr, model)
             model.swap(selected_itr, target_iter)
             sel.select_iter(selected_itr)
+
+    def col_tv_get_move_destination(self,
+                                    direction: str,
+                                    current_iter: Gtk.TreeIter,
+                                    model: Gtk.TreeModel) -> Gtk.TreeIter:
+        """
+        Get a Gtk.TreeIter that points to a move destination, either one row above or below current_iter.
+        target_iter will be wrapped around to point to the beginning or end of the model when necessary.
+        """
+        if direction == 'up':
+            target_iter = model.iter_previous(current_iter) or model.get_iter((len(model) - 1,))
+        else:
+            target_iter = model.iter_next(current_iter) or model.get_iter_first()
+        return target_iter
 
     def col_tv_remove_entry(self):
         """remove entry from treeview"""
