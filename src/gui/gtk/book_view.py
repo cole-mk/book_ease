@@ -832,3 +832,4 @@ class SecondaryMetadata:
         for i in range(len(self.secondary_metadata) - 1, -1, -1):
             if self.secondary_metadata[i][0] == row_id:
                 del self.secondary_metadata[i]
+                 
