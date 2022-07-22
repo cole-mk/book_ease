@@ -20,8 +20,12 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
+"""
+This module contains dialogs used by the gui classes
+"""
+
 import gi
-gi.require_version("Gtk", "3.0") # pylint: disable=wrong-import-position
+gi.require_version("Gtk", "3.0")  # pylint: disable=wrong-import-position
 from gi.repository import Gtk
 import playlist
 from gui.gtk import book_view_columns
@@ -165,7 +169,7 @@ class EditTrackDialog:
                 self.selected_col = col
                 break
 
-    def on_combo_changed(self, combo, data=None): #pylint: disable=unused-argument
+    def on_combo_changed(self, combo, data=None):  # pylint: disable=unused-argument
         """The combo box containing the column titles has changed its selection.
         Update col_tv_model with the correct metadata entries.
         """
@@ -178,7 +182,7 @@ class EditTrackDialog:
         self.set_selected_col(column_title)
         self.col_tv_model_load(self.selected_col)
 
-    def col_tv_add_entry(self, entry=None, user_data=None): #pylint: disable=unused-argument
+    def col_tv_add_entry(self, entry=None, user_data=None):  # pylint: disable=unused-argument
         """Add user text to the treeview (strip whitespace), creating a new metadata entry."""
         text = entry.get_text().strip()
         entry.set_text('')
