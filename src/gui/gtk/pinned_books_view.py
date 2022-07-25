@@ -33,7 +33,6 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 import signal_
 
-
 class PinnedBooksV(Gtk.Box):
     """
     display the list of pinned books in a Gtk.Treeview encapsulated in a Gtk.Box
@@ -149,14 +148,15 @@ class PinnedButtonVC:
         """return self.view.pinned_button"""
         return self.view.pinned_button
 
-    def update(self):
+    def update(self, book_data):
         """if book is saved, tell PinnedBooksC to update list of pinned books"""
-        if self.book.is_saved():
-            if self.pinned_books_c.is_pinned(self.get_playlist_id()):
+        if book_data.is_saved():
+            playlist_id = book_data.playlist_data.get_id()
+            if self.pinned_books_c.is_pinned(playlist_id):
                 self.button_transmitter.mute_signal('toggled')
                 self.view.pinned_button.set_active(True)
                 self.button_transmitter.unmute_signal('toggled')
-            self.button_transmitter.send('book_updated', playlist_id=self.book.get_playlist_id())
+            self.button_transmitter.send('book_updated', playlist_id=playlist_id)
 
     def begin_edit_mode(self):
         """hide the view when told to begin book editing mode"""

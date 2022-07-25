@@ -141,9 +141,9 @@ class Playlist():
                 return track
         raise ValueError('track.pl_track_id not found in tracklist')
 
-    def track_list_sort_number(self):
+    def track_list_sort_number(self, track_list: list) -> None:
         """sort self.track_list in place"""
-        self.track_list.sort(key=lambda row: row.number, reverse=True)
+        track_list.sort(key=lambda row: row.number, reverse=True)
 
 class TrackEdit(Track):
     """
