@@ -83,6 +83,34 @@ class DBConnection: #pylint: disable=too-few-public-methods
 DB_CONNECTION = DBConnection()
 
 
+class BookData:
+    """DTO for Book's"""
+
+    def __init__(self, playlist_data):
+        self.playlist_data = playlist_data
+        self.track_list = []
+        self.saved_playlist = False
+
+    def is_saved(self) -> bool:
+        """tell if this playlist has already been saved"""
+        return self.saved_playlist
+
+    def set_saved(self, bool_: bool):
+        """set this playlist's saved flag"""
+        self.saved_playlist = bool_
+
+    def pop_track(self) -> 'Track':
+        """pop and return a Track object from the self.track_list"""
+        try:
+            track = self.track_list.pop()
+        except IndexError:
+            track = None
+        return track
+
+    def sort_track_list_by_number(self) -> None:
+        """sort self.track_list in place"""
+        self.track_list.sort(key=lambda row: row.number, reverse=True)
+
 
 class Book(playlist.Playlist, signal_.Signal):
     """Book is the model for a book"""
@@ -95,7 +123,7 @@ class Book(playlist.Playlist, signal_.Signal):
         #database interfaces
         self.track_dbi = TrackDBI()
         self.playlist_dbi = PlaylistDBI()
-        # track to scrape for metadata
+        # files to scrape for track metadata
         self.file_list = file_list
 
         # initialize the callback system
@@ -109,18 +137,6 @@ class Book(playlist.Playlist, signal_.Signal):
     def get_cur_pl_list(self):
         """get list of playlists associated with current path"""
         return self.playlist_dbi.get_by_path(self.playlist_data)
-
-    def get_playlist_data(self) -> 'PlaylistData':
-        """get playlist data attached to this Book instance"""
-        return self.playlist_data
-
-    def get_playlist_id(self):
-        """get this book instance's unique id"""
-        return self.playlist_data.get_id()
-
-    def get_track_list(self):
-        """get a list of Tracks associated with this book"""
-        return self.track_list
 
     def get_index(self):
         """get the index of this book's position in the BookReader's list of books"""
@@ -152,9 +168,10 @@ class Book(playlist.Playlist, signal_.Signal):
         self.playlist_data = playlist_data
 
         # retrieve a list of tracks belonging to this playlist
-        # edit those tracks and append them to self.track_list
+        # edit those tracks and add them to a new BookData object
+        book_data = BookData(playlist_data)
         for track in self.track_dbi.get_track_list_by_pl_id(self.playlist_data.get_id()):
-            self.track_list.append(track)
+            book_data.track_list.append(track)
             # populate track metadata
             for col in book_columns.metadata_col_list:
                 entry_list = self.track_dbi.get_metadata_list(col['key'], track.get_pl_track_id())
@@ -162,13 +179,13 @@ class Book(playlist.Playlist, signal_.Signal):
 
         self.saved_playlist = True
         # sort playlist by  number
-        self.track_list_sort_number()
-        # notify listeners that book data has been loaded
-        self.send('book_data_loaded')
+        book_data.sort_track_list_by_number()
+        return book_data
 
     def create_book_data(self):
-        """initialize a new playlist with data scraped from file metadata"""
+        """initialize a new BookData object with playlist data scraped from file metadata"""
 
+        book_data = BookData(self.playlist_data)
         for file_ in self.file_list:
             # populate track data
             file_path = os.path.join(self.playlist_data.get_path(), file_[1])
@@ -176,11 +193,11 @@ class Book(playlist.Playlist, signal_.Signal):
                 # create the track
                 track = TrackFI.get_track(file_path)
             except UnsupportedFileType:
-                # skip to the next file if this file is a dorectory or some other non supported file type
+                # skip to the next file if this file is a directory or some other non-supported file type
                 continue
 
             # do the appending
-            self.track_list.append(track)
+            book_data.track_list.append(track)
 
             # load alt values if this entry is empty
             for col in book_columns.metadata_col_list:
@@ -190,32 +207,10 @@ class Book(playlist.Playlist, signal_.Signal):
                         track.set_entry(col['key'], alt_entries[:1])
 
         # set book title from the first track title
-        title_list = self.track_list[0].get_entries('title')
+        title_list = book_data.track_list[0].get_entries('title')
         if title_list:
             self.playlist_data.set_title(title_list[0].get_entry())
-        # emit book_data_created signal
-        self.send('book_data_created')
-
-    def track_list_update(self, track):
-        """
-        Update self.tracklist with any changes made by the user.
-        find an existing track in self.tracklist with an id matching that of the passed track.
-        Apply the difference between the two to the existing track in the tracklist, or create a new track.
-        """
-        # find existing track
-        e_track = None
-        for potential_track in self.track_list:
-            if potential_track.get_pl_track_id() == track.get_pl_track_id():
-                e_track = potential_track
-                break
-        if e_track is None:
-            # add new track
-            self.track_list.append(track)
-        else:
-            # modify existing track
-            for key in track.get_key_list():
-                e_track.set_entry(key, track.get_entries(key))
-            e_track.set_number(track.get_number())
+        return book_data
 
     def set_unique_playlist_title(self, playlist_data) -> 'title:str':
         """add a incremented suffix to self.playlist_data.title if there are duplicates"""
@@ -271,13 +266,14 @@ class Book(playlist.Playlist, signal_.Signal):
         # open the book's module wide connection to the database for saving the book
         DB_CONNECTION.multi_query_begin()
 
-    def pop_track(self) -> 'Track':
-        """pop and return a Track object from the self.track_list"""
-        try:
-            track = self.track_list.pop()
-        except IndexError:
-            track = None
-        return track
+    def save(self, book_data: BookData):
+        """Save book_data to database"""
+        self.save_book_begin()
+        self.playlist_data = book_data.playlist_data
+        self.save_playlist_data()
+        for track in book_data.track_list:
+            self.save_track(track)
+        self.save_book_finished()
 
 
 class PlaylistDBI():
@@ -606,25 +602,13 @@ class BookC:
         # controller.
         book_reader.pinned_books.get_pinned_button_new(self.book, self.transmitter, book_view_builder)
 
-        # connect to the signals from the Book that BookC is interested in
-        self.book.connect('book_data_created', self.on_book_data_ready)
-        self.book.connect('book_data_loaded', self.on_book_data_ready)
-
-        # bk.connect('book_saved', book_view.book_data_load_th)
-        # bk.connect('book_data_loaded', book_view.on_book_data_ready_th, is_sorted=True)
-
-        # The pinnedPlaylist callbacks need to be comunicated to BookReader.book_updated
-
-        # bk.connect('book_saved', self.book_updated, index=index)
-        # connect the book_data_loaded to the add book_updated callback
-        # bk.connect('book_data_loaded', self.book_updated, index=index)
     def get_view(self):
         """get the main outer most view"""
         return self.book_vc.get_view()
 
     def get_playlist_id(self):
         """get this book instance's unique id"""
-        return self.book.get_playlist_id()
+        return self.book.playlist_data.get_id()
 
     def set_index(self, index):
         """save position in BookReader.books"""
@@ -636,43 +620,31 @@ class BookC:
 
     def open_new_playlist(self):
         """Create a new playlist from media files"""
-        self.book.create_book_data()
+        book_data = self.book.create_book_data()
+        self.transmitter.send('update', book_data)
+        self.transmitter.send('begin_edit_mode')
 
     def get_title(self):
         """get this books title from the model"""
-        return self.book.get_playlist_data().get_title()
+        return self.book.playlist_data.get_title()
 
     def open_existing_playlist(self, playlist_data):
         """open a previously saved book"""
-        self.book.book_data_load(playlist_data)
-
-    def on_book_data_ready(self):
-        """
-        model is finished creating the book data from scraping the media files
-        load the book into the view
-        """
-        # tell components to load their data from the book
-        self.transmitter.send('update')
-        if self.book.is_saved():
-            # tell components to enter display mode
-            self.transmitter.send('begin_display_mode')
-        else:
-            # tell components to enter editing mode
-            self.transmitter.send('begin_edit_mode')
+        book_data = self.book.book_data_load(playlist_data)
+        self.transmitter.send('update', book_data)
+        self.transmitter.send('begin_display_mode')
 
     def save(self):
         """Coordinate the saving of the book with Book and the the VC classes"""
-        # Tell the book to prepare for saving saving
-        self.book.save_book_begin()
+        book_data = BookData(self.book.playlist_data)
         # notify the VC classes that they need to save
-        self.transmitter.send('save_title')
-        self.transmitter.send('save')
+        self.transmitter.send('save', book_data)
+        self.book.save(book_data)
         # Tell the book that it is finished saving and can cleanup
-        self.book.save_book_finished()
-        self.book.book_data_load(self.book.playlist_data)
+        reloaded_book_data = self.book.book_data_load(self.book.playlist_data)
         # tell the VC classes to update their views and switch to display mode
-        #self.transmitter.send('update')
-        #self.transmitter.send('begin_display_mode')
+        self.transmitter.send('update', reloaded_book_data)
+        self.transmitter.send('begin_display_mode')
 
     def edit(self):
         """Inform the component views that they need to enter edit_mode"""
@@ -681,7 +653,7 @@ class BookC:
     def cancel_edit(self):
         """close book if it is not saved or tell component views to enter display mode"""
         if self.book.is_saved():
-            self.book.book_data_load(self.book.get_playlist_data())
+            self.book.book_data_load(self.book.playlist_data)
             self.transmitter.send('begin_display_mode')
         else:
             self.transmitter.send('close')

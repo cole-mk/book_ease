@@ -119,7 +119,7 @@ class TitleVC:
         book_tx_signal.connect('begin_edit_mode', self.begin_edit_mode)
         book_tx_signal.connect('begin_display_mode', self.begin_display_mode)
         book_tx_signal.connect('update', self.update)
-        book_tx_signal.connect('save_title', self.save)
+        book_tx_signal.connect('save', self.save)
         # save a reference to the book model so TitleVC can get data when it needs to
         self.book = book_
         # create the Gtk view
@@ -129,10 +129,10 @@ class TitleVC:
         """get the view that this class is controlling"""
         return self.title_v.get_view()
 
-    def update(self):
+    def update(self, book_data):
         """get title from book and load it into the view"""
         # get title from book
-        book_title = self.book.get_playlist_data().get_title()
+        book_title = book_data.playlist_data.get_title()
         # load the title into the title label thats shown during display mode
         self.title_v.title_label.set_label(book_title)
 
@@ -152,10 +152,9 @@ class TitleVC:
         """relay the message to close the view"""
         self.title_v.close()
 
-    def save(self):
-        """get the playlist title from the title_v model and save it to the book."""
-        self.book.get_playlist_data().set_title(self.title_v.title_entry.get_text())
-        self.book.save_playlist_data()
+    def save(self, book_data):
+        """Get the playlist title from the title_v model and save it to book_data."""
+        book_data.playlist_data.set_title(self.title_v.title_entry.get_text())
 
 class ControlBtnV:
     """display the control buttons"""
@@ -412,13 +411,13 @@ class PlaylistVC:
         self.playlist_v.set_model(self.playlist_model.get_model())
         PlaylistVMetadataComboC(self.playlist_model, self.playlist_v)
 
-    def update(self):
+    def update(self, book_data) -> None:
         """get the tracklist from the Book and add the data to the playlist_model and secondary_metadata models"""
         # clear the playlist view
         self.playlist_model.clear()
         # pop each track off of the list and move the data to self.playlist
         while True:
-            track = self.book.pop_track()
+            track = book_data.pop_track()
             if track is None:
                 break
             self.playlist_model.add_track(track)
@@ -439,7 +438,7 @@ class PlaylistVC:
         """relay the message to close the view"""
         self.playlist_v.close()
 
-    def save(self):
+    def save(self, book_data) -> None:
         """
         Get Track objects represented by rows in the playlist_model and save them to the Book
         """
@@ -447,7 +446,7 @@ class PlaylistVC:
             track = self.playlist_model.pop()
             if track is None:
                 break
-            self.book.save_track(track)
+            book_data.track_list.append(track)
 
     def get_toggled_tv_col_direction(self, tree_view_column):
         """Get the current sort order (Gtk.SortType) for a tree view column and return the opposite Gtk.SortType"""
@@ -832,4 +831,3 @@ class SecondaryMetadata:
         for i in range(len(self.secondary_metadata) - 1, -1, -1):
             if self.secondary_metadata[i][0] == row_id:
                 del self.secondary_metadata[i]
-                 
