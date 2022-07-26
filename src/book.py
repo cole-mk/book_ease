@@ -178,6 +178,7 @@ class Book(playlist.Playlist, signal_.Signal):
                 track.set_entry(col['key'], entry_list)
 
         self.saved_playlist = True
+        book_data.set_saved(True)
         # sort playlist by  number
         book_data.sort_track_list_by_number()
         return book_data
@@ -600,7 +601,7 @@ class BookC:
         book_view.PlaylistVC(self.book, self.transmitter, self.component_transmitter, book_view_builder)
         # pinned button view does not use the component_transmitter because it is responsible for signalling its own
         # controller.
-        book_reader.pinned_books.get_pinned_button_new(self.book, self.transmitter, book_view_builder)
+        book_reader.pinned_books.get_pinned_button_new(self.transmitter, book_view_builder)
 
     def get_view(self):
         """get the main outer most view"""
