@@ -136,8 +136,6 @@ class PinnedBooksM(signal_.Signal):
             self.unpin_book(playlist_data)
         else:
             self.pin_book(playlist_data)
-        # propagate the message that the status has changed
-        self.send('pinned_list_changed')
 
     def is_pinned(self, playlist_data: book.PlaylistData) -> bool:
         """
@@ -150,6 +148,8 @@ class PinnedBooksM(signal_.Signal):
         """remove playlist_id from the list of pinned playlists"""
         playlist_id = playlist_data.get_id()
         self.dbi.unpin_playlist(playlist_id)
+        # propagate the message that the status has changed
+        self.send('pinned_list_changed')
 
     def pin_book(self, playlist_data: book.PlaylistData):
         """add playlist to the list of pinned playlists"""
@@ -157,6 +157,8 @@ class PinnedBooksM(signal_.Signal):
         playlist = self.dbi.get_playlist(playlist_id)
         if playlist is not None:
             self.dbi.pin_playlist(playlist_id)
+        # propagate the message that the status has changed
+        self.send('pinned_list_changed')
 
     def get_pinned_playlists(self):
         """
