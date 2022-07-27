@@ -123,6 +123,44 @@ class PinnedBooksVC:
         return self.pinned_books_view
 
 
+
+class PinnedBooksVM:
+    """wrapper for Gtk.Liststore used for holding pinned playlist data that's displayed in the view."""
+
+    def __init__(self, pinned_cols: pinned_books.PinnedCols):
+        # Set up the column information for gtk.liststore
+        self.pinned_cols = pinned_cols
+        self.pinned_cols.set_playlist_id_prop('g_type', int)
+        self.pinned_cols.set_title_prop('g_type', str)
+        self.pinned_cols.set_path_prop('g_type', str)
+        self.pinned_list = self.get_pinned_list_new()
+
+    def get_pinned_list_new(self) -> Gtk.ListStore:
+        """
+        create a Gtk.ListStore for displaying list of pinned playlists
+        """
+        # init liststore with g_types by expanding the sorted col_info[*][g_types]
+        pinned_list = Gtk.ListStore(*self.pinned_cols.get_prop_sorted('g_type', 'col'))
+        return pinned_list
+
+    def load_pinned_list(self, pinned_playlists: list[book.PlaylistData]):
+        """
+        load/reload the data in the Gtk.TreeModel (liststore)
+        """
+        self.pinned_list.clear()
+        for playlist in pinned_playlists:
+            self.pinned_list.append([playlist.id_, playlist.title, playlist.path])
+
+    def get_playlist_data(self, path: Gtk.TreePath) -> book.PlaylistData:
+        """get a row from self.pinned_list as PlaylistData object"""
+        g_iter = self.pinned_list.get_iter(path)
+        playlist_data = book.PlaylistData()
+        playlist_data.set_id(self.pinned_list.get_value(g_iter, self.pinned_cols.playlist_id['col']))
+        playlist_data.set_title(self.pinned_list.get_value(g_iter, self.pinned_cols.title['col']))
+        playlist_data.set_path(self.pinned_list.get_value(g_iter, self.pinned_cols.path['col']))
+        return playlist_data
+
+
 class PinnedButtonV:  # pylint: disable=too-few-public-methods
     """
     display a Gtk.CheckButton to control wether or not a book is pinned
