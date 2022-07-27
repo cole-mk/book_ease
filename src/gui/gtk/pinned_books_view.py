@@ -55,6 +55,12 @@ class PinnedBooksV(Gtk.Box):
         self.pack_start(builder.get_object('pinned_view'), expand=True, fill=True, padding=0)
         # create the view
         self.pinned_list_tree_view = builder.get_object('pinned_list_tree_view')
+        self.init_tree_view_columns(pinned_cols)
+        # Create the control buttons and connect to their clicked signals.
+        self.open_button = builder.get_object('open_button')
+        self.remove_button = builder.get_object('remove_button')
+
+    def init_tree_view_columns(self, pinned_cols: pinned_books.PinnedCols):
         # title column
         title_r = Gtk.CellRendererText()
         title_col = Gtk.TreeViewColumn("Title")
