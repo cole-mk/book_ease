@@ -82,17 +82,18 @@ class PinnedBooksVC:
 
     def __init__(self, pinned_books_model: pinned_books.PinnedBooksM):
         self.pinned_books_model = pinned_books_model
-        self.pinned_books_model.connect('pinned_list_changed', self.load_pinned_list)
-        # Set up the column information for gtk.liststore
+        self.pinned_books_model.connect('pinned_list_changed', self.on_pinned_list_changed)
+        # Get up the column information for gtk.liststore
         self.pinned_cols = self.pinned_books_model.get_col_info()
-        self.pinned_cols.set_playlist_id_prop('g_type', int)
-        self.pinned_cols.set_title_prop('g_type', str)
-        self.pinned_cols.set_path_prop('g_type', str)
-        # Se tup the view with a model
+        # Set up the view with a model
         self.pinned_books_view = PinnedBooksV(self.pinned_cols)
-        self.pinned_model = self.get_pinned_list_new()
-        self.pinned_books_view.pinned_list_tree_view.set_model(self.pinned_model)
-        self.load_pinned_list()
+        self.pinned_books_vm = PinnedBooksVM(self.pinned_cols)
+        self.pinned_books_view.pinned_list_tree_view.set_model(self.pinned_books_vm.pinned_list)
+        # connect to the control buttons
+        self.pinned_books_view.open_button.connect('clicked', self.on_control_button_clicked)
+        self.pinned_books_view.remove_button.connect('clicked', self.on_control_button_clicked)
+
+        self.pinned_books_vm.load_pinned_list(self.pinned_books_model.get_pinned_playlists())
 
     def get_pinned_list_new(self) -> Gtk.ListStore:
         """
@@ -113,6 +114,32 @@ class PinnedBooksVC:
         """Get the pinned books view."""
         return self.pinned_books_view
 
+    def open_selected_playlist(self):
+        """open a playlist that is selected in the pinned playlists view"""
+        print('open_selected_playlist')
+
+    def remove_selected_playlist(self):
+        """remove the first playlist selected in the view from the pinned playlists"""
+        sel = self.pinned_books_view.pinned_list_tree_view.get_selection()
+        model, paths = sel.get_selected_rows()
+        for path in paths:
+            playlist_data = self.pinned_books_vm.get_playlist_data(path)
+            self.pinned_books_model.unpin_book(playlist_data)
+
+
+    def on_control_button_clicked(self, widget: Gtk.Button):
+        """Relay signals appropriately"""
+        match widget:
+            case self.pinned_books_view.open_button:
+                self.open_selected_playlist()
+
+            case self.pinned_books_view.remove_button:
+                self.remove_selected_playlist()
+
+    def on_pinned_list_changed(self):
+        """Load the Gtk model with the updated list of pinned playlists"""
+        pinned_playlists = self.pinned_books_model.get_pinned_playlists()
+        self.pinned_books_vm.load_pinned_list(pinned_playlists)
 
 
 class PinnedBooksVM:
