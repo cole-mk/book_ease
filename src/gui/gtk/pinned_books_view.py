@@ -188,8 +188,8 @@ class PinnedButtonVC:
         self.view.pinned_button.connect('toggled', self.on_button_toggled)
         self.button_transmitter = signal_.Signal()
         self.button_transmitter.add_signal('book_updated')
-        self.button_transmitter.add_signal('toggled')
-        self.button_transmitter.connect('toggled', self.pinned_books_m.toggle)
+        # flag to prevent loop when setting the state of the checked button
+        self.mute_toggle = False
         # PlaylistData
         self.playlist_data = None
 
@@ -224,18 +224,18 @@ class PinnedButtonVC:
         callback function registered with with Gtk
         handles signaling of pinned_button state changed
         """
-        if self.playlist_data is not None:
-            self.button_transmitter.send('toggled', playlist_data=self.playlist_data)
+        if self.playlist_data is not None and not self.mute_toggle:
+            self.pinned_books_m.toggle(playlist_data=self.playlist_data)
 
     def get_playlist_id(self):
         """get the id of the book that this button is associated with"""
         return self.playlist_data.get_id()
 
     def set_checked(self, checked):
-        """set the state of the pinned_buttin. wether it's checked or not"""
-        self.button_transmitter.mute_signal('toggled')
+        """set the state of the pinned_button. wether it's checked or not"""
+        self.mute_toggle = True
         self.view.pinned_button.set_active(checked)
-        self.button_transmitter.unmute_signal('toggled')
+        self.mute_toggle = False
 
     def on_pinned_list_changed(self):
         """ensure the check button is in the correct state after changes to the pinned list"""
