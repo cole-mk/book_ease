@@ -102,15 +102,6 @@ class PinnedBooksVC:
         pinned_list = Gtk.ListStore(*self.pinned_cols.get_prop_sorted('g_type', 'col'))
         return pinned_list
 
-    def load_pinned_list(self):
-        """
-        load/reload the data in the Gtk.TreeModel (liststore)
-        """
-        self.pinned_model.clear()
-        pinned_playlists = self.pinned_books_model.get_pinned_playlists()
-        for row in pinned_playlists:
-            self.pinned_model.append([row.id_, row.title, row.path])
-
     def pin(self, playlist_data):
         """
         append a book to the list of pinned books
