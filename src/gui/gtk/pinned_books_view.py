@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     import pinned_books
 
 
-class PinnedBooksV(Gtk.Box):
+class PinnedBooksV(Gtk.Box):  # pylint: disable=too-few-public-methods
     """
     display the list of pinned books in a Gtk.Treeview encapsulated in a Gtk.Box
     """
@@ -61,6 +61,7 @@ class PinnedBooksV(Gtk.Box):
         self.remove_button = builder.get_object('remove_button')
 
     def init_tree_view_columns(self, pinned_cols: pinned_books.PinnedCols):
+        """Initialize the treeview columns to be used by the treeview"""
         # title column
         title_r = Gtk.CellRendererText()
         title_col = Gtk.TreeViewColumn("Title")
@@ -113,7 +114,7 @@ class PinnedBooksVC:
     def open_selected_playlist(self):
         """open a playlist that is selected in the pinned playlists view"""
         sel = self.pinned_books_view.pinned_list_tree_view.get_selection()
-        model, paths = sel.get_selected_rows()
+        model, paths = sel.get_selected_rows()  # pylint: disable=unused-variable
         if paths:
             playlist_data = self.pinned_books_vm.get_playlist_data(paths[0])
             self.transmitter.send('open_book', playlist_data)
@@ -121,7 +122,7 @@ class PinnedBooksVC:
     def remove_selected_playlist(self):
         """remove the first playlist selected in the view from the pinned playlists"""
         sel = self.pinned_books_view.pinned_list_tree_view.get_selection()
-        model, paths = sel.get_selected_rows()  # pylint: disable=wrong-import-position
+        model, paths = sel.get_selected_rows()  # pylint: disable=unused-variable
         for path in paths:
             playlist_data = self.pinned_books_vm.get_playlist_data(path)
             self.pinned_books_model.unpin_book(playlist_data)
