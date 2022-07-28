@@ -553,7 +553,8 @@ class BookReader_:
         self.pinned_books.connect('open_book', self.open_existing_book)
 
         # register a updated file list callback with files instance
-        self.files.connect('file_list_updated', self.on_file_list_updated, get_cur_path=self.files.get_path_current)
+        #self.files.connect('file_list_updated', self.on_file_list_updated, get_cur_path=self.files.get_path_current)
+        self.files.connect('file_list_updated', self.on_file_list_updated)
         self.book_conf = configparser.ConfigParser()
         self.found_book_path = None
         self.book_path = None
@@ -595,26 +596,15 @@ class BookReader_:
             self.get_book(book_index)[0].set_index(book_index)
             book_index+=1
 
-    def on_file_list_updated(self, get_cur_path):
+    def on_file_list_updated(self):
         """
         Files is notifying bookreader that it has changed directories and is giving Book reader the list of files in
         the new current working directory.
 
-        Tell BookReader_View if there are any saved playlists associated with this directory.
-
         Tell BookReader_View if there are any media files that can be used to create a playlist.
         """
-        # conditions that need to be considered:
-        # are there any media files in the directory
-        # Is there a pre-existing playlist in the dir already
-        # Do in View: Is there a playlist for the directory open in the bookreader view(is there an open book)
-        # deal with the cache complication I created on day 1
-        self.cur_path = get_cur_path()
-        playlists_in_path = self.playlist_dbi.get_by_path(book.PlaylistData(path=self.cur_path))
-        if len(playlists_in_path) > 0:
-            self.book_reader_view.on_has_book(has_book=True, playlists_in_path=playlists_in_path)
-        else:
-            self.book_reader_view.on_has_book(has_book=False)
+        # Tell BookReader_View if there are any saved playlists associated with this directory.
+        self.update_current_book_list()
 
         # tell view we have files available if they are media files. offer to create new playlist
         f_list = self.files.get_file_list()
@@ -641,6 +631,7 @@ class BookReader_:
         book_.page = self.book_reader_view.append_book(book_.get_view(), book_.get_title())
         index = self.append_book(book_)
         book_.transmitter.connect('close', self.remove_book, index)
+        book_.transmitter.connect('update', self.update_current_book_list)
         # load the playlist metadata
         book_.open_existing_playlist(pl_row)
         # load the playlist metadata in background
@@ -674,6 +665,15 @@ class BookReader_:
             if i.match(file_):
                 return True
         return False
+
+    def update_current_book_list(self, *args):
+        """Tell BookReader_View if there are any saved playlists associated with the current directory."""
+        self.cur_path = self.files.get_path_current()
+        playlists_in_path = self.playlist_dbi.get_by_path(book.PlaylistData(path=self.cur_path))
+        if len(playlists_in_path) > 0:
+            self.book_reader_view.on_has_book(has_book=True, playlists_in_path=playlists_in_path)
+        else:
+            self.book_reader_view.on_has_book(has_book=False)
 
 
 class Files_(signal_.Signal):
