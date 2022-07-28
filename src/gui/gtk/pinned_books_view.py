@@ -103,13 +103,6 @@ class PinnedBooksVC:
         pinned_list = Gtk.ListStore(*self.pinned_cols.get_prop_sorted('g_type', 'col'))
         return pinned_list
 
-    def pin(self, playlist_data):
-        """
-        append a book to the list of pinned books
-        """
-        row_iter = self.pinned_model.append([playlist_data.id_, playlist_data.title, playlist_data.path])
-        return row_iter
-
     def get_view(self) -> PinnedBooksV:
         """Get the pinned books view."""
         return self.pinned_books_view
