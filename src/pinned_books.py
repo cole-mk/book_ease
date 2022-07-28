@@ -24,11 +24,11 @@
 pinned_books module, along with the gui bits in gui.gtk.pinned_books_view, is the entire subsystem responsible for
 managing the list of book that have been marked as "pinned" by the user.
 """
-from gui.gtk.pinned_books_view import PinnedBooksV, PinnedButtonVC
+from gui.gtk.pinned_books_view import PinnedBooksVC, PinnedButtonVC
 import signal_
 import sqlite_tables
 import singleton_
-
+import book
 
 class PinnedBooksC(signal_.Signal):
     """
@@ -40,60 +40,23 @@ class PinnedBooksC(signal_.Signal):
         instantiate both the PinnedBooksV and the PinnedBooksM
         """
         signal_.Signal.__init__(self)
-        self.add_signal('open-book')
-        self.model = PinnedBooksM()
-        self.view = PinnedBooksV(self.model.get_col_info(), self)
-        self.pinned_button_model = PinnedButtonM()
-        self.model.connect('pinned_list_changed', self.view.load_pinned_list)
-
-    def on_book_updated(self, playlist_id):
-        """
-        callback indicating that a book in the pinned list
-        might have changed. pass this message to the model
-        and wait for a decision to be made there
-        """
-        self.model.on_book_updated(playlist_id)
+        self.add_signal('open_book')
+        self.pinned_books_model = PinnedBooksM()
+        self.view_c = PinnedBooksVC(self.pinned_books_model)
+        # Set up the transmitter to resend the open_book signal.
+        self.view_c.transmitter.connect('open_book', self.send, 'open_book')
 
     def get_view(self):
         """get the pinned_list view"""
-        return self.view
+        return self.view_c.get_view()
 
-    def toggle(self, playlist_id):
+    def get_pinned_button_new(self, book_transmitter, book_view_builder):
         """
-        callback indicating that the pinned button associated
-        with a particular opened playlist has had a change of state
-
-        playlist_id: the id of the playlist associated with
-        the pinned button
-        """
-        self.model.toggle(playlist_id)
-
-    def get_pinned_playlists(self):
-        """
-        get a list of pinned playlists
-        encapsulated in PinnedData objects
-        """
-        return self.model.get_pinned_playlists()
-
-    def is_pinned(self, playlist_id):
-        """
-        ask the PinnedBooksM if this particular playlist
-        is on the pinned list
-
-        playlist_id: the id of the playlist
-        """
-        return self.model.is_pinned(playlist_id)
-
-    def get_pinned_button_new(self, book, book_transmitter, book_view_builder):
-        """
-        create a new PinnedButtonVC, a container for a CheckButton
+        create a new PinnedButtonVC, a controller for a CheckButton
         returns the view object
         """
-        btn_vi = PinnedButtonVC(self, book, book_transmitter, book_view_builder)
-        btn_vi.button_transmitter.connect('toggled', self.toggle)
-        btn_vi.button_transmitter.connect('book_updated', self.on_book_updated)
-        self.pinned_button_model.add_button(btn_vi)
-        return btn_vi
+        btn_vc = PinnedButtonVC(self.pinned_books_model, book_transmitter, book_view_builder)
+        return btn_vc
 
 
 class PinnedCols(singleton_.Singleton):
@@ -150,98 +113,6 @@ class PinnedCols(singleton_.Singleton):
         return [col[prop] for col in sorted(self.cols, key=lambda column: column[key])]
 
 
-class PinnedData:
-    """
-    container for passing playlist data to the different classes
-    in this module.
-    """
-
-    def __init__(self, playlist_id, title, path):
-        """initialize the data columns stored in this container"""
-        # column descriptions
-        self._col_info = PinnedCols()
-        # set values of the data columns
-        self.playlist_id = playlist_id
-        self.title = title
-        self.path = path
-
-    def get_title(self):
-        """get the value in the title column"""
-        return self.title
-
-    def get_title_prop(self, key):
-        """see PinnedCols"""
-        return self._col_info.title[key]
-
-    def set_title_prop(self, key, prop):
-        """see PinnedCols"""
-        self._col_info.title[key] = prop
-
-    def get_path(self):
-        """get the value in the path column"""
-        return self.path
-
-    def get_path_prop(self, key):
-        """see PinnedCols"""
-        return self._col_info.path[key]
-
-    def set_path_prop(self, key, prop):
-        """see PinnedCols"""
-        self._col_info.path[key] = prop
-
-    def get_playlist_id(self):
-        """get the value in the playlist_id column"""
-        return self.playlist_id
-
-    def get_playlist_id_prop(self, key):
-        """see PinnedCols"""
-        return self._col_info.playlist_id[key]
-
-    def set_playlist_id_prop(self, key, prop):
-        """see PinnedCols"""
-        self._col_info.playlist_id[key] = prop
-
-    def get_prop_sorted(self, prop, key):
-        """see PinnedCols"""
-        return self._col_info.get_prop_sorted(prop, key)
-
-    def get_data_sorted_by_prop(self, prop):
-        """
-        get title, path, and playlist_id sorted by column number property
-        returns list
-        """
-        data = {self.get_playlist_id():self._col_info.get_playlist_id_prop(prop),
-                self.get_title():self._col_info.get_title_prop(prop),
-                self.get_path():self._col_info.get_path_prop(prop)}
-        return list(sorted(data, key=lambda key: data[key]))
-
-
-class PinnedButtonM:
-    """
-    maintain the list of pinned buttons
-    """
-
-    def __init__(self):
-        """the pinned button list"""
-        self.pinned_button_list = []
-
-    def add_button(self, pinned_button):
-        """add a pinnedButton to the list"""
-        self.pinned_button_list.append(pinned_button)
-
-    def remove_button(self, platlist_id):
-        """remove a pinnedButton from the list"""
-        btn = self.get_button(platlist_id)
-        self.pinned_button_list.remove(btn)
-
-    def get_button(self, platlist_id):
-        """get a pinnedButton from the list"""
-        for btn in self.pinned_button_list:
-            if btn.get_playlist_id() == platlist_id:
-                return btn
-        raise ValueError('button not found in pinned_button_list')
-
-
 class PinnedBooksM(signal_.Signal):
     """
     maintain the list of pinned books
@@ -258,34 +129,38 @@ class PinnedBooksM(signal_.Signal):
         # setup col_info
         self.col_info = PinnedCols()
 
-    def toggle(self, playlist_id):
+    def toggle(self, playlist_data: book.PlaylistData):
         """
         callback indicating that the pinned status of an open book has changed.
         add/remove the passed playlist from the list of pinned_playlists.
         """
-        if self.is_pinned(playlist_id):
-            self.unpin_book(playlist_id)
+        if self.is_pinned(playlist_data):
+            self.unpin_book(playlist_data)
         else:
-            self.pin_book(playlist_id)
-        # propagate the message that the status has changed
-        self.send('pinned_list_changed')
+            self.pin_book(playlist_data)
 
-    def is_pinned(self, playlist_id):
+    def is_pinned(self, playlist_data: book.PlaylistData) -> bool:
         """
         check the pinned status of the passed in playlist
         returns bool
         """
-        return self.dbi.is_pinned(playlist_id)
+        return self.dbi.is_pinned(playlist_data.get_id())
 
-    def unpin_book(self, playlist_id):
+    def unpin_book(self, playlist_data: book.PlaylistData):
         """remove playlist_id from the list of pinned playlists"""
+        playlist_id = playlist_data.get_id()
         self.dbi.unpin_playlist(playlist_id)
+        # propagate the message that the status has changed
+        self.send('pinned_list_changed')
 
-    def pin_book(self, playlist_id):
-        """add playlist_id to the list of pinned playlists"""
+    def pin_book(self, playlist_data: book.PlaylistData):
+        """add playlist to the list of pinned playlists"""
+        playlist_id = playlist_data.get_id()
         playlist = self.dbi.get_playlist(playlist_id)
         if playlist is not None:
             self.dbi.pin_playlist(playlist_id)
+        # propagate the message that the status has changed
+        self.send('pinned_list_changed')
 
     def get_pinned_playlists(self):
         """
@@ -300,13 +175,13 @@ class PinnedBooksM(signal_.Signal):
         """get the PinnedCols object stored in self.col_info"""
         return self.col_info
 
-    def on_book_updated(self, playlist_id):
+    def on_book_updated(self, playlist_data: book.PlaylistData):
         """
         callback indicating that something in an open book has been changed
         test if that book is pinned and signal that something in the pinned
         list might have changed.
         """
-        if playlist_id in self.dbi.get_pinned_ids():
+        if playlist_data.get_id() in self.dbi.get_pinned_ids():
             self.send('pinned_list_changed')
 
 
@@ -326,7 +201,7 @@ class PinnedBooksDBI:
     def get_playlist(self, playlist_id):
         """
         get the desired playlist row from the database
-        and return a PinnedData object
+        and return a PlaylistData object
         """
         con = sqlite_tables.create_connection()
         with con:
@@ -334,9 +209,9 @@ class PinnedBooksDBI:
             row = self.playlist.get_row(con, playlist_id)
         con.close()
         # return PinnedData object
-        return PinnedData(playlist_id=row['id'], title=row['title'], path=row['path'])
+        return book.PlaylistData(id_=row['id'], title=row['title'], path=row['path'])
 
-    def get_playlists(self, playlist_ids):
+    def get_playlists(self, playlist_ids: list[int]) -> list[book.PlaylistData]:
         """
         get all playlist rows matching the playlist_ids from the database
         and return a list of PinnedData objects
@@ -349,10 +224,10 @@ class PinnedBooksDBI:
         # return list of PinnedData objects copied from list of sqlite row objects
         playlists = []
         for row in rows:
-            playlists.append(PinnedData(playlist_id=row['id'], title=row['title'], path=row['path']))
+            playlists.append(book.PlaylistData(id_=row['id'], title=row['title'], path=row['path']))
         return playlists
 
-    def is_pinned(self, playlist_id):
+    def is_pinned(self, playlist_id: int) -> bool:
         """
         search pinned list table for playlist_id
         return bool

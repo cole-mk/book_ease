@@ -146,25 +146,9 @@ class Book(playlist.Playlist, signal_.Signal):
         """set the index of this book's position in the BookReader's list of books"""
         self.index = index
 
-    def assert_playlist_exists(self, playlist_data):
-        """
-        assert that playlist actually exists before trying to load
-        raising exception f not found
-        """
-        found_playlist = None
-        for pl_list in self.get_cur_pl_list():
-            if pl_list.get_id() == playlist_data.get_id():
-                found_playlist = pl_list
-                break
-        if found_playlist is None:
-            raise KeyError(self.playlist_data.get_id(),
-                'not found in currently saved playlists associated with this path')
-
     def book_data_load(self, playlist_data):
         """load a saved playlist from the database"""
 
-        # check that playlist actually exists before trying to load
-        self.assert_playlist_exists(playlist_data)
         self.playlist_data = playlist_data
 
         # retrieve a list of tracks belonging to this playlist
@@ -178,6 +162,7 @@ class Book(playlist.Playlist, signal_.Signal):
                 track.set_entry(col['key'], entry_list)
 
         self.saved_playlist = True
+        book_data.set_saved(True)
         # sort playlist by  number
         book_data.sort_track_list_by_number()
         return book_data
@@ -600,7 +585,7 @@ class BookC:
         book_view.PlaylistVC(self.book, self.transmitter, self.component_transmitter, book_view_builder)
         # pinned button view does not use the component_transmitter because it is responsible for signalling its own
         # controller.
-        book_reader.pinned_books.get_pinned_button_new(self.book, self.transmitter, book_view_builder)
+        book_reader.pinned_books.get_pinned_button_new(self.transmitter, book_view_builder)
 
     def get_view(self):
         """get the main outer most view"""
