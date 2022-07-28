@@ -146,25 +146,9 @@ class Book(playlist.Playlist, signal_.Signal):
         """set the index of this book's position in the BookReader's list of books"""
         self.index = index
 
-    def assert_playlist_exists(self, playlist_data):
-        """
-        assert that playlist actually exists before trying to load
-        raising exception f not found
-        """
-        found_playlist = None
-        for pl_list in self.get_cur_pl_list():
-            if pl_list.get_id() == playlist_data.get_id():
-                found_playlist = pl_list
-                break
-        if found_playlist is None:
-            raise KeyError(self.playlist_data.get_id(),
-                'not found in currently saved playlists associated with this path')
-
     def book_data_load(self, playlist_data):
         """load a saved playlist from the database"""
 
-        # check that playlist actually exists before trying to load
-        self.assert_playlist_exists(playlist_data)
         self.playlist_data = playlist_data
 
         # retrieve a list of tracks belonging to this playlist
