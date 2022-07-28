@@ -94,6 +94,9 @@ class PinnedBooksVC:
         self.pinned_books_view.remove_button.connect('clicked', self.on_control_button_clicked)
 
         self.pinned_books_vm.load_pinned_list(self.pinned_books_model.get_pinned_playlists())
+        # callback system
+        self.transmitter = signal_.Signal()
+        self.transmitter.add_signal('open_book')
 
     def get_pinned_list_new(self) -> Gtk.ListStore:
         """
@@ -109,12 +112,16 @@ class PinnedBooksVC:
 
     def open_selected_playlist(self):
         """open a playlist that is selected in the pinned playlists view"""
-        print('open_selected_playlist')
+        sel = self.pinned_books_view.pinned_list_tree_view.get_selection()
+        model, paths = sel.get_selected_rows()
+        if paths:
+            playlist_data = self.pinned_books_vm.get_playlist_data(paths[0])
+            self.transmitter.send('open_book', playlist_data)
 
     def remove_selected_playlist(self):
         """remove the first playlist selected in the view from the pinned playlists"""
         sel = self.pinned_books_view.pinned_list_tree_view.get_selection()
-        model, paths = sel.get_selected_rows()
+        model, paths = sel.get_selected_rows()  # pylint: disable=wrong-import-position
         for path in paths:
             playlist_data = self.pinned_books_vm.get_playlist_data(path)
             self.pinned_books_model.unpin_book(playlist_data)
