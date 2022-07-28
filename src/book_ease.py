@@ -549,7 +549,8 @@ class BookReader_:
         self.playlist_dbi = book.PlaylistDBI()
 
         # pinned playlists that will be displayed bookReader_View
-        self.pinned_books =  pinned_books.PinnedBooksC()
+        self.pinned_books = pinned_books.PinnedBooksC()
+        self.pinned_books.connect('open_book', self.open_existing_book)
 
         # register a updated file list callback with files instance
         self.files.connect('file_list_updated', self.on_file_list_updated, get_cur_path=self.files.get_path_current)
