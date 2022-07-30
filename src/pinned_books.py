@@ -175,14 +175,12 @@ class PinnedBooksM(signal_.Signal):
         """get the PinnedCols object stored in self.col_info"""
         return self.col_info
 
-    def on_book_updated(self, playlist_data: book.PlaylistData):
+    def on_playlist_data_changed(self):
         """
         callback indicating that something in an open book has been changed
-        test if that book is pinned and signal that something in the pinned
-        list might have changed.
+        Reload the pinned list.
         """
-        if playlist_data.get_id() in self.dbi.get_pinned_ids():
-            self.send('pinned_list_changed')
+        self.send('pinned_list_changed')
 
 
 class PinnedBooksDBI:
