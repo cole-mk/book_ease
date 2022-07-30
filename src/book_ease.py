@@ -372,6 +372,29 @@ class Image_View:
         return(dest_width, dest_height)
 
 
+class BookReaderTitleVC:
+    """
+    Wrapper around the label that displays the book title in the notebook tab of the BookReaderView.
+    This class monitors the update signal from a Book so that the title label can be kept current.
+    """
+
+    def __init__(self, book_transmitter: signal_.Signal):
+        self.label_max_len = 8
+        self.title_label = Gtk.Label(label='New Book')
+        book_transmitter.connect('update', self.update)
+
+    def update(self, book_data: book.BookData):
+        """
+        sync the title_label with changes made in the Book
+        Note that this label has a max length and truncates the title.
+        """
+        self.title_label.set_label(book_data.playlist_data.get_title()[0:self.label_max_len])
+
+    def get_label(self) -> Gtk.Label:
+        """get the book title label that this class services"""
+        return self.title_label
+
+
 class BookReader_View:
     """
     The outer most view of the bookreader pane containing a notebook to display individual books as well as several
@@ -515,10 +538,9 @@ class BookReader_View:
         else:
             self.has_book_box.hide()
 
-    def append_book(self, view, title):
+    def append_book(self, view: Gtk.Box, br_title_vc: BookReaderTitleVC):
         """set a book view to a new notebook tab"""
-        label = Gtk.Label(label=title[0:8])
-        newpage = self.book_reader_notebook.append_page(view, label)
+        newpage = self.book_reader_notebook.append_page(view, br_title_vc.get_label())
         self.book_reader_notebook.show_all()
         self.book_reader_notebook.set_current_page(newpage)
         # this needs to be changed we're not using the returned tuple
@@ -628,7 +650,8 @@ class BookReader_:
         append the new Book to the booklist for later usage
         """
         book_ = book.BookC(self.cur_path, None, self)
-        book_.page = self.book_reader_view.append_book(book_.get_view(), book_.get_title())
+        br_title_vc = BookReaderTitleVC(book_.transmitter)
+        book_.page = self.book_reader_view.append_book(book_.get_view(), br_title_vc)
         index = self.append_book(book_)
         book_.transmitter.connect('close', self.remove_book, index)
         book_.transmitter.connect('update', self.update_current_book_list)
@@ -647,9 +670,10 @@ class BookReader_:
         f_list = self.files.get_file_list_new()
         self.files.populate_file_list(f_list, self.cur_path)
         book_ = book.BookC(self.cur_path, f_list, self)
+        br_title_vc = BookReaderTitleVC(book_.transmitter)
         index = self.append_book(book_)
         book_.transmitter.connect('close', self.remove_book, index)
-        book_.page = self.book_reader_view.append_book(book_.get_view(), book_.get_title())
+        book_.page = self.book_reader_view.append_book(book_.get_view(), br_title_vc)
         # clear book_reader_view.has_new_media flag
         self.book_reader_view.on_has_new_media(False)
         # load the playlist metadata
