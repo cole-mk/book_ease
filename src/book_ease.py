@@ -371,29 +371,61 @@ class Image_View:
             dest_height = image_h
         return(dest_width, dest_height)
 
-
-class BookReaderTitleVC:
+class BookReaderNoteBookTabV:
     """
-    Wrapper around the label that displays the book title in the notebook tab of the BookReaderView.
+    Encapsulate a Gtk.label and a Gtk.Button in a Gtk.Box that is displayed in the tab of the BookReaderV notebook.
+    The label holds a (possibly truncated) title of the book displayed in the current notebook page.
+    The button is for closing the book.
+    """
+
+    def __init__(self):
+        self.view = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        self.title_label = Gtk.Label()
+        image = Gtk.Image(stock=Gtk.STOCK_OPEN)
+        self.close_button = Gtk.Button(label=None, image=Gtk.Image(stock=Gtk.STOCK_CLOSE))
+        self.close_button.set_relief(Gtk.ReliefStyle.NONE)
+        self.view.pack_start(self.title_label, expand=False, fill=False, padding=0)
+        self.view.pack_start(self.close_button, expand=False, fill=False, padding=0)
+        self.view.show_all()
+
+    def get_view(self) -> Gtk.Box:
+        """Get the Gtk.Box container."""
+        return self.view
+
+    def set_label(self, label: str):
+        """Set the text in the title label"""
+        self.title_label.set_label(label)
+
+
+class BookReaderNoteBookTabVC:
+    """
+    Controller for the tab view of the notebook page of the BookReaderView.
+    The view contains a close button and a label for displaying the book title
     This class monitors the update signal from a Book so that the title label can be kept current.
+    This class also emits the 'close' signal to its associated Book
     """
 
-    def __init__(self, book_transmitter: signal_.Signal):
+    def __init__(self, book_transmitter: signal_.Signal, component_transmitter: signal_.Signal):
+        self.tab_view = BookReaderNoteBookTabV()
+        self.tab_view.close_button.connect('button-release-event', self.on_close_button_released)
         self.label_max_len = 8
-        self.title_label = Gtk.Label(label='New Book')
         book_transmitter.connect('update', self.update)
+        self.component_transmitter = component_transmitter
 
     def update(self, book_data: book.BookData):
         """
         sync the title_label with changes made in the Book
         Note that this label has a max length and truncates the title.
         """
-        self.title_label.set_label(book_data.playlist_data.get_title()[0:self.label_max_len])
+        self.tab_view.set_label(book_data.playlist_data.get_title()[0:self.label_max_len])
 
-    def get_label(self) -> Gtk.Label:
+    def get_view(self) -> Gtk.Box:
         """get the book title label that this class services"""
-        return self.title_label
+        return self.tab_view.get_view()
 
+    def on_close_button_released(self, button, event_button): #pylint: disable=unused-argument
+        """The close button was pressed; emit the 'close' signal"""
+        self.component_transmitter.send('close')
 
 class BookReader_View:
     """
@@ -538,9 +570,9 @@ class BookReader_View:
         else:
             self.has_book_box.hide()
 
-    def append_book(self, view: Gtk.Box, br_title_vc: BookReaderTitleVC):
+    def append_book(self, view: Gtk.Box, br_title_vc: BookReaderNoteBookTabVC):
         """set a book view to a new notebook tab"""
-        newpage = self.book_reader_notebook.append_page(view, br_title_vc.get_label())
+        newpage = self.book_reader_notebook.append_page(view, br_title_vc.get_view())
         self.book_reader_notebook.show_all()
         self.book_reader_notebook.set_current_page(newpage)
         # this needs to be changed we're not using the returned tuple
@@ -650,8 +682,8 @@ class BookReader_:
         append the new Book to the booklist for later usage
         """
         book_ = book.BookC(self.cur_path, None, self)
-        br_title_vc = BookReaderTitleVC(book_.transmitter)
-        book_.page = self.book_reader_view.append_book(book_.get_view(), br_title_vc)
+        br_note_book_tab_vc = BookReaderNoteBookTabVC(book_.transmitter, book_.component_transmitter)
+        book_.page = self.book_reader_view.append_book(book_.get_view(), br_note_book_tab_vc)
         index = self.append_book(book_)
         book_.transmitter.connect('close', self.remove_book, index)
         book_.transmitter.connect('update', self.update_current_book_list)
@@ -670,7 +702,7 @@ class BookReader_:
         f_list = self.files.get_file_list_new()
         self.files.populate_file_list(f_list, self.cur_path)
         book_ = book.BookC(self.cur_path, f_list, self)
-        br_title_vc = BookReaderTitleVC(book_.transmitter)
+        br_title_vc = BookReaderNoteBookTabVC(book_.transmitter)
         index = self.append_book(book_)
         book_.transmitter.connect('close', self.remove_book, index)
         book_.page = self.book_reader_view.append_book(book_.get_view(), br_title_vc)

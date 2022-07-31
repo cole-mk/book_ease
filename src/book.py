@@ -551,7 +551,7 @@ class BookC:
     #the list of signals that BookC is allowed to send to the component views
     book_tx_api = ['update', 'get_view', 'close', 'begin_edit_mode', 'begin_display_mode', 'save_title', 'save']
     # the list of signals that the component views is allowed to send to BookC
-    component_tx_api = ['save_button', 'cancel_button', 'edit_button']
+    component_tx_api = ['save_button', 'cancel_button', 'edit_button', 'close']
 
     def __init__(self, path, file_list, book_reader):
         # the model
@@ -647,6 +647,10 @@ class BookC:
         else:
             self.transmitter.send('close')
 
+    def close_book(self):
+        """Tell the component controllers to close"""
+        self.transmitter.send('close')
+
     def receive(self, control_signal):
         """convert signals from the component views into actions by calling the appropriate methods"""
         match control_signal:
@@ -656,3 +660,5 @@ class BookC:
                 self.cancel_edit()
             case 'edit_button':
                 self.edit()
+            case 'close':
+                self.close_book()
