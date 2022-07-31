@@ -648,6 +648,7 @@ class BookC:
             self.transmitter.send('close')
 
     def close_book(self):
+        """Tell the component controllers to close"""
         self.transmitter.send('close')
 
     def receive(self, control_signal):
