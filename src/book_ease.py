@@ -37,8 +37,6 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, GdkPixbuf, Gdk
 from gi.repository.GdkPixbuf import Pixbuf
 import signal_
-import pinned_books
-import book
 import book_reader
 
 
