@@ -61,8 +61,11 @@ class BookReader:
         self.books = []
 
         # The View
+        book_reader_v = book_reader_view.BookReaderV()
+
         self.book_reader_view = book_reader_view.BookReaderView(
             builder.get_object("book_reader_view"),
+            book_reader_v.get_builder(),
             self,
             self.pinned_books.get_view()
         )

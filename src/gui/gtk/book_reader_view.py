@@ -48,44 +48,44 @@ class BookReaderView:
     cur_pl_path = {'col': 2, 'col_name': 'path', 'g_type': str, 'g_col': 2}
     cur_pl_helper_l = [cur_pl_id, cur_pl_title, cur_pl_path]
 
-    def __init__(self, br_view, book_reader_, pinned_view):
+    def __init__(self, br_view, book_reader_view_builder,  book_reader_, pinned_view):
         self.br_view = br_view
         self.book_reader = book_reader_
 
         # Load the gui from glade
-        builder = Gtk.Builder()
-        glade_path = pathlib.Path.cwd() / 'gui' / 'gtk' / 'book_reader.glade'
-        builder.add_from_file(str(glade_path))
+        #builder = Gtk.Builder()
+        #glade_path = pathlib.Path.cwd() / 'gui' / 'gtk' / 'book_reader.glade'
+        #builder.add_from_file(str(glade_path))
 
         self.cur_pl_helper_l.sort(key=lambda col: col['col'])
 
-        self.header_box = builder.get_object('header_box')
+        self.header_box = book_reader_view_builder.get_object('header_box')
         # a view of the pinned books that will be displayed on the start page
         self.pinned_view = pinned_view
 
-        self.book_reader_notebook = builder.get_object('notebook')
-        self.start_page = builder.get_object('start_page')
+        self.book_reader_notebook = book_reader_view_builder.get_object('notebook')
+        self.start_page = book_reader_view_builder.get_object('start_page')
         self.start_page_label = Gtk.Label(label="Start")
         self.book_reader_notebook.append_page(self.start_page, self.start_page_label)
         self.start_page.pack_start(self.pinned_view, expand=False, fill=False, padding=0)
 
         # has_new_media notification
-        self.has_new_media_box = builder.get_object('has_new_media_box')
+        self.has_new_media_box = book_reader_view_builder.get_object('has_new_media_box')
         self.has_new_media_box.set_no_show_all(True)
-        self.create_pl_btn = builder.get_object('create_pl_btn')
+        self.create_pl_btn = book_reader_view_builder.get_object('create_pl_btn')
         self.create_pl_btn.connect('button-release-event', self.on_button_release)
 
         # has_book_box notification
-        self.has_book_box = builder.get_object('has_book_box')
+        self.has_book_box = book_reader_view_builder.get_object('has_book_box')
         self.has_book_box.set_no_show_all(True)
-        self.open_book_btn = builder.get_object('open_book_btn')
+        self.open_book_btn = book_reader_view_builder.get_object('open_book_btn')
 
         # extract list of g_types from self.cur_pl_helper_l that was previously sorted by col number
         # use list to initialize self.cur_pl_list, our model for displayling
         # all playlists associated ith the current path
         g_types = map(lambda x: x['g_type'], self.cur_pl_helper_l)
         self.cur_pl_list = Gtk.ListStore(*g_types)
-        self.has_book_combo = builder.get_object('has_book_combo')
+        self.has_book_combo = book_reader_view_builder.get_object('has_book_combo')
         self.has_book_combo.set_model(self.cur_pl_list)
 
         renderer_text = Gtk.CellRendererText()
@@ -96,7 +96,7 @@ class BookReaderView:
 
         self.header_box.hide()
         # book_reader_view is the outermost box in the glade file
-        self.book_reader_view = builder.get_object('book_reader_view')
+        self.book_reader_view = book_reader_view_builder.get_object('book_reader_view')
         self.br_view.pack_start(self.book_reader_view, expand=True, fill=True, padding=0)
 
     def on_button_release(self, btn, evt, unused_data=None):
@@ -203,3 +203,17 @@ class BookReaderNoteBookTabV:
     def set_label(self, label: str):
         """Set the text in the title label"""
         self.title_label.set_label(label)
+
+
+class BookReaderV:
+    """The outermost view of the BookReader"""
+
+    def __init__(self):
+        # Load the gui from glade
+        self.builder = Gtk.Builder()
+        glade_path = pathlib.Path.cwd() / 'gui' / 'gtk' / 'book_reader.glade'
+        self.builder.add_from_file(str(glade_path))
+
+    def get_builder(self) -> Gtk.Builder:
+        """get the builder object"""
+        return self.builder
