@@ -44,14 +44,10 @@ class BookReader:
 
     def __init__(self,
                  files: book_ease.Files_,
-                 config: configparser.ConfigParser,
                  builder: Gtk.Builder):
-        self.book_reader_section = 'book_reader'
         self.cur_path = None
         self.files = files
-        self.config = config
-        self.playlist_file = self.config['book_reader']['playlist_file']
-        self.book_reader_dir = self.config['book_reader']['book_reader_dir']
+
         # playlists database helper
         self.playlist_dbi = book.PlaylistDBI()
 
@@ -83,13 +79,6 @@ class BookReader:
             self,
             self.pinned_books.get_view()
         )
-
-    def has_book(self, pth):
-        """determine if there is a playlist associated with the directory, pth"""
-        br_path = os.path.join(pth, self.book_reader_dir, self.playlist_file)
-        if os.path.exists(br_path):
-            return True
-        return False
 
     def get_book(self, index):
         """retrieve a book from the book list"""

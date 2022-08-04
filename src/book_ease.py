@@ -799,7 +799,7 @@ def main(unused_args):
     Image_View(files, config, builder)
 
     # bookreader backend
-    book_reader.BookReader(files, config, builder)
+    book_reader.BookReader(files, builder)
 
     # main window
     MainWindow(builder.get_object("window1"), builder.get_object("window_1_pane"), config, builder)
