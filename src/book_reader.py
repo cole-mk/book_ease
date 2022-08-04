@@ -26,8 +26,6 @@ This module is responsible for managing open Books and feeding them to the view 
 # import signal_
 from __future__ import annotations
 from typing import TYPE_CHECKING
-import re
-import configparser
 import pinned_books
 import book
 import signal_
@@ -41,6 +39,7 @@ if TYPE_CHECKING:
     import configparser
 
 class BookReader:
+    """This class is responsible for opening books for display"""
 
     def __init__(self,
                  files: book_ease.Files_,
@@ -51,30 +50,18 @@ class BookReader:
         # playlists database helper
         self.playlist_dbi = book.PlaylistDBI()
 
-        # pinned playlists that will be displayed bookReader_View
+        # pinned playlists that will be displayed BookReaderView
         self.pinned_books = pinned_books.PinnedBooksC()
         self.pinned_books.connect('open_book', self.open_existing_book)
 
-        # register a updated file list callback with files instance
-        # self.files.connect('file_list_updated', self.on_file_list_updated, get_cur_path=self.files.get_path_current)
+        # register an updated file list callback with files instance
         self.files.connect('file_list_updated', self.on_file_list_updated)
-        self.book_conf = configparser.ConfigParser()
-        self.found_book_path = None
-        self.book_path = None
-        self.book_open = False
-        # books
-        self.books = []
-        self.book_cache = []
-        self.tmp_book = None
-        # playlist_filetypes key has values given in a comma separated list
-        file_types = config[self.book_reader_section]['playlist_filetypes'].split(",")
-        # build compiled regexes for matching list of media suffixes.
-        self.f_type_re = []
-        for i in file_types:
-            i = '.*.\\' + i.strip() + '$'
-            self.f_type_re.append(re.compile(i))
 
-        self.book_reader_view = book_reader_view.BookReader_View(
+        # open books
+        self.books = []
+
+        # The View
+        self.book_reader_view = book_reader_view.BookReaderView(
             builder.get_object("book_reader_view"),
             self,
             self.pinned_books.get_view()
@@ -87,7 +74,7 @@ class BookReader:
     def remove_book(self, book_index):
         """remove a book from the book list"""
         self.books.pop(book_index)
-        # propogate changes to book list indices
+        # propagate changes to book list indices
         while book_index < len(self.books):
             self.get_book(book_index)[0].set_index(book_index)
             book_index += 1
@@ -97,9 +84,9 @@ class BookReader:
         Files is notifying bookreader that it has changed directories and is giving Book reader the list of files in
         the new current working directory.
 
-        Tell BookReader_View if there are any media files that can be used to create a playlist.
+        Tell BookReaderView if there are any media files that can be used to create a playlist.
         """
-        # Tell BookReader_View if there are any saved playlists associated with this directory.
+        # Tell BookReaderView if there are any saved playlists associated with this directory.
         self.update_current_book_list()
 
         # tell view we have files available if they are media files. offer to create new playlist
@@ -157,15 +144,15 @@ class BookReader:
         # create_book_data_th.setDaemon(True)
         # create_book_data_th.start()
 
-    def is_media_file(self, file_):
-        """determine is file_ matches any of the media file definitions"""
-        for i in self.f_type_re:
-            if i.match(file_):
-                return True
-        return False
+    #def is_media_file(self, file_):
+    #    """determine is file_ matches any of the media file definitions"""
+    #    for i in self.f_type_re:
+    #        if i.match(file_):
+    #            return True
+    #    return False
 
-    def update_current_book_list(self, *args):
-        """Tell BookReader_View if there are any saved playlists associated with the current directory."""
+    def update_current_book_list(self, *args):  # pylint: disable=unused-argument
+        """Tell BookReaderView if there are any saved playlists associated with the current directory."""
         self.cur_path = self.files.get_path_current()
         playlists_in_path = self.playlist_dbi.get_by_path(book.PlaylistData(path=self.cur_path))
         if len(playlists_in_path) > 0:
@@ -200,6 +187,6 @@ class BookReaderNoteBookTabVC:
         """get the book title label that this class services"""
         return self.tab_view.get_view()
 
-    def on_close_button_released(self, button, event_button): #pylint: disable=unused-argument
+    def on_close_button_released(self, button, event_button):  # pylint: disable=unused-argument
         """The close button was pressed; emit the 'close' signal"""
         self.component_transmitter.send('close')

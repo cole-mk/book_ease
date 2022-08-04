@@ -37,26 +37,26 @@ if TYPE_CHECKING:
     import book_reader
 
 
-class BookReader_View:
+class BookReaderView:
     """
     The outer most view of the bookreader pane containing a notebook to display individual books as well as several
     control buttons to manage the books
     """
+    # add gui keys to helpers for accessing playlist data stored in db
+    cur_pl_id = {'col': 0, 'col_name': 'id', 'g_type': int, 'g_col': 0}
+    cur_pl_title = {'col': 1, 'col_name': 'title', 'g_type': str, 'g_col': 1}
+    cur_pl_path = {'col': 2, 'col_name': 'path', 'g_type': str, 'g_col': 2}
+    cur_pl_helper_l = [cur_pl_id, cur_pl_title, cur_pl_path]
 
-    def __init__(self, br_view, book_reader, pinned_view):
+    def __init__(self, br_view, book_reader_, pinned_view):
         self.br_view = br_view
-        self.book_reader = book_reader
+        self.book_reader = book_reader_
 
         # Load the gui from glade
         builder = Gtk.Builder()
         glade_path = pathlib.Path.cwd() / 'gui' / 'gtk' / 'book_reader.glade'
         builder.add_from_file(str(glade_path))
 
-        # add gui keys to helpers for accessing playlist data stored in db
-        self.cur_pl_id = {'col':0, 'col_name':'id', 'g_type':int, 'g_col':0}
-        self.cur_pl_title  = {'col':1, 'col_name':'title', 'g_type':str, 'g_col':1}
-        self.cur_pl_path  = {'col':2, 'col_name':'path', 'g_type':str, 'g_col':2}
-        self.cur_pl_helper_l = [self.cur_pl_id, self.cur_pl_title, self.cur_pl_path]
         self.cur_pl_helper_l.sort(key=lambda col: col['col'])
 
         self.header_box = builder.get_object('header_box')
@@ -78,7 +78,6 @@ class BookReader_View:
         # has_book_box notification
         self.has_book_box = builder.get_object('has_book_box')
         self.has_book_box.set_no_show_all(True)
-        self.has_book_box.show()
         self.open_book_btn = builder.get_object('open_book_btn')
 
         # extract list of g_types from self.cur_pl_helper_l that was previously sorted by col number
