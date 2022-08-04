@@ -28,6 +28,7 @@ opening and closing of books.
 
 from __future__ import annotations
 from typing import TYPE_CHECKING
+import pathlib
 import gi
 gi.require_version("Gtk", "3.0")  # pylint: disable=wrong-import-position
 from gi.repository import Gtk  # noqa: E402
@@ -46,6 +47,11 @@ class BookReader_View:
         self.br_view = br_view
         self.book_reader = book_reader
 
+        # Load the gui from glade
+        builder = Gtk.Builder()
+        glade_path = pathlib.Path.cwd() / 'gui' / 'gtk' / 'book_reader.glade'
+        builder.add_from_file(str(glade_path))
+
         # add gui keys to helpers for accessing playlist data stored in db
         self.cur_pl_id = {'col':0, 'col_name':'id', 'g_type':int, 'g_col':0}
         self.cur_pl_title  = {'col':1, 'col_name':'title', 'g_type':str, 'g_col':1}
@@ -53,70 +59,46 @@ class BookReader_View:
         self.cur_pl_helper_l = [self.cur_pl_id, self.cur_pl_title, self.cur_pl_path]
         self.cur_pl_helper_l.sort(key=lambda col: col['col'])
 
-        self.outer_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
-
-        self.header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        self.header_box = builder.get_object('header_box')
         # a view of the pinned books that will be displayed on the start page
         self.pinned_view = pinned_view
 
-        self.book_reader_notebook = Gtk.Notebook()
-        self.start_page = self.build_start_page()
+        self.book_reader_notebook = builder.get_object('notebook')
+        self.start_page = builder.get_object('start_page')
         self.start_page_label = Gtk.Label(label="Start")
         self.book_reader_notebook.append_page(self.start_page, self.start_page_label)
+        self.start_page.pack_start(self.pinned_view, expand=False, fill=False, padding=0)
+
         # has_new_media notification
-        self.has_new_media_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        self.has_new_media_box = builder.get_object('has_new_media_box')
         self.has_new_media_box.set_no_show_all(True)
-        self.create_pl_btn = Gtk.Button(label='Create')
-        self.has_new_media_box.pack_start(self.create_pl_btn, expand=False, fill=False, padding=0)
-        self.create_pl_label = Gtk.Label('New Playlist')
-        self.create_pl_label.set_margin_right(4)
-        self.has_new_media_box.pack_start(self.create_pl_label, expand=False, fill=False, padding=0)
-        self.has_new_media_box.set_child_packing(child=self.create_pl_label, expand=False, fill=False,
-                                                 padding=0, pack_type=Gtk.PackType.END)
-
-        self.has_new_media_box.set_child_packing(child=self.create_pl_btn, expand=False, fill=False,
-                                                 padding=0, pack_type=Gtk.PackType.END)
-
+        self.create_pl_btn = builder.get_object('create_pl_btn')
         self.create_pl_btn.connect('button-release-event', self.on_button_release)
 
-        self.header_box.pack_end(self.has_new_media_box, expand=False, fill=False, padding=10)
-
         # has_book_box notification
-        self.has_book_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        self.has_book_box = builder.get_object('has_book_box')
         self.has_book_box.set_no_show_all(True)
         self.has_book_box.show()
-        self.open_book_btn = Gtk.Button(label='Open')
-        #self.open_book_btn.show()
-        self.has_book_box.pack_start(self.open_book_btn, expand=False, fill=False, padding=0)
-        self.has_book_box.set_child_packing(child=self.open_book_btn, expand=False, fill=False,
-                                            padding=0, pack_type=Gtk.PackType.END)
+        self.open_book_btn = builder.get_object('open_book_btn')
 
         # extract list of g_types from self.cur_pl_helper_l that was previously sorted by col number
         # use list to initialize self.cur_pl_list, our model for displayling
         # all playlists associated ith the current path
         g_types = map(lambda x: x['g_type'], self.cur_pl_helper_l)
         self.cur_pl_list = Gtk.ListStore(*g_types)
+        self.has_book_combo = builder.get_object('has_book_combo')
+        self.has_book_combo.set_model(self.cur_pl_list)
 
-        self.has_book_combo = Gtk.ComboBox.new_with_model(self.cur_pl_list)
         renderer_text = Gtk.CellRendererText()
         self.has_book_combo.pack_start(renderer_text, True)
         self.has_book_combo.add_attribute(renderer_text, "text", self.cur_pl_title['g_col'])
         self.has_book_combo.set_active(0)
-        self.has_book_box.pack_start(self.has_book_combo, expand=False, fill=False, padding=0)
-        self.has_book_box.set_child_packing(child=self.has_book_combo, expand=False, fill=False,
-                                            padding=0, pack_type=Gtk.PackType.END)
-
         self.open_book_btn.connect('button-release-event', self.on_button_release)
 
-        self.header_box.pack_end(self.has_book_box, expand=False, fill=False, padding=10)
-
-
         self.header_box.hide()
-
-        self.outer_box.pack_start(self.header_box, expand=False, fill=False, padding=0)
-        self.outer_box.pack_start(self.book_reader_notebook, expand=True, fill=True, padding=0)
-
-        self.br_view.pack_start(self.outer_box, expand=True, fill=True, padding=0)
+        # book_reader_view is the outermost box in the glade file
+        self.book_reader_view = builder.get_object('book_reader_view')
+        self.br_view.pack_start(self.book_reader_view, expand=True, fill=True, padding=0)
 
     def on_button_release(self, btn, evt, unused_data=None):
         """
@@ -165,7 +147,7 @@ class BookReader_View:
         # model holds list of existing playlist titles
         model = self.has_book_combo.get_model()
         model.clear()
-        if  has_book:
+        if has_book:
             for playlst_data in playlists_in_path:
                 itr = model.append()
                 model.set_value(itr, self.cur_pl_id['col'], playlst_data.get_id())
@@ -179,7 +161,7 @@ class BookReader_View:
         else:
             self.has_book_box.hide()
 
-    def append_book(self, view: Gtk.Box, br_title_vc: BookReaderNoteBookTabVC):
+    def append_book(self, view: Gtk.Box, br_title_vc: book_reader.BookReaderNoteBookTabVC):
         """set a book view to a new notebook tab"""
         newpage = self.book_reader_notebook.append_page(view, br_title_vc.get_view())
         self.book_reader_notebook.show_all()
