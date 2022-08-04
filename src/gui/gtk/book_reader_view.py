@@ -190,8 +190,8 @@ class BookReaderNoteBookTabV:
     def __init__(self):
         self.view = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
         self.title_label = Gtk.Label()
-        image = Gtk.Image(stock=Gtk.STOCK_OPEN)
-        self.close_button = Gtk.Button(label=None, image=Gtk.Image(stock=Gtk.STOCK_CLOSE))
+        image = Gtk.Image.new_from_icon_name('window-close', Gtk.IconSize.SMALL_TOOLBAR)
+        self.close_button = Gtk.Button(label=None, image=image)
         self.close_button.set_relief(Gtk.ReliefStyle.NONE)
         self.view.pack_start(self.title_label, expand=False, fill=False, padding=0)
         self.view.pack_start(self.close_button, expand=False, fill=False, padding=0)
