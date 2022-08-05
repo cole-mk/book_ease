@@ -32,6 +32,7 @@ import pathlib
 import gi
 gi.require_version("Gtk", "3.0")  # pylint: disable=wrong-import-position
 from gi.repository import Gtk  # noqa: E402
+import signal_  # noqa: E402
 import book  # noqa: E402
 if TYPE_CHECKING:
     import book_reader
@@ -39,64 +40,31 @@ if TYPE_CHECKING:
 
 class BookReaderView:
     """
-    The outer most view of the bookreader pane containing a notebook to display individual books as well as several
+    The outermost view of the bookreader pane containing a notebook to display individual books as well as several
     control buttons to manage the books
     """
-    # add gui keys to helpers for accessing playlist data stored in db
-    cur_pl_id = {'col': 0, 'col_name': 'id', 'g_type': int, 'g_col': 0}
-    cur_pl_title = {'col': 1, 'col_name': 'title', 'g_type': str, 'g_col': 1}
-    cur_pl_path = {'col': 2, 'col_name': 'path', 'g_type': str, 'g_col': 2}
-    cur_pl_helper_l = [cur_pl_id, cur_pl_title, cur_pl_path]
-
-    def __init__(self, br_view, book_reader_view_builder,  book_reader_, pinned_view):
+    def __init__(self, br_view, gui_builder, book_reader_, pinned_view):
         self.br_view = br_view
         self.book_reader = book_reader_
-
-        # Load the gui from glade
-        #builder = Gtk.Builder()
-        #glade_path = pathlib.Path.cwd() / 'gui' / 'gtk' / 'book_reader.glade'
-        #builder.add_from_file(str(glade_path))
-
-        self.cur_pl_helper_l.sort(key=lambda col: col['col'])
-
-        self.header_box = book_reader_view_builder.get_object('header_box')
+        self.header_box = gui_builder.get_object('header_box')
         # a view of the pinned books that will be displayed on the start page
         self.pinned_view = pinned_view
 
-        self.book_reader_notebook = book_reader_view_builder.get_object('notebook')
-        self.start_page = book_reader_view_builder.get_object('start_page')
+        self.book_reader_notebook = gui_builder.get_object('notebook')
+        self.start_page = gui_builder.get_object('start_page')
         self.start_page_label = Gtk.Label(label="Start")
         self.book_reader_notebook.append_page(self.start_page, self.start_page_label)
         self.start_page.pack_start(self.pinned_view, expand=False, fill=False, padding=0)
 
         # has_new_media notification
-        self.has_new_media_box = book_reader_view_builder.get_object('has_new_media_box')
+        self.has_new_media_box = gui_builder.get_object('has_new_media_box')
         self.has_new_media_box.set_no_show_all(True)
-        self.create_pl_btn = book_reader_view_builder.get_object('create_pl_btn')
+        self.create_pl_btn = gui_builder.get_object('create_pl_btn')
         self.create_pl_btn.connect('button-release-event', self.on_button_release)
-
-        # has_book_box notification
-        self.has_book_box = book_reader_view_builder.get_object('has_book_box')
-        self.has_book_box.set_no_show_all(True)
-        self.open_book_btn = book_reader_view_builder.get_object('open_book_btn')
-
-        # extract list of g_types from self.cur_pl_helper_l that was previously sorted by col number
-        # use list to initialize self.cur_pl_list, our model for displayling
-        # all playlists associated ith the current path
-        g_types = map(lambda x: x['g_type'], self.cur_pl_helper_l)
-        self.cur_pl_list = Gtk.ListStore(*g_types)
-        self.has_book_combo = book_reader_view_builder.get_object('has_book_combo')
-        self.has_book_combo.set_model(self.cur_pl_list)
-
-        renderer_text = Gtk.CellRendererText()
-        self.has_book_combo.pack_start(renderer_text, True)
-        self.has_book_combo.add_attribute(renderer_text, "text", self.cur_pl_title['g_col'])
-        self.has_book_combo.set_active(0)
-        self.open_book_btn.connect('button-release-event', self.on_button_release)
 
         self.header_box.hide()
         # book_reader_view is the outermost box in the glade file
-        self.book_reader_view = book_reader_view_builder.get_object('book_reader_view')
+        self.book_reader_view = gui_builder.get_object('book_reader_view')
         self.br_view.pack_start(self.book_reader_view, expand=True, fill=True, padding=0)
 
     def on_button_release(self, btn, evt, unused_data=None):
@@ -108,22 +76,6 @@ class BookReaderView:
             if evt.get_button()[1] == 1:
                 if btn is self.create_pl_btn:
                     self.book_reader.open_new_book()
-                if btn is self.open_book_btn:
-                    # open book button was pressed
-                    # get the selected title from the has_book_combo
-                    # and pass it to book reader for opening the playlist
-                    model = self.has_book_combo.get_model()
-                    sel = self.has_book_combo.get_active()
-                    itr = model.get_iter((sel,))
-                    # get entire row from model
-                    cols = map(lambda x: x['col'], self.cur_pl_helper_l)
-                    pl_row = model.get(itr, *cols)
-                    # extract playlist data from row
-                    playlist_data = book.PlaylistData()
-                    playlist_data.set_id(pl_row[self.cur_pl_id['col']])
-                    playlist_data.set_path(pl_row[self.cur_pl_path['col']])
-                    playlist_data.set_title(pl_row[self.cur_pl_title['col']])
-                    self.book_reader.open_existing_book(playlist_data)
 
     def on_has_new_media(self, has_new_media):
         """allow book_reader_view to tell the view if there are media files in the directory"""
@@ -133,32 +85,6 @@ class BookReaderView:
             self.has_new_media_box.set_no_show_all(True)
         else:
             self.has_new_media_box.hide()
-
-    def on_has_book(self, has_book, playlists_in_path=None):
-        """
-        Allow book_reader_view to tell the view if there are any playlists associated with the current path.
-
-        The has book box is a combo box containing the list of those playlists.
-
-        This method shows or hides the has_book_box based on the value of has_book and updates the combo box model with
-        the playlists in playlists_in_path
-        """
-        # model holds list of existing playlist titles
-        model = self.has_book_combo.get_model()
-        model.clear()
-        if has_book:
-            for playlst_data in playlists_in_path:
-                itr = model.append()
-                model.set_value(itr, self.cur_pl_id['col'], playlst_data.get_id())
-                model.set_value(itr, self.cur_pl_title['col'], playlst_data.get_title())
-                model.set_value(itr, self.cur_pl_path['col'], playlst_data.get_path())
-            # display option to open existing playlist
-            self.has_book_box.set_no_show_all(False)
-            self.has_book_box.show_all()
-            self.has_book_combo.set_active(0)
-            self.has_book_box.set_no_show_all(True)
-        else:
-            self.has_book_box.hide()
 
     def append_book(self, view: Gtk.Box, br_title_vc: book_reader.BookReaderNoteBookTabVC):
         """set a book view to a new notebook tab"""
@@ -205,7 +131,7 @@ class BookReaderNoteBookTabV:
         self.title_label.set_label(label)
 
 
-class BookReaderV:
+class BookReaderV:  # pylint: disable=too-few-public-methods
     """The outermost view of the BookReader"""
 
     def __init__(self):
@@ -217,3 +143,78 @@ class BookReaderV:
     def get_builder(self) -> Gtk.Builder:
         """get the builder object"""
         return self.builder
+
+
+class ExistingBookOpenerV:
+    """
+    The Gtk view for the ExistingBookOpener
+    """
+
+    def __init__(self, gui_builder: Gtk.Builder):
+        self.transmitter = signal_.Signal()
+        self.transmitter.add_signal('open_book')
+        # has_book_box notification
+        self.has_book_box = gui_builder.get_object('has_book_box')
+        self.has_book_box.set_no_show_all(True)
+        self.open_book_btn = gui_builder.get_object('open_book_btn')
+        self.has_book_combo = gui_builder.get_object('has_book_combo')
+        renderer_text = Gtk.CellRendererText()
+        self.has_book_combo.pack_start(renderer_text, True)
+        self.has_book_combo.add_attribute(renderer_text, "text", ExistingBookOpenerM.pl_title['g_col'])
+        self.open_book_btn.connect('button-release-event', self.on_button_release)
+
+    def on_button_release(self, *args):  # pylint: disable=unused-argument
+        """Relay the message that the user wants to open a book."""
+        self.transmitter.send('open_book')
+
+    def get_selection(self) -> Gtk.TreeIter:
+        """get an iterator pointing to the book selected by the user in the has_book_combo"""
+        return self.has_book_combo.get_active_iter()
+
+    def show(self):
+        """Make this view visible"""
+        self.has_book_combo.set_active(0)
+        self.has_book_box.show()
+
+    def hide(self):
+        """Make this view invisible"""
+        self.has_book_box.hide()
+
+
+class ExistingBookOpenerM:
+    """Wrapper for the Gtk.Liststore containing the data displayed in the has_book_combo"""
+
+    # add gui keys to helpers for accessing playlist data stored in db
+    pl_id = {'col': 0, 'col_name': 'id', 'g_type': int, 'g_col': 0}
+    pl_title = {'col': 1, 'col_name': 'title', 'g_type': str, 'g_col': 1}
+    pl_path = {'col': 2, 'col_name': 'path', 'g_type': str, 'g_col': 2}
+    pl_helper_l = [pl_id, pl_title, pl_path]
+    pl_helper_l.sort(key=lambda col: col['col'])
+    # extract list of g_types from self.cur_pl_helper_l that was previously sorted by col number
+    # use list to initialize the model for displaying
+    # all playlists associated with the current path
+    g_types = map(lambda x: x['g_type'], pl_helper_l)
+
+    def __init__(self):
+        self.model = Gtk.ListStore(*self.g_types)
+
+    def get_row(self, row: Gtk.TreeIter) -> book.PlaylistData:
+        """return a row from the model as a PlaylistData object"""
+        playlist_data = book.PlaylistData()
+        playlist_data.set_id(self.model.get_value(row, self.pl_id['g_col']))
+        playlist_data.set_title(self.model.get_value(row, self.pl_title['g_col']))
+        playlist_data.set_path(self.model.get_value(row, self.pl_path['g_col']))
+        return playlist_data
+
+    def update(self, pl_data_list: list[book.PlaylistData]):
+        """Populate the model with the data in the list of PlaylistData objects."""
+        self.model.clear()
+        for playlist_data in pl_data_list:
+            g_iter = self.model.append()
+            self.model.set_value(g_iter, self.pl_id['g_col'], playlist_data.get_id())
+            self.model.set_value(g_iter, self.pl_title['g_col'], playlist_data.get_title())
+            self.model.set_value(g_iter, self.pl_path['g_col'], playlist_data.get_path())
+
+    def get_model(self) -> Gtk.ListStore:
+        """get the Gtk.ListStore that this class encapsulates."""
+        return self.model
