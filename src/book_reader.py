@@ -72,6 +72,9 @@ class BookReader:
         self.existing_book_opener = ExistingBookOpener(gui_builder, self.files)
         self.existing_book_opener.transmitter.connect('open_book', self.open_existing_book)
 
+        self.new_book_opener = NewBookOpener(gui_builder, self.files)
+        self.new_book_opener.transmitter.connect('open_book', self.open_new_book)
+
     def get_book(self, index):
         """retrieve a book from the book list"""
         return self.books[index]
@@ -93,13 +96,7 @@ class BookReader:
         """
 
         # tell view we have files available if they are media files. offer to create new playlist
-        f_list = self.files.get_file_list()
-        has_new_media = False
-        for i in f_list:
-            if book.TrackFI.is_media_file(i[1]):
-                has_new_media = True
-                break
-        self.book_reader_view.on_has_new_media(has_new_media)
+        self.cur_path = self.files.get_path_current()
 
     def append_book(self, book_):
         """append book to list of opened books"""
@@ -137,9 +134,8 @@ class BookReader:
         br_title_vc = BookReaderNoteBookTabVC(book_.transmitter, book_.component_transmitter)
         index = self.append_book(book_)
         book_.transmitter.connect('close', self.remove_book, index)
+        book_.transmitter.connect('update', self.existing_book_opener.update_book_list)
         book_.page = self.book_reader_view.append_book(book_.get_view(), br_title_vc)
-        # clear book_reader_view.has_new_media flag
-        self.book_reader_view.on_has_new_media(False)
         # load the playlist metadata
         book_.open_new_playlist()
         # load the playlist metadata in background
@@ -227,3 +223,45 @@ class ExistingBookOpener:
         selection = self.existing_book_opener_v.get_selection()
         book_ = self.existing_book_opener_m.get_row(selection)
         self.transmitter.send('open_book', book_)
+
+
+class NewBookOpener:
+    """
+    This class monitors Files object for changes in CWD, making its view visible if there is are media files in this
+    path.
+
+    This class also allows the user top open a new book by pressing the create_book_button.
+    """
+
+    def __init__(self,
+                 gui_builder: Gtk.Builder,
+                 files: book_ease.Files_):
+
+        self.transmitter = signal_.Signal()
+        self.transmitter.add_signal('open_book')
+
+        self.files = files
+        self.files.connect('cwd_changed', self.on_cwd_changed)
+
+
+        self.view = book_reader_view.NewBookOpenerV(gui_builder)
+        self.view.transmitter.connect('open_book', self.open_book)
+
+    def open_book(self):
+        self.transmitter.send('open_book')
+
+    def on_cwd_changed(self):
+        # tell view we have files available if they are media files. offer to create new playlist
+        if self.has_new_media():
+            self.view.show()
+        else:
+            self.view.hide()
+
+    def has_new_media(self) -> bool:
+        f_list = self.files.get_file_list()
+        has_new_media = False
+        for i in f_list:
+            if book.TrackFI.is_media_file(i[1]):
+                has_new_media = True
+                break
+        return has_new_media
