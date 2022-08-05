@@ -56,12 +56,6 @@ class BookReaderView:
         self.book_reader_notebook.append_page(self.start_page, self.start_page_label)
         self.start_page.pack_start(self.pinned_view, expand=False, fill=False, padding=0)
 
-        # has_new_media notification
-        self.has_new_media_box = gui_builder.get_object('has_new_media_box')
-        self.has_new_media_box.set_no_show_all(True)
-        self.create_pl_btn = gui_builder.get_object('create_pl_btn')
-        self.create_pl_btn.connect('button-release-event', self.on_button_release)
-
         self.header_box.hide()
         # book_reader_view is the outermost box in the glade file
         self.book_reader_view = gui_builder.get_object('book_reader_view')
@@ -218,3 +212,29 @@ class ExistingBookOpenerM:
     def get_model(self) -> Gtk.ListStore:
         """get the Gtk.ListStore that this class encapsulates."""
         return self.model
+
+
+class NewBookOpenerV:
+    """The Gtk view for the ExistingBookOpener"""
+
+    def __init__(self, gui_builder: Gtk.Builder):
+        self.transmitter = signal_.Signal()
+        self.transmitter.add_signal('open_book')
+
+        self.has_new_media_box = gui_builder.get_object('has_new_media_box')
+        self.has_new_media_box.set_no_show_all(True)
+
+        self.create_book_btn = gui_builder.get_object('create_book_btn')
+        self.create_book_btn.connect('button-release-event', self.on_button_release)
+
+    def on_button_release(self, *args):  # pylint: disable=unused-argument
+        """Relay the message that the user wants to open a book."""
+        self.transmitter.send('open_book')
+
+    def show(self):
+        """Make this view visible"""
+        self.has_new_media_box.show()
+
+    def hide(self):
+        """Make this view invisible"""
+        self.has_new_media_box.hide()
