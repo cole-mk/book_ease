@@ -43,42 +43,17 @@ class BookReaderView:
     The outermost view of the bookreader pane containing a notebook to display individual books as well as several
     control buttons to manage the books
     """
-    def __init__(self, br_view, gui_builder, book_reader_, pinned_view):
+    def __init__(self, br_view, gui_builder, book_reader_):
         self.br_view = br_view
         self.book_reader = book_reader_
         self.header_box = gui_builder.get_object('header_box')
-        # a view of the pinned books that will be displayed on the start page
-        self.pinned_view = pinned_view
 
         self.book_reader_notebook = gui_builder.get_object('notebook')
-        self.start_page = gui_builder.get_object('start_page')
-        self.start_page_label = Gtk.Label(label="Start")
-        self.book_reader_notebook.append_page(self.start_page, self.start_page_label)
-        self.start_page.pack_start(self.pinned_view, expand=False, fill=False, padding=0)
 
         self.header_box.hide()
         # book_reader_view is the outermost box in the glade file
         self.book_reader_view = gui_builder.get_object('book_reader_view')
         self.br_view.pack_start(self.book_reader_view, expand=True, fill=True, padding=0)
-
-    def on_button_release(self, btn, evt, unused_data=None):
-        """
-        callback for the various control buttons
-        currently takes actions for creating a new book and opening a new book
-        """
-        if evt.get_button()[0] is True:
-            if evt.get_button()[1] == 1:
-                if btn is self.create_pl_btn:
-                    self.book_reader.open_new_book()
-
-    def on_has_new_media(self, has_new_media):
-        """allow book_reader_view to tell the view if there are media files in the directory"""
-        if has_new_media:
-            self.has_new_media_box.set_no_show_all(False)
-            self.has_new_media_box.show_all()
-            self.has_new_media_box.set_no_show_all(True)
-        else:
-            self.has_new_media_box.hide()
 
     def append_book(self, view: Gtk.Box, br_title_vc: book_reader.BookReaderNoteBookTabVC):
         """set a book view to a new notebook tab"""
@@ -87,16 +62,6 @@ class BookReaderView:
         self.book_reader_notebook.set_current_page(newpage)
         # this needs to be changed we're not using the returned tuple
         return newpage, view
-
-    def build_start_page(self):
-        """build the content of the first notebook tab for displaying non-specific-book information"""
-        start_label = Gtk.Label(label="Welcome to BookEase")
-        start_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
-        start_box.pack_start(start_label, expand=False, fill=False, padding=20)
-        start_box.pack_start(self.pinned_view, expand=True, fill=True, padding=20)
-
-        return start_box
-        #self.add(start_box)
 
 
 class BookReaderNoteBookTabV:
@@ -238,3 +203,27 @@ class NewBookOpenerV:
     def hide(self):
         """Make this view invisible"""
         self.has_new_media_box.hide()
+
+
+class StartPageV:
+    """Gtk view of the start page"""
+
+    def __init__(self, gui_builder: Gtk.Builder):
+        self.view = gui_builder.get_object('start_page')
+        self.tab_label = Gtk.Label()
+
+    def add_view(self, view: Gtk.Widget):
+        """append a view to the start page view"""
+        self.view.pack_start(view, expand=True, fill=True, padding=0)
+
+    def get_view(self):
+        """get the Gtk container that is the start page view"""
+        return self.view
+
+    def get_tab_label(self):
+        """Get the tab label."""
+        return self.tab_label
+
+    def set_tab_label(self, text: str):
+        """Set text of the tab label."""
+        self.tab_label.set_label(text)

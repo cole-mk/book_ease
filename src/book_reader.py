@@ -62,7 +62,6 @@ class BookReader:
             builder.get_object("book_reader_view"),
             gui_builder,
             self,
-            self.pinned_books.get_view()
         )
         # The BookReader components
         self.existing_book_opener = ExistingBookOpener(gui_builder, self.files)
@@ -70,6 +69,11 @@ class BookReader:
 
         self.new_book_opener = NewBookOpener(gui_builder, self.files)
         self.new_book_opener.transmitter.connect('open_book', self.open_new_book)
+
+        self.start_page = StartPage(gui_builder)
+        self.start_page.add_component(self.pinned_books.get_view())
+        self.book_reader_view.book_reader_notebook.append_page(self.start_page.get_view(),
+                                                               self.start_page.get_tab_label())
 
     def get_book(self, index):
         """retrieve a book from the book list"""
@@ -249,3 +253,25 @@ class NewBookOpener:
                 has_new_media = True
                 break
         return has_new_media
+
+
+class StartPage:
+    """A welcome page to be displayed in the BookReader Notebook View"""
+
+    def __init__(self, gui_builder: Gtk.Builder):
+        self.transmitter = signal_.Signal()
+        self.transmitter.add_signal('open_book')
+        self.view = book_reader_view.StartPageV(gui_builder)
+        self.view.set_tab_label('Start')
+
+    def add_component(self, component_view: Gtk.Widget):
+        """Add a component View to the start page"""
+        self.view.add_view(component_view)
+
+    def get_view(self):
+        """get the Gtk container that is the start page view"""
+        return self.view.get_view()
+
+    def get_tab_label(self):
+        """get a label object from the view"""
+        return self.view.get_tab_label()
