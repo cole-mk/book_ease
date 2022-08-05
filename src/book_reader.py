@@ -23,7 +23,6 @@
 """
 This module is responsible for managing open Books and feeding them to the view for display
 """
-# import signal_
 from __future__ import annotations
 from typing import TYPE_CHECKING
 import pinned_books
@@ -36,7 +35,7 @@ if TYPE_CHECKING:
     gi.require_version("Gtk", "3.0")  # pylint: disable=wrong-import-position
     from gi.repository import Gtk
     import book_ease
-    import configparser
+
 
 class BookReader:
     """This class is responsible for opening books for display"""
@@ -62,13 +61,16 @@ class BookReader:
 
         # The View
         book_reader_v = book_reader_view.BookReaderV()
-
+        gui_builder = book_reader_v.get_builder()
         self.book_reader_view = book_reader_view.BookReaderView(
             builder.get_object("book_reader_view"),
-            book_reader_v.get_builder(),
+            gui_builder,
             self,
             self.pinned_books.get_view()
         )
+        # The BookReader components
+        self.existing_book_opener = ExistingBookOpener(gui_builder, self.files)
+        self.existing_book_opener.transmitter.connect('open_book', self.open_existing_book)
 
     def get_book(self, index):
         """retrieve a book from the book list"""
@@ -89,8 +91,6 @@ class BookReader:
 
         Tell BookReaderView if there are any media files that can be used to create a playlist.
         """
-        # Tell BookReaderView if there are any saved playlists associated with this directory.
-        self.update_current_book_list()
 
         # tell view we have files available if they are media files. offer to create new playlist
         f_list = self.files.get_file_list()
@@ -108,7 +108,7 @@ class BookReader:
         self.books.append(book_)
         return index
 
-    def open_existing_book(self, pl_row):
+    def open_existing_book(self, pl_data: book.PlaylistData):
         """
         create a new Book instance and tell it to load a saved playlist.
         append the new Book to the booklist for later usage
@@ -118,9 +118,9 @@ class BookReader:
         book_.page = self.book_reader_view.append_book(book_.get_view(), br_note_book_tab_vc)
         index = self.append_book(book_)
         book_.transmitter.connect('close', self.remove_book, index)
-        book_.transmitter.connect('update', self.update_current_book_list)
+        book_.transmitter.connect('update', self.existing_book_opener.update_book_list)
         # load the playlist metadata
-        book_.open_existing_playlist(pl_row)
+        book_.open_existing_playlist(pl_data)
         # load the playlist metadata in background
         # load_book_data_th = Thread(target=bk.book_data_load, args={row})
         # load_book_data_th.setDaemon(True)
@@ -146,22 +146,6 @@ class BookReader:
         # create_book_data_th = Thread(target=bk.open_new_playlist)
         # create_book_data_th.setDaemon(True)
         # create_book_data_th.start()
-
-    #def is_media_file(self, file_):
-    #    """determine is file_ matches any of the media file definitions"""
-    #    for i in self.f_type_re:
-    #        if i.match(file_):
-    #            return True
-    #    return False
-
-    def update_current_book_list(self, *args):  # pylint: disable=unused-argument
-        """Tell BookReaderView if there are any saved playlists associated with the current directory."""
-        self.cur_path = self.files.get_path_current()
-        playlists_in_path = self.playlist_dbi.get_by_path(book.PlaylistData(path=self.cur_path))
-        if len(playlists_in_path) > 0:
-            self.book_reader_view.on_has_book(has_book=True, playlists_in_path=playlists_in_path)
-        else:
-            self.book_reader_view.on_has_book(has_book=False)
 
 
 class BookReaderNoteBookTabVC:
@@ -193,3 +177,53 @@ class BookReaderNoteBookTabVC:
     def on_close_button_released(self, button, event_button):  # pylint: disable=unused-argument
         """The close button was pressed; emit the 'close' signal"""
         self.component_transmitter.send('close')
+
+
+class ExistingBookOpener:
+    """
+    This class monitors Files object for changes in CWD, making its view visible if there is a saved book associated
+    with this path.
+
+    This class also allows the user top open an existing book by selecting the desired book from the has_book combo box
+    and pressing the open_book_button.
+    """
+
+    def __init__(self,
+                 gui_builder: Gtk.Builder,
+                 files: book_ease.Files_):
+        self.transmitter = signal_.Signal()
+        self.transmitter.add_signal('open_book')
+
+        self.files = files
+        self.files.connect('cwd_changed', self.update_book_list)
+
+        self.playlist_dbi = book.PlaylistDBI()
+
+        self.existing_book_opener_v = book_reader_view.ExistingBookOpenerV(gui_builder)
+        self.existing_book_opener_v.transmitter.connect('open_book', self.open_book)
+
+        self.existing_book_opener_m = book_reader_view.ExistingBookOpenerM()
+        self.existing_book_opener_v.has_book_combo.set_model(self.existing_book_opener_m.get_model())
+
+    def update_book_list(self, *args):  # pylint: disable=unused-argument
+        """
+        Check if there are any saved Books associated with the new cwd.
+
+        """
+        # def update_book_list(self, *args):  # pylint: disable=unused-argument
+        cur_path = self.files.get_path_current()
+        playlists_in_path = self.playlist_dbi.get_by_path(book.PlaylistData(path=cur_path))
+        self.existing_book_opener_m.update(playlists_in_path)
+        if len(playlists_in_path) > 0:
+            self.existing_book_opener_v.show()
+        else:
+            self.existing_book_opener_v.hide()
+
+    def open_book(self):
+        """
+        Use transmitter to broadcast the command to open a book.
+        Include a PlaylistData object describing the book as an arg.
+        """
+        selection = self.existing_book_opener_v.get_selection()
+        book_ = self.existing_book_opener_m.get_row(selection)
+        self.transmitter.send('open_book', book_)
