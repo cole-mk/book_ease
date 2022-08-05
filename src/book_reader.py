@@ -228,7 +228,6 @@ class NewBookOpener:
         self.files = files
         self.files.connect('cwd_changed', self.on_cwd_changed)
 
-
         self.view = book_reader_view.NewBookOpenerV(gui_builder)
         self.view.transmitter.connect('open_book', self.open_book)
 
