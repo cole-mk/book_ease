@@ -43,7 +43,6 @@ class BookReader:
     def __init__(self,
                  files: book_ease.Files_,
                  builder: Gtk.Builder):
-        self.cur_path = None
         self.files = files
 
         # playlists database helper
@@ -52,9 +51,6 @@ class BookReader:
         # pinned playlists that will be displayed BookReaderView
         self.pinned_books = pinned_books.PinnedBooksC()
         self.pinned_books.connect('open_book', self.open_existing_book)
-
-        # register an updated file list callback with files instance
-        self.files.connect('cwd_changed', self.on_file_list_updated)
 
         # open books
         self.books = []
@@ -87,17 +83,6 @@ class BookReader:
             self.get_book(book_index)[0].set_index(book_index)
             book_index += 1
 
-    def on_file_list_updated(self):
-        """
-        Files is notifying bookreader that it has changed directories and is giving Book reader the list of files in
-        the new current working directory.
-
-        Tell BookReaderView if there are any media files that can be used to create a playlist.
-        """
-
-        # tell view we have files available if they are media files. offer to create new playlist
-        self.cur_path = self.files.get_path_current()
-
     def append_book(self, book_):
         """append book to list of opened books"""
         index = len(self.books)
@@ -110,7 +95,7 @@ class BookReader:
         create a new Book instance and tell it to load a saved playlist.
         append the new Book to the booklist for later usage
         """
-        book_ = book.BookC(self.cur_path, None, self)
+        book_ = book.BookC(self.files.get_path_current(), None, self)
         br_note_book_tab_vc = BookReaderNoteBookTabVC(book_.transmitter, book_.component_transmitter)
         book_.page = self.book_reader_view.append_book(book_.get_view(), br_note_book_tab_vc)
         index = self.append_book(book_)
@@ -129,8 +114,8 @@ class BookReader:
         append the new Book to the booklist for later usage
         """
         f_list = self.files.get_file_list_new()
-        self.files.populate_file_list(f_list, self.cur_path)
-        book_ = book.BookC(self.cur_path, f_list, self)
+        self.files.populate_file_list(f_list, self.files.get_path_current())
+        book_ = book.BookC(self.files.get_path_current(), f_list, self)
         br_title_vc = BookReaderNoteBookTabVC(book_.transmitter, book_.component_transmitter)
         index = self.append_book(book_)
         book_.transmitter.connect('close', self.remove_book, index)
