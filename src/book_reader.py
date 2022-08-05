@@ -55,7 +55,7 @@ class BookReader:
         self.pinned_books.connect('open_book', self.open_existing_book)
 
         # register an updated file list callback with files instance
-        self.files.connect('file_list_updated', self.on_file_list_updated)
+        self.files.connect('cwd_changed', self.on_file_list_updated)
 
         # open books
         self.books = []

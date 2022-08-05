@@ -393,7 +393,7 @@ class Files_(signal_.Signal):
 
         # Signals
         # Notify of file changes
-        self.add_signal('file_list_updated')
+        self.add_signal('cwd_changed')
         # populate the file_list
         self.__update_file_list()
 
@@ -402,7 +402,7 @@ class Files_(signal_.Signal):
         self.file_list.clear()
         self.populate_file_list(self.file_list, self.current_path)
         # notify subscribers that the file list has been updated
-        self.send('file_list_updated')
+        self.send('cwd_changed')
 
     def get_file_list_new(self):
         """create a new file list model for the files view"""
