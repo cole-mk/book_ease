@@ -27,7 +27,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkButton" id="create_pl_btn">
+              <object class="GtkButton" id="create_book_btn">
                 <property name="label" translatable="yes">Create</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
