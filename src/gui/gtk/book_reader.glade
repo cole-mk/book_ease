@@ -93,7 +93,7 @@
       </packing>
     </child>
     <child>
-      <object class="GtkNotebook" id="notebook">
+      <object class="GtkNotebook" id="note_book">
         <property name="visible">True</property>
         <property name="can_focus">True</property>
         <child>
