@@ -42,7 +42,7 @@ class BookReader:
 
     def __init__(self,
                  files: book_ease.Files_,
-                 builder: Gtk.Builder):
+                 book_view_builder: Gtk.Builder):
         self.files = files
 
         # playlists database helper
@@ -55,15 +55,10 @@ class BookReader:
         # open books
         self.books = []
 
-        # The View
-        book_reader_v = book_reader_view.BookReaderV()
-        gui_builder = book_reader_v.get_builder()
-        self.book_reader_view = book_reader_view.BookReaderView(
-            builder.get_object("book_reader_view"),
-            gui_builder,
-            self,
-        )
         # The BookReader components
+        book_reader_v = book_reader_view.BookReaderV(book_view_builder)
+        gui_builder = book_reader_v.get_builder()
+
         self.existing_book_opener = ExistingBookOpener(gui_builder, self.files)
         self.existing_book_opener.transmitter.connect('open_book', self.open_existing_book)
 
@@ -72,8 +67,9 @@ class BookReader:
 
         self.start_page = StartPage(gui_builder)
         self.start_page.add_component(self.pinned_books.get_view())
-        self.book_reader_view.book_reader_notebook.append_page(self.start_page.get_view(),
-                                                               self.start_page.get_tab_label())
+
+        self.note_book = NoteBook(gui_builder)
+        self.note_book.append_page(self.start_page.get_view(), self.start_page.get_tab_label())
 
     def get_book(self, index):
         """retrieve a book from the book list"""
@@ -101,7 +97,7 @@ class BookReader:
         """
         book_ = book.BookC(self.files.get_path_current(), None, self)
         br_note_book_tab_vc = BookReaderNoteBookTabVC(book_.transmitter, book_.component_transmitter)
-        book_.page = self.book_reader_view.append_book(book_.get_view(), br_note_book_tab_vc)
+        self.note_book.append_page(book_.get_view(), br_note_book_tab_vc.get_view())
         index = self.append_book(book_)
         book_.transmitter.connect('close', self.remove_book, index)
         book_.transmitter.connect('update', self.existing_book_opener.update_book_list)
@@ -124,7 +120,7 @@ class BookReader:
         index = self.append_book(book_)
         book_.transmitter.connect('close', self.remove_book, index)
         book_.transmitter.connect('update', self.existing_book_opener.update_book_list)
-        book_.page = self.book_reader_view.append_book(book_.get_view(), br_title_vc)
+        self.note_book.append_page(book_.get_view(), br_title_vc.get_view())
         # load the playlist metadata
         book_.open_new_playlist()
         # load the playlist metadata in background
@@ -275,3 +271,25 @@ class StartPage:
     def get_tab_label(self):
         """get a label object from the view"""
         return self.view.get_tab_label()
+
+
+class NoteBook:
+    """
+    This class and its view wrap a tabbed notebook view for display by the BookReader module.
+    """
+
+    def __init__(self, gui_builder: Gtk.Builder):
+        self.note_book_view = book_reader_view.NoteBookV(gui_builder)
+
+    def append_page(self,
+                    note_book_page: Gtk.Widget,
+                    note_book_tab_view: Gtk.Widget):
+        """
+        Append a page to the NoteBook Display
+
+        The note_book_page must have a get_view method that is used to fill the main body of the NoteBook view.
+
+        The note_book_tab_view is used to fill the NoteBook's tab with a view that may be able to display a page title
+        and/or a close page button.
+        """
+        self.note_book_view.append_page(note_book_page, note_book_tab_view)
