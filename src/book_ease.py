@@ -37,7 +37,8 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, GdkPixbuf, Gdk
 from gi.repository.GdkPixbuf import Pixbuf
 import signal_
-import book_reader
+import pinned_books
+import book
 
 
 class RenameTvEntryDialog(Gtk.Dialog):
@@ -370,6 +371,366 @@ class Image_View:
             dest_height = image_h
         return(dest_width, dest_height)
 
+class BookReaderNoteBookTabV:
+    """
+    Encapsulate a Gtk.label and a Gtk.Button in a Gtk.Box that is displayed in the tab of the BookReaderV notebook.
+    The label holds a (possibly truncated) title of the book displayed in the current notebook page.
+    The button is for closing the book.
+    """
+
+    def __init__(self):
+        self.view = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        self.title_label = Gtk.Label()
+        image = Gtk.Image(stock=Gtk.STOCK_OPEN)
+        self.close_button = Gtk.Button(label=None, image=Gtk.Image(stock=Gtk.STOCK_CLOSE))
+        self.close_button.set_relief(Gtk.ReliefStyle.NONE)
+        self.view.pack_start(self.title_label, expand=False, fill=False, padding=0)
+        self.view.pack_start(self.close_button, expand=False, fill=False, padding=0)
+        self.view.show_all()
+
+    def get_view(self) -> Gtk.Box:
+        """Get the Gtk.Box container."""
+        return self.view
+
+    def set_label(self, label: str):
+        """Set the text in the title label"""
+        self.title_label.set_label(label)
+
+
+class BookReaderNoteBookTabVC:
+    """
+    Controller for the tab view of the notebook page of the BookReaderView.
+    The view contains a close button and a label for displaying the book title
+    This class monitors the update signal from a Book so that the title label can be kept current.
+    This class also emits the 'close' signal to its associated Book
+    """
+
+    def __init__(self, book_transmitter: signal_.Signal, component_transmitter: signal_.Signal):
+        self.tab_view = BookReaderNoteBookTabV()
+        self.tab_view.close_button.connect('button-release-event', self.on_close_button_released)
+        self.label_max_len = 8
+        book_transmitter.connect('update', self.update)
+        self.component_transmitter = component_transmitter
+
+    def update(self, book_data: book.BookData):
+        """
+        sync the title_label with changes made in the Book
+        Note that this label has a max length and truncates the title.
+        """
+        self.tab_view.set_label(book_data.playlist_data.get_title()[0:self.label_max_len])
+
+    def get_view(self) -> Gtk.Box:
+        """get the book title label that this class services"""
+        return self.tab_view.get_view()
+
+    def on_close_button_released(self, button, event_button): #pylint: disable=unused-argument
+        """The close button was pressed; emit the 'close' signal"""
+        self.component_transmitter.send('close')
+
+class BookReader_View:
+    """
+    The outer most view of the bookreader pane containing a notebook to display individual books as well as several
+    control buttons to manage the books
+    """
+
+    def __init__(self, br_view, book_reader, pinned_view):
+        self.br_view = br_view
+        self.book_reader = book_reader
+
+        # add gui keys to helpers for accessing playlist data stored in db
+        self.cur_pl_id = {'col':0, 'col_name':'id', 'g_type':int, 'g_col':0}
+        self.cur_pl_title  = {'col':1, 'col_name':'title', 'g_type':str, 'g_col':1}
+        self.cur_pl_path  = {'col':2, 'col_name':'path', 'g_type':str, 'g_col':2}
+        self.cur_pl_helper_l = [self.cur_pl_id, self.cur_pl_title, self.cur_pl_path]
+        self.cur_pl_helper_l.sort(key=lambda col: col['col'])
+
+        self.outer_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+
+        self.header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        # a view of the pinned books that will be displayed on the start page
+        self.pinned_view = pinned_view
+
+        self.book_reader_notebook = Gtk.Notebook()
+        self.start_page = self.build_start_page()
+        self.start_page_label = Gtk.Label(label="Start")
+        self.book_reader_notebook.append_page(self.start_page, self.start_page_label)
+        # has_new_media notification
+        self.has_new_media_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        self.has_new_media_box.set_no_show_all(True)
+        self.create_pl_btn = Gtk.Button(label='Create')
+        self.has_new_media_box.pack_start(self.create_pl_btn, expand=False, fill=False, padding=0)
+        self.create_pl_label = Gtk.Label('New Playlist')
+        self.create_pl_label.set_margin_right(4)
+        self.has_new_media_box.pack_start(self.create_pl_label, expand=False, fill=False, padding=0)
+        self.has_new_media_box.set_child_packing(child=self.create_pl_label, expand=False, fill=False,
+                                                 padding=0, pack_type=Gtk.PackType.END)
+
+        self.has_new_media_box.set_child_packing(child=self.create_pl_btn, expand=False, fill=False,
+                                                 padding=0, pack_type=Gtk.PackType.END)
+
+        self.create_pl_btn.connect('button-release-event', self.on_button_release)
+
+        self.header_box.pack_end(self.has_new_media_box, expand=False, fill=False, padding=10)
+
+        # has_book_box notification
+        self.has_book_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        self.has_book_box.set_no_show_all(True)
+        self.has_book_box.show()
+        self.open_book_btn = Gtk.Button(label='Open')
+        #self.open_book_btn.show()
+        self.has_book_box.pack_start(self.open_book_btn, expand=False, fill=False, padding=0)
+        self.has_book_box.set_child_packing(child=self.open_book_btn, expand=False, fill=False,
+                                            padding=0, pack_type=Gtk.PackType.END)
+
+        # extract list of g_types from self.cur_pl_helper_l that was previously sorted by col number
+        # use list to initialize self.cur_pl_list, our model for displayling
+        # all playlists associated ith the current path
+        g_types = map(lambda x: x['g_type'], self.cur_pl_helper_l)
+        self.cur_pl_list = Gtk.ListStore(*g_types)
+
+        self.has_book_combo = Gtk.ComboBox.new_with_model(self.cur_pl_list)
+        renderer_text = Gtk.CellRendererText()
+        self.has_book_combo.pack_start(renderer_text, True)
+        self.has_book_combo.add_attribute(renderer_text, "text", self.cur_pl_title['g_col'])
+        self.has_book_combo.set_active(0)
+        self.has_book_box.pack_start(self.has_book_combo, expand=False, fill=False, padding=0)
+        self.has_book_box.set_child_packing(child=self.has_book_combo, expand=False, fill=False,
+                                            padding=0, pack_type=Gtk.PackType.END)
+
+        self.open_book_btn.connect('button-release-event', self.on_button_release)
+
+        self.header_box.pack_end(self.has_book_box, expand=False, fill=False, padding=10)
+
+
+        self.header_box.hide()
+
+        self.outer_box.pack_start(self.header_box, expand=False, fill=False, padding=0)
+        self.outer_box.pack_start(self.book_reader_notebook, expand=True, fill=True, padding=0)
+
+        self.br_view.pack_start(self.outer_box, expand=True, fill=True, padding=0)
+
+    def on_button_release(self, btn, evt, unused_data=None):
+        """
+        callback for the various control buttons
+        currently takes actions for creating a new book and opening a new book
+        """
+        if evt.get_button()[0] is True:
+            if evt.get_button()[1] == 1:
+                if btn is self.create_pl_btn:
+                    self.book_reader.open_new_book()
+                if btn is self.open_book_btn:
+                    # open book button was pressed
+                    # get the selected title from the has_book_combo
+                    # and pass it to book reader for opening the playlist
+                    model = self.has_book_combo.get_model()
+                    sel = self.has_book_combo.get_active()
+                    itr = model.get_iter((sel,))
+                    # get entire row from model
+                    cols = map(lambda x: x['col'], self.cur_pl_helper_l)
+                    pl_row = model.get(itr, *cols)
+                    # extract playlist data from row
+                    playlist_data = book.PlaylistData()
+                    playlist_data.set_id(pl_row[self.cur_pl_id['col']])
+                    playlist_data.set_path(pl_row[self.cur_pl_path['col']])
+                    playlist_data.set_title(pl_row[self.cur_pl_title['col']])
+                    self.book_reader.open_existing_book(playlist_data)
+
+    def on_has_new_media(self, has_new_media):
+        """allow book_reader_view to tell the view if there are media files in the directory"""
+        if has_new_media:
+            self.has_new_media_box.set_no_show_all(False)
+            self.has_new_media_box.show_all()
+            self.has_new_media_box.set_no_show_all(True)
+        else:
+            self.has_new_media_box.hide()
+
+    def on_has_book(self, has_book, playlists_in_path=None):
+        """
+        Allow book_reader_view to tell the view if there are any playlists associated with the current path.
+
+        The has book box is a combo box containing the list of those playlists.
+
+        This method shows or hides the has_book_box based on the value of has_book and updates the combo box model with
+        the playlists in playlists_in_path
+        """
+        # model holds list of existing playlist titles
+        model = self.has_book_combo.get_model()
+        model.clear()
+        if  has_book:
+            for playlst_data in playlists_in_path:
+                itr = model.append()
+                model.set_value(itr, self.cur_pl_id['col'], playlst_data.get_id())
+                model.set_value(itr, self.cur_pl_title['col'], playlst_data.get_title())
+                model.set_value(itr, self.cur_pl_path['col'], playlst_data.get_path())
+            # display option to open existing playlist
+            self.has_book_box.set_no_show_all(False)
+            self.has_book_box.show_all()
+            self.has_book_combo.set_active(0)
+            self.has_book_box.set_no_show_all(True)
+        else:
+            self.has_book_box.hide()
+
+    def append_book(self, view: Gtk.Box, br_title_vc: BookReaderNoteBookTabVC):
+        """set a book view to a new notebook tab"""
+        newpage = self.book_reader_notebook.append_page(view, br_title_vc.get_view())
+        self.book_reader_notebook.show_all()
+        self.book_reader_notebook.set_current_page(newpage)
+        # this needs to be changed we're not using the returned tuple
+        return newpage, view
+
+    def build_start_page(self):
+        """build the content of the first notebook tab for displaying non-specific-book information"""
+        start_label = Gtk.Label(label="Welcome to BookEase")
+        start_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        start_box.pack_start(start_label, expand=False, fill=False, padding=20)
+        start_box.pack_start(self.pinned_view, expand=True, fill=True, padding=20)
+
+        return start_box
+        #self.add(start_box)
+
+
+class BookReader_:
+    """class to manage the state of many books"""
+
+    def __init__(self, files, config, builder):
+        self.book_reader_section = 'book_reader'
+        self.cur_path = None
+        self.files = files
+        self.config = config
+        self.playlist_file = self.config['book_reader']['playlist_file']
+        self.book_reader_dir = self.config['book_reader']['book_reader_dir']
+        # playlists database helper
+        self.playlist_dbi = book.PlaylistDBI()
+
+        # pinned playlists that will be displayed bookReader_View
+        self.pinned_books = pinned_books.PinnedBooksC()
+        self.pinned_books.connect('open_book', self.open_existing_book)
+
+        # register a updated file list callback with files instance
+        #self.files.connect('file_list_updated', self.on_file_list_updated, get_cur_path=self.files.get_path_current)
+        self.files.connect('file_list_updated', self.on_file_list_updated)
+        self.book_conf = configparser.ConfigParser()
+        self.found_book_path = None
+        self.book_path = None
+        self.book_open = False
+        # books
+        self.books = []
+        self.book_cache = []
+        self.tmp_book = None
+        # playlist_filetypes key has values given in a comma separated list
+        file_types = config[self.book_reader_section]['playlist_filetypes'].split(",")
+        # build compiled regexes for matching list of media suffixes.
+        self.f_type_re = []
+        for i in file_types:
+            i = '.*.\\' + i.strip() + '$'
+            self.f_type_re.append(re.compile(i))
+
+        self.book_reader_view = BookReader_View(
+            builder.get_object("book_reader_view"),
+            self,
+            self.pinned_books.get_view()
+        )
+
+    def has_book(self, pth):
+        """determine if there is a playlist associated with the directory, pth"""
+        br_path = os.path.join(pth, self.book_reader_dir, self.playlist_file)
+        if os.path.exists(br_path):
+            return True
+        return False
+
+    def get_book(self, index):
+        """retrieve a book from the book list"""
+        return self.books[index]
+
+    def remove_book(self, book_index):
+        """remove a book from the book list"""
+        self.books.pop(book_index)
+        # propogate changes to book list indices
+        while book_index < len(self.books):
+            self.get_book(book_index)[0].set_index(book_index)
+            book_index+=1
+
+    def on_file_list_updated(self):
+        """
+        Files is notifying bookreader that it has changed directories and is giving Book reader the list of files in
+        the new current working directory.
+
+        Tell BookReader_View if there are any media files that can be used to create a playlist.
+        """
+        # Tell BookReader_View if there are any saved playlists associated with this directory.
+        self.update_current_book_list()
+
+        # tell view we have files available if they are media files. offer to create new playlist
+        f_list = self.files.get_file_list()
+        has_new_media=False
+        for i in f_list:
+            if book.TrackFI.is_media_file(i[1]):
+                has_new_media=True
+                break
+        self.book_reader_view.on_has_new_media(has_new_media)
+
+    def append_book(self, book_):
+        """append book to list of opened books"""
+        index = len(self.books)
+        book_.set_index(index)
+        self.books.append(book_)
+        return index
+
+    def open_existing_book(self, pl_row):
+        """
+        create a new Book instance and tell it to load a saved playlist.
+        append the new Book to the booklist for later usage
+        """
+        book_ = book.BookC(self.cur_path, None, self)
+        br_note_book_tab_vc = BookReaderNoteBookTabVC(book_.transmitter, book_.component_transmitter)
+        book_.page = self.book_reader_view.append_book(book_.get_view(), br_note_book_tab_vc)
+        index = self.append_book(book_)
+        book_.transmitter.connect('close', self.remove_book, index)
+        book_.transmitter.connect('update', self.update_current_book_list)
+        # load the playlist metadata
+        book_.open_existing_playlist(pl_row)
+        # load the playlist metadata in background
+        #load_book_data_th = Thread(target=bk.book_data_load, args={row})
+        #load_book_data_th.setDaemon(True)
+        #load_book_data_th.start()
+
+    def open_new_book(self):
+        """
+        create a new Book instance and tell it to create a new playlist.
+        append the new Book to the booklist for later usage
+        """
+        f_list = self.files.get_file_list_new()
+        self.files.populate_file_list(f_list, self.cur_path)
+        book_ = book.BookC(self.cur_path, f_list, self)
+        br_title_vc = BookReaderNoteBookTabVC(book_.transmitter)
+        index = self.append_book(book_)
+        book_.transmitter.connect('close', self.remove_book, index)
+        book_.page = self.book_reader_view.append_book(book_.get_view(), br_title_vc)
+        # clear book_reader_view.has_new_media flag
+        self.book_reader_view.on_has_new_media(False)
+        # load the playlist metadata
+        book_.open_new_playlist()
+        # load the playlist metadata in background
+        #create_book_data_th = Thread(target=bk.open_new_playlist)
+        #create_book_data_th.setDaemon(True)
+        #create_book_data_th.start()
+
+    def is_media_file(self, file_):
+        """determine is file_ matches any of the media file definitions"""
+        for i in self.f_type_re:
+            if i.match(file_):
+                return True
+        return False
+
+    def update_current_book_list(self, *args):
+        """Tell BookReader_View if there are any saved playlists associated with the current directory."""
+        self.cur_path = self.files.get_path_current()
+        playlists_in_path = self.playlist_dbi.get_by_path(book.PlaylistData(path=self.cur_path))
+        if len(playlists_in_path) > 0:
+            self.book_reader_view.on_has_book(has_book=True, playlists_in_path=playlists_in_path)
+        else:
+            self.book_reader_view.on_has_book(has_book=False)
+
 
 class Files_(signal_.Signal):
     """class to manage the file management features of book_ease"""
@@ -393,7 +754,7 @@ class Files_(signal_.Signal):
 
         # Signals
         # Notify of file changes
-        self.add_signal('cwd_changed')
+        self.add_signal('file_list_updated')
         # populate the file_list
         self.__update_file_list()
 
@@ -402,7 +763,7 @@ class Files_(signal_.Signal):
         self.file_list.clear()
         self.populate_file_list(self.file_list, self.current_path)
         # notify subscribers that the file list has been updated
-        self.send('cwd_changed')
+        self.send('file_list_updated')
 
     def get_file_list_new(self):
         """create a new file list model for the files view"""
@@ -799,7 +1160,7 @@ def main(unused_args):
     Image_View(files, config, builder)
 
     # bookreader backend
-    book_reader.BookReader(files, builder)
+    BookReader_(files, config, builder)
 
     # main window
     MainWindow(builder.get_object("window1"), builder.get_object("window_1_pane"), config, builder)
