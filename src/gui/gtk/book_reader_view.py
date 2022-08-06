@@ -93,11 +93,16 @@ class BookReaderNoteBookTabV:
 class BookReaderV:  # pylint: disable=too-few-public-methods
     """The outermost view of the BookReader"""
 
-    def __init__(self):
+    def __init__(self, book_view_builder: Gtk.Builder):
         # Load the gui from glade
         self.builder = Gtk.Builder()
         glade_path = pathlib.Path.cwd() / 'gui' / 'gtk' / 'book_reader.glade'
         self.builder.add_from_file(str(glade_path))
+        book_reader_view = self.builder.get_object('book_reader_view')
+        # Load the container from the book_view_builder into which the BookReader view will be displayed.
+        book_view_container = book_view_builder.get_object('book_reader_view')
+        book_view_container.pack_start(book_reader_view, expand=True, fill=True, padding=0)
+
 
     def get_builder(self) -> Gtk.Builder:
         """get the builder object"""
