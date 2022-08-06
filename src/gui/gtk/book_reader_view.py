@@ -38,32 +38,6 @@ if TYPE_CHECKING:
     import book_reader
 
 
-class BookReaderView:
-    """
-    The outermost view of the bookreader pane containing a notebook to display individual books as well as several
-    control buttons to manage the books
-    """
-    def __init__(self, br_view, gui_builder, book_reader_):
-        self.br_view = br_view
-        self.book_reader = book_reader_
-        self.header_box = gui_builder.get_object('header_box')
-
-        self.book_reader_notebook = gui_builder.get_object('notebook')
-
-        self.header_box.hide()
-        # book_reader_view is the outermost box in the glade file
-        self.book_reader_view = gui_builder.get_object('book_reader_view')
-        self.br_view.pack_start(self.book_reader_view, expand=True, fill=True, padding=0)
-
-    def append_book(self, view: Gtk.Box, br_title_vc: book_reader.BookReaderNoteBookTabVC):
-        """set a book view to a new notebook tab"""
-        newpage = self.book_reader_notebook.append_page(view, br_title_vc.get_view())
-        self.book_reader_notebook.show_all()
-        self.book_reader_notebook.set_current_page(newpage)
-        # this needs to be changed we're not using the returned tuple
-        return newpage, view
-
-
 class BookReaderNoteBookTabV:
     """
     Encapsulate a Gtk.label and a Gtk.Button in a Gtk.Box that is displayed in the tab of the BookReaderV notebook.
