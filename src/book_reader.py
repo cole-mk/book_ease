@@ -62,12 +62,11 @@ class BookReader:
         self.new_book_opener = NewBookOpener(gui_builder, self.files)
         self.new_book_opener.transmitter.connect('open_book', self.open_new_book)
 
-        self.start_page = StartPage(gui_builder)
-        self.start_page.add_component(self.pinned_books.get_view())
+        start_page = StartPage(gui_builder)
+        start_page.add_component(self.pinned_books.get_view())
 
         self.note_book = NoteBook(gui_builder)
-        self.note_book.append_page(self.start_page.get_view(), self.start_page.get_tab_label())
-
+        self.note_book.append_page(start_page.get_view(), start_page.get_tab_label())
 
     def open_existing_book(self, pl_data: book.PlaylistData):
         """
@@ -205,16 +204,18 @@ class NewBookOpener:
         self.view.transmitter.connect('open_book', self.open_book)
 
     def open_book(self):
+        """Relay the signal to open_book"""
         self.transmitter.send('open_book')
 
     def on_cwd_changed(self):
-        # tell view we have files available if they are media files. offer to create new playlist
+        """tell view we have files available if they are media files. offer to create new playlist"""
         if self.has_new_media():
             self.view.show()
         else:
             self.view.hide()
 
     def has_new_media(self) -> bool:
+        """Determine if any of the files in Files.current_path are media files"""
         f_list = self.files.get_file_list()
         has_new_media = False
         for i in f_list:
@@ -246,7 +247,7 @@ class StartPage:
         return self.view.get_tab_label()
 
 
-class NoteBook:
+class NoteBook:  # pylint: disable=too-few-public-methods
     """
     This class and its view wrap a tabbed notebook view for display by the BookReader module.
     """

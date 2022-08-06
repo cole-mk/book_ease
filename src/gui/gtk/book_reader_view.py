@@ -208,7 +208,7 @@ class StartPageV:
         self.tab_label.set_label(text)
 
 
-class NoteBookV:
+class NoteBookV:  # pylint: disable=too-few-public-methods
     """Gtk view of the book_reader.NoteBook"""
 
     def __init__(self, gui_builder: Gtk.Builder):
