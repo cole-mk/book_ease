@@ -231,7 +231,6 @@ class PinnedButtonVC:
             self.view.pinned_button.show()
             self.set_checked(self.pinned_books_m.is_pinned(book_data.playlist_data))
             if self.playlist_data and self.playlist_data != book_data.playlist_data:
-                print('playlist data', self.playlist_data)
                 self.pinned_books_m.on_playlist_data_changed()
             self.playlist_data = copy.deepcopy(book_data.playlist_data)
         else:
