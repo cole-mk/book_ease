@@ -225,7 +225,7 @@ class StartPageV:
         """get the Gtk container that is the start page view"""
         return self.view
 
-    def get_tab_label(self):
+    def get_tab_label(self) -> Gtk.Label:
         """Get the tab label."""
         return self.tab_label
 
