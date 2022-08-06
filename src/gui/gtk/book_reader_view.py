@@ -232,3 +232,18 @@ class StartPageV:
     def set_tab_label(self, text: str):
         """Set text of the tab label."""
         self.tab_label.set_label(text)
+
+
+class NoteBookV:
+    """Gtk view of the book_reader.NoteBook"""
+
+    def __init__(self, gui_builder: Gtk.Builder):
+        self.note_book = gui_builder.get_object('note_book')
+
+    def append_page(self,
+                    view: Gtk.Widget,
+                    note_book_tab_view: Gtk.Widget):
+        """set a book view to a new notebook tab"""
+        new_page = self.note_book.append_page(view, note_book_tab_view)
+        self.note_book.show_all()
+        self.note_book.set_current_page(new_page)
