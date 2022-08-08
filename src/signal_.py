@@ -24,6 +24,10 @@
 helper module to implement signal system (notifications)
 note: instantiated/inherited by server
 """
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from typing import Callable
+
 
 class Signal():
     """
@@ -99,3 +103,15 @@ class Signal():
     def unmute_signal(self, handle):
         """remove a signal handle from the list of signals to be ignored while sending"""
         self._muted_signals.remove(handle)
+
+    def disconnect_by_call_back(self, handle: str, call_back: Callable):
+        """
+        remove a callback from the signal handler's list by matching handle and callback method.
+        This will remove all matching entries where the same callback method was connected more than once by the same
+        object instance.
+        """
+        index = len(self._sig_handlers[handle]) -1
+        for sig in reversed(self._sig_handlers[handle]):
+            if call_back == sig[0]:
+                self._sig_handlers[handle].pop(index)
+            index -= 1
