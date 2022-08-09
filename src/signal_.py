@@ -24,9 +24,7 @@
 helper module to implement signal system (notifications)
 note: instantiated/inherited by server
 """
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from typing import Callable
+from typing import Callable
 
 
 class Signal():
