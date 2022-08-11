@@ -221,3 +221,36 @@ class NoteBookV:  # pylint: disable=too-few-public-methods
         new_page = self.note_book.append_page(view, note_book_tab_view)
         self.note_book.show_all()
         self.note_book.set_current_page(new_page)
+
+
+class NoteBookPageV(Gtk.Box):
+    """
+    Adapter view for placing gtk widgets in a notebook, allowing them to be searched by id.
+    """
+
+    def __init__(self,
+                 page_view: Gtk.Widget,
+                 id_: int = None):
+
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        self.set_page_view(page_view)
+        self.id_ = id_
+        self.show_all()
+
+    def close(self):
+        """Destroy self so that the Notebook page can actually close"""
+        self.destroy()
+
+    def set_id(self, id_: int):
+        """Set the id of this page view"""
+        self.id_ = id_
+
+    def get_id(self) -> int:
+        """Get the id of this page view"""
+        return self.id_
+
+    def set_page_view(self, page_view: Gtk.Widget):
+        """Add page_view to self for display after clearing any old views from self."""
+        for view in self:
+            self.remove(view)
+        self.pack_start(page_view, expand=True, fill=True, padding=0)
