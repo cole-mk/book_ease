@@ -66,7 +66,7 @@ class BookReader:
         start_page.add_component(self.pinned_books.get_view())
 
         self.note_book = NoteBook(gui_builder)
-        self.note_book.append_page(start_page.get_view(), start_page.get_tab_label())
+        self.note_book.append_page(NoteBookPage(start_page.get_view()), start_page.get_tab_label())
 
     def open_existing_book(self, pl_data: book.PlaylistData):
         """
@@ -74,7 +74,8 @@ class BookReader:
         """
         book_ = book.BookC(self.files.get_path_current(), None, self)
         br_note_book_tab_vc = BookReaderNoteBookTabVC(book_.transmitter, book_.component_transmitter)
-        self.note_book.append_page(book_.get_view(), br_note_book_tab_vc.get_view())
+        note_book_page = NoteBookPage(book_.get_view(), pl_data.get_id(), book_.transmitter)
+        self.note_book.append_page(note_book_page, br_note_book_tab_vc.get_view())
         book_.transmitter.connect('update', self.existing_book_opener.update_book_list)
         # load the playlist metadata
         book_.open_existing_playlist(pl_data)
@@ -89,10 +90,13 @@ class BookReader:
         """
         f_list = self.files.get_file_list_new()
         self.files.populate_file_list(f_list, self.files.get_path_current())
+        # create the book and the notebook tab view
         book_ = book.BookC(self.files.get_path_current(), f_list, self)
         br_title_vc = BookReaderNoteBookTabVC(book_.transmitter, book_.component_transmitter)
         book_.transmitter.connect('update', self.existing_book_opener.update_book_list)
-        self.note_book.append_page(book_.get_view(), br_title_vc.get_view())
+        # Add the book to the notebook view.
+        note_book_page = NoteBookPage(book_.get_view(), book_.get_playlist_id(), book_.transmitter)
+        self.note_book.append_page(note_book_page, br_title_vc.get_view())
         # load the playlist metadata
         book_.open_new_playlist()
         # load the playlist metadata in background
@@ -247,7 +251,7 @@ class StartPage:
         return self.view.get_tab_label()
 
 
-class NoteBook:  # pylint: disable=too-few-public-methods
+class NoteBook:
     """
     This class and its view wrap a tabbed notebook view for display by the BookReader module.
     """
@@ -256,7 +260,7 @@ class NoteBook:  # pylint: disable=too-few-public-methods
         self.note_book_view = book_reader_view.NoteBookV(gui_builder)
 
     def append_page(self,
-                    note_book_page: Gtk.Widget,
+                    note_book_page: NoteBookPage,
                     note_book_tab_view: Gtk.Widget):
         """
         Append a page to the NoteBook Display
@@ -266,4 +270,82 @@ class NoteBook:  # pylint: disable=too-few-public-methods
         The note_book_tab_view is used to fill the NoteBook's tab with a view that may be able to display a page title
         and/or a close page button.
         """
-        self.note_book_view.append_page(note_book_page, note_book_tab_view)
+        current_index = self.get_page(note_book_page.get_id())
+        if current_index:
+            self.focus_page(current_index)
+        else:
+            self.note_book_view.append_page(note_book_page.get_view(), note_book_tab_view)
+
+    def get_page(self, id_: int):
+        """Find the open notebook page and return the index of the note book."""
+        for index, page in enumerate(self.note_book_view.note_book):
+            if page.get_id() == id_:
+                return index
+        return None
+
+    def focus_page(self, index: int):
+        """select the notebook page with the given index"""
+        self.note_book_view.note_book.set_current_page(index)
+
+
+class NoteBookPage:
+    """
+    Adapter for placing gtk widgets in a notebook.
+    NoteBookPage encapsulates the supplied view inside an empty view container.
+    It also attaches an id field to aid in searching through open Notebook pages by book.
+
+    The book_transmitter parameter allows the NoteBookPage to keep the id field in sync with a Book, if the view
+    parameter was provided by that Book.
+
+    The page_view parameter is what the caller of this class is trying to display in the Notebook.
+
+    This class also monitors the Book's close signal to ensure that the notebook tab actually closes when the Book
+    closes.
+    """
+
+    def __init__(self,
+                 page_view: Gtk.Widget,
+                 id_: int = None,
+                 book_transmitter: signal_.Signal = None):
+
+        self.adapter_view = book_reader_view.NoteBookPageV(page_view)
+        self.adapter_view.set_id(id_)
+
+        self.book_transmitter = book_transmitter
+        self.__init_transmitter(book_transmitter)
+
+    def __init_transmitter(self, transmitter):
+        """Set the callbacks necessary to handle the id data and for closing the view"""
+        if transmitter:
+            transmitter.connect('close', self.close)
+            if self.adapter_view.get_id() is None:
+                transmitter.connect('update', self.on_book_updated)
+
+    def on_book_updated(self, book_data: book.BookData):
+        """
+        Update self.id_ when a book sends an 'update' signal.
+        book_data is the parameter that books automatically append to the signal.
+        """
+        # The id is either None or a valid id. Valid ids never change, so it is good to unsubscribe from the
+        # book_transmitter after validation.
+        self.adapter_view.set_id(book_data.playlist_data.get_id())
+        if self.adapter_view.get_id() is not None:
+            self.book_transmitter.disconnect_by_call_back('update', self.on_book_updated)
+
+    def get_view(self) -> Gtk.Widget:
+        """Get the adapter view"""
+        return self.adapter_view
+
+    def close(self):
+        """
+        Destroy the view so that the Notebook page can actually close.
+        Close references to self in the book_transmitter's callback list. I don't know if this is necessary, because the
+        book is closing anyway.
+        """
+        self.book_transmitter.disconnect_by_call_back('update', self.on_book_updated)
+        self.book_transmitter.disconnect_by_call_back('close', self.close)
+        self.adapter_view.close()
+
+    def get_id(self) -> int:
+        """Get the id stored in the view"""
+        return self.adapter_view.get_id()
