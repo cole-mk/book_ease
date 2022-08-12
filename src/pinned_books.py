@@ -26,7 +26,7 @@ managing the list of book that have been marked as "pinned" by the user.
 """
 from gui.gtk.pinned_books_view import PinnedBooksVC, PinnedButtonVC
 import signal_
-import sqlite_tables
+import audio_book_tables
 import singleton_
 import book
 
@@ -193,15 +193,15 @@ class PinnedBooksDBI:
 
     def __init__(self):
         """init the database table classes"""
-        self.pinned_playlists = sqlite_tables.PinnedPlaylists()
-        self.playlist = sqlite_tables.Playlist()
+        self.pinned_playlists = audio_book_tables.PinnedPlaylists()
+        self.playlist = audio_book_tables.Playlist()
 
     def get_playlist(self, playlist_id):
         """
         get the desired playlist row from the database
         and return a PlaylistData object
         """
-        con = sqlite_tables.create_connection()
+        con = audio_book_tables.create_connection()
         with con:
             # get sqlite row object from the table class
             row = self.playlist.get_row(con, playlist_id)
@@ -214,7 +214,7 @@ class PinnedBooksDBI:
         get all playlist rows matching the playlist_ids from the database
         and return a list of PinnedData objects
         """
-        con = sqlite_tables.create_connection()
+        con = audio_book_tables.create_connection()
         with con:
             # get the desired sqlite row objects
             rows = self.playlist.get_rows(con, playlist_ids)
@@ -230,7 +230,7 @@ class PinnedBooksDBI:
         search pinned list table for playlist_id
         return bool
         """
-        con = sqlite_tables.create_connection()
+        con = audio_book_tables.create_connection()
         with con:
             has_playlist = self.pinned_playlists.has_playlist(con, playlist_id)
         con.close()
@@ -238,21 +238,21 @@ class PinnedBooksDBI:
 
     def pin_playlist(self, playlist_id):
         """add a playlist to the pinned list in the database"""
-        con = sqlite_tables.create_connection()
+        con = audio_book_tables.create_connection()
         with con:
             self.pinned_playlists.insert_playlist(con, playlist_id)
         con.close()
 
     def unpin_playlist(self, playlist_id):
         """remove a playlist from the pinned list in the database"""
-        con = sqlite_tables.create_connection()
+        con = audio_book_tables.create_connection()
         with con:
             self.pinned_playlists.remove_playlist(con, playlist_id)
         con.close()
 
     def get_pinned_ids(self):
         """get a list of just the playlist ids and not the whole PinnedData object"""
-        con = sqlite_tables.create_connection()
+        con = audio_book_tables.create_connection()
         pinned_list = []
         with con:
             rows = self.pinned_playlists.get_pinned_playlists(con)

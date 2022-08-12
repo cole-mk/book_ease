@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  sqlite_tables.py
+#  audio_book_tables.py
 #
 #  This file is part of book_ease.
 #
