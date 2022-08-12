@@ -31,7 +31,7 @@ from pathlib import Path
 import mutagen
 import playlist
 import signal_
-import sqlite_tables
+import audio_book_tables
 from gui.gtk import book_view
 import book_columns
 
@@ -49,7 +49,7 @@ class DBConnection: #pylint: disable=too-few-public-methods
         """
         if self.con is not None:
             raise RuntimeError('connection already exists')
-        self.con = sqlite_tables.create_connection()
+        self.con = audio_book_tables.create_connection()
         self.con.execute('BEGIN')
 
     def multi_query_end(self):
@@ -67,7 +67,7 @@ class DBConnection: #pylint: disable=too-few-public-methods
         Otherwise, create and return a new connection
         """
         if self.con is None:
-            return sqlite_tables.create_connection()
+            return audio_book_tables.create_connection()
         return self.con
 
     def query_end(self, con):
@@ -265,7 +265,7 @@ class PlaylistDBI():
     """Interface to help the Book save playlist specific data"""
 
     def __init__(self):
-        self.playlist = sqlite_tables.Playlist()
+        self.playlist = audio_book_tables.Playlist()
 
     def count_duplicates(self, pl_data) -> 'int':
         """
@@ -358,10 +358,10 @@ class TrackDBI():
 
     def __init__(self):
         """create database table objects"""
-        self.pl_track = sqlite_tables.PlTrack()
-        self.pl_track_metadata = sqlite_tables.PlTrackMetadata()
-        self.playlist = sqlite_tables.Playlist()
-        self.track_file = sqlite_tables.TrackFile()
+        self.pl_track = audio_book_tables.PlTrack()
+        self.pl_track_metadata = audio_book_tables.PlTrackMetadata()
+        self.playlist = audio_book_tables.Playlist()
+        self.track_file = audio_book_tables.TrackFile()
 
     def save_track_file(self, track) -> 'track_file_id:int':
         """
