@@ -206,7 +206,7 @@ class PinnedButtonVC:
 
         # The pinned_books_model associated with this class
         self.pinned_books_m = pinned_books_m
-        self.pinned_books_m.connect('pinned_list_changed', self.on_pinned_list_changed)
+        self.connected_to_pinned_books_m_pinned_list_changed = False
         # subscribe to the signals relevant to this class
         book_transmitter.connect('close', self.close)
         book_transmitter.connect('begin_edit_mode', self.begin_edit_mode)
@@ -230,8 +230,12 @@ class PinnedButtonVC:
         if book_data.is_saved():
             self.view.pinned_button.show()
             self.set_checked(self.pinned_books_m.is_pinned(book_data.playlist_data))
-            if self.playlist_data and self.playlist_data != book_data.playlist_data:
-                print('playlist data', self.playlist_data)
+            # Connect to the pinned books model to observe external changes in the button's checked state.
+            if not self.connected_to_pinned_books_m_pinned_list_changed:
+                self.pinned_books_m.connect('pinned_list_changed', self.on_pinned_list_changed)
+                self.connected_to_pinned_books_m_pinned_list_changed = True
+            # Check if the title of a previously saved book has been changed.
+            if self.playlist_data and self.playlist_data.get_title() != book_data.playlist_data.get_title():
                 self.pinned_books_m.on_playlist_data_changed()
             self.playlist_data = copy.deepcopy(book_data.playlist_data)
         else:
@@ -252,7 +256,7 @@ class PinnedButtonVC:
 
     def on_button_toggled(self, btn): # pylint: disable=unused-argument
         """
-        callback function registered with with Gtk
+        Callback function registered with Gtk.
         handles signaling of pinned_button state changed
         """
         if self.playlist_data is not None and not self.mute_toggle:
