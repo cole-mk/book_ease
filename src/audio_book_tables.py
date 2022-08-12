@@ -38,7 +38,7 @@ import sqlite3
 config_dir = Path.home() / '.config' / 'book_ease'
 db_dir = config_dir / 'data'
 db_dir.mkdir(mode=511, parents=True, exist_ok=True)
-db = db_dir / 'book_ease.db'
+db = db_dir / 'audio_books.db'
 
 def create_connection():
     """ create a sqlite3 connection object and return it"""
