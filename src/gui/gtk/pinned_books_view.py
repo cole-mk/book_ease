@@ -252,7 +252,7 @@ class PinnedButtonVC:
 
     def on_button_toggled(self, btn): # pylint: disable=unused-argument
         """
-        callback function registered with with Gtk
+        Callback function registered with Gtk.
         handles signaling of pinned_button state changed
         """
         if self.playlist_data is not None and not self.mute_toggle:
