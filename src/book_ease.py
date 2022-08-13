@@ -38,6 +38,7 @@ from gi.repository import Gtk, GdkPixbuf, Gdk
 from gi.repository.GdkPixbuf import Pixbuf
 import signal_
 import book_reader
+import book_ease_tables
 
 
 class RenameTvEntryDialog(Gtk.Dialog):
@@ -371,14 +372,35 @@ class Image_View:
         return(dest_width, dest_height)
 
 
+class FilesDBI:
+    """Adapter to help Files interface with book_ease.db"""
+
+    def __init__(self):
+        self.settings_string = book_ease_tables.SettingsString()
+
+    def get_library_path(self) -> str | None:
+        """get the saved path to the root directory of the book library"""
+        con = book_ease_tables.DB_CONNECTION_MANAGER.query_begin()
+        library_path_list = self.settings_string.get(con, 'Files', 'library_path')
+        book_ease_tables.DB_CONNECTION_MANAGER.query_end(con)
+        return library_path_list[0]['value'] if library_path_list else None
+
+    def set_library_path(self, library_path: str):
+        """
+        Save the path to the root directory of the book library
+        Not yet Implemented.
+        """
+        pass
+
+
 class Files_(signal_.Signal):
     """class to manage the file management features of book_ease"""
+    default_library_path = Path.home()
 
-    def __init__(self, config):
+    def __init__(self):
         signal_.Signal.__init__(self)
-        self.config = config
-        self.library_path = self.config['app']['library path']
-        self.current_path = self.library_path
+        files_dbi = FilesDBI()
+        self.current_path = files_dbi.get_library_path() or self.default_library_path
         self.path_back_max_len = 10
         self.path_ahead_max_len = 10
         self.path_back = []
@@ -790,7 +812,7 @@ def main(unused_args):
     builder = Gtk.Builder()
     builder.add_from_file("book_ease.glade")
     # files backend
-    files = Files_(config)
+    files = Files_()
     # left side file viewer
     files_view_1 = Files_View(builder.get_object("files_1"), files, config)
     # left side bookmarks
