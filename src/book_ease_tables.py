@@ -57,7 +57,8 @@ class SettingsNumeric:
         with con:
             self.__init_table(con)
 
-    def __init_table(self, con: sqlite3.Connection):
+    @classmethod
+    def __init_table(cls, con: sqlite3.Connection):
         """Create table settings_numeric in book_ease.db"""
         sql = """
             CREATE TABLE IF NOT EXISTS settings_numeric (
@@ -68,7 +69,8 @@ class SettingsNumeric:
             """
         con.execute(sql)
 
-    def set(self,
+    @classmethod
+    def set(cls,
             con: sqlite3.Connection,
             category: str,
             attribute: str,
@@ -82,7 +84,8 @@ class SettingsNumeric:
         cur = con.execute(sql, (category, attribute, value))
         return cur.lastrowid
 
-    def get(self,
+    @classmethod
+    def get(cls,
             con: sqlite3.Connection,
             category: str,
             attribute: str) -> list[sqlite3.Row]:
@@ -93,10 +96,11 @@ class SettingsNumeric:
             WHERE category = (?)
             AND attribute = (?)
             """
-        cur = con.execute(sql,(category, attribute))
+        cur = con.execute(sql, (category, attribute))
         return cur.fetchall()
 
-    def clear_attribute(self,
+    @classmethod
+    def clear_attribute(cls,
                         con: sqlite3.Connection,
                         category: str,
                         attribute: str):
@@ -108,7 +112,8 @@ class SettingsNumeric:
             """
         con.execute(sql, (category, attribute))
 
-    def clear_value(self,
+    @classmethod
+    def clear_value(cls,
                     con: sqlite3.Connection,
                     category: str,
                     attribute: str,
@@ -134,7 +139,8 @@ class SettingsString:
         with con:
             self.__init_table(con)
 
-    def __init_table(self, con: sqlite3.Connection):
+    @classmethod
+    def __init_table(cls, con: sqlite3.Connection):
         """Create table settings_string in book_ease.db"""
         sql = """
             CREATE TABLE IF NOT EXISTS settings_string (
@@ -145,7 +151,8 @@ class SettingsString:
             """
         con.execute(sql)
 
-    def set(self,
+    @classmethod
+    def set(cls,
             con: sqlite3.Connection,
             category: str,
             attribute: str,
@@ -159,7 +166,8 @@ class SettingsString:
         cur = con.execute(sql, (category, attribute, value))
         return cur.lastrowid
 
-    def get(self,
+    @classmethod
+    def get(cls,
             con: sqlite3.Connection,
             category: str,
             attribute: str) -> list[sqlite3.Row]:
@@ -170,10 +178,11 @@ class SettingsString:
             WHERE category = (?)
             AND attribute = (?)
             """
-        cur = con.execute(sql,(category, attribute))
+        cur = con.execute(sql, (category, attribute))
         return cur.fetchall()
 
-    def clear_attribute(self,
+    @classmethod
+    def clear_attribute(cls,
                         con: sqlite3.Connection,
                         category: str,
                         attribute: str):
@@ -185,7 +194,8 @@ class SettingsString:
             """
         con.execute(sql, (category, attribute))
 
-    def clear_value(self,
+    @classmethod
+    def clear_value(cls,
                     con: sqlite3.Connection,
                     category: str,
                     attribute: str,
@@ -199,7 +209,8 @@ class SettingsString:
             """
         con.execute(sql, (category, attribute, value))
 
-    def clear_category(self,
+    @classmethod
+    def clear_category(cls,
                        con: sqlite3.Connection,
                        category: str):
         """delete all rows from settings_string that contain category."""
@@ -209,7 +220,8 @@ class SettingsString:
             """
         con.execute(sql, (category,))
 
-    def get_category(self,
+    @classmethod
+    def get_category(cls,
                      con: sqlite3.Connection,
                      category: str) -> list[sqlite3.Row]:
         """get all rows that match category"""
@@ -219,7 +231,6 @@ class SettingsString:
             """
         cur = con.execute(sql, (category,))
         return cur.fetchall()
-
 
 
 if __name__ == '__main__':
