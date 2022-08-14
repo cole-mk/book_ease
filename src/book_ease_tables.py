@@ -55,10 +55,10 @@ class SettingsNumeric:
     def __init__(self):
         con = DB_CONNECTION_MANAGER.create_connection()
         with con:
-            self.__init_table(con)
+            self.init_table(con)
 
     @classmethod
-    def __init_table(cls, con: sqlite3.Connection):
+    def init_table(cls, con: sqlite3.Connection):
         """Create table settings_numeric in book_ease.db"""
         sql = """
             CREATE TABLE IF NOT EXISTS settings_numeric (
