@@ -43,19 +43,11 @@ db_dir.mkdir(mode=511, parents=True, exist_ok=True)
 db = db_dir / 'book_ease.db'
 
 
-DB_CONNECTION_MANAGER = DBConnectionManager(db)
-
-
 class SettingsNumeric:
     """
     sql queries for table settings_numeric
     This table stores key value pairs where value is int and bool data types
     """
-
-    def __init__(self):
-        con = DB_CONNECTION_MANAGER.create_connection()
-        with con:
-            self.init_table(con)
 
     @classmethod
     def init_table(cls, con: sqlite3.Connection):
@@ -136,13 +128,8 @@ class SettingsString:
     This table stores key value pairs where value is string data type
     """
 
-    def __init__(self):
-        con = DB_CONNECTION_MANAGER.create_connection()
-        with con:
-            self.__init_table(con)
-
     @classmethod
-    def __init_table(cls, con: sqlite3.Connection):
+    def init_table(cls, con: sqlite3.Connection):
         """Create table settings_string in book_ease.db"""
         sql = """
             CREATE TABLE IF NOT EXISTS settings_string (
@@ -237,6 +224,13 @@ class SettingsString:
             """
         cur = con.execute(sql, (category,))
         return cur.fetchall()
+
+
+# initialize the db connection and ensure that the database is set up properly
+DB_CONNECTION_MANAGER = DBConnectionManager(db)
+with DB_CONNECTION_MANAGER.create_connection() as conn:
+    SettingsNumeric.init_table(conn)
+    SettingsString.init_table(conn)
 
 
 if __name__ == '__main__':
