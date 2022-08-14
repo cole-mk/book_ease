@@ -199,6 +199,28 @@ class SettingsString:
             """
         con.execute(sql, (category, attribute, value))
 
+    def clear_category(self,
+                       con: sqlite3.Connection,
+                       category: str):
+        """delete all rows from settings_string that contain category."""
+        sql = """
+            DELETE FROM settings_string
+            WHERE category = (?)
+            """
+        con.execute(sql, (category,))
+
+    def get_category(self,
+                     con: sqlite3.Connection,
+                     category: str) -> list[sqlite3.Row]:
+        """get all rows that match category"""
+        sql = """
+            SELECT * FROM settings_string
+            WHERE category = (?)
+            """
+        cur = con.execute(sql, (category,))
+        return cur.fetchall()
+
+
 
 if __name__ == '__main__':
     import sys

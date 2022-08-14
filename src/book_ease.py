@@ -80,12 +80,40 @@ class RenameTvEntryDialog(Gtk.Dialog):
             self.entry_2.set_text(path)
 
 
+class BookMarkDBI:
+    """Adapter to help BookMark interface with the book_ease.db database"""
+
+    def __init__(self):
+        self.settings_string = book_ease_tables.SettingsString()
+
+    def get_bookmarks(self) -> tuple[tuple[str, str]] | None:
+        """Get the list of saved bookmarks from the database."""
+        con = book_ease_tables.DB_CONNECTION_MANAGER.query_begin()
+        book_mark_db_rows = self.settings_string.get_category(con, 'book_mark')
+        book_ease_tables.DB_CONNECTION_MANAGER.query_end(con)
+        return tuple((row['attribute'], row['value']) for row in book_mark_db_rows)
+
+    def set_book_marks(self, book_marks: tuple[tuple[str, str]]):
+        """Save the bookmarks to the database"""
+        print('set book marks')
+        con = book_ease_tables.DB_CONNECTION_MANAGER.query_begin()
+        self.settings_string.clear_category(con, 'book_mark')
+        for row in book_marks:
+            self.settings_string.set(con, 'book_mark', row[0], row[1])
+        book_ease_tables.DB_CONNECTION_MANAGER.query_end(con)
+
+    def append_book_mark(self, title: str, target: str):
+        """append a bookmark entry to the 'book_mark' category in the settings_string database"""
+        con = book_ease_tables.DB_CONNECTION_MANAGER.query_begin()
+        self.settings_string.set(con, 'book_mark', title, target)
+        book_ease_tables.DB_CONNECTION_MANAGER.query_end(con)
+
+
 class BookMark:
     """Controller and View for Bookmark functionality inside the file view"""
-    def __init__(self, bookmark_view, f_view, files, config):
+    def __init__(self, bookmark_view, f_view, files):
         self.files = files
-        self.config = config
-        self.config_section_name = 'bookmarks'
+        self.book_mark_dbi = BookMarkDBI()
         self.f_view = f_view
 
         self.icon_pos, self.name_pos, self.target_pos = (0, 1, 2)
@@ -208,9 +236,9 @@ class BookMark:
             icon = Gtk.IconTheme.get_default().load_icon('folder', 24, 0)
             self.bookmark_model.append([icon, name, path])
             # update the config for data persistence
-            self.config.set(self.config_section_name, name, path)
+            self.book_mark_dbi.append_book_mark(name, path)
 
-    def cm_on_deactivate(self):
+    def cm_on_deactivate(self, __):
         """
         callback to cleanup after a context menu is closed
         unselects any entries in the view that were being acted upon by the context menu
@@ -275,21 +303,18 @@ class BookMark:
         self.update_bookmark_config()
 
     def update_bookmark_config(self):
-        """clear and resave all of the bookmarks with current values"""
-        self.config.remove_section(self.config_section_name)
-        self.config.add_section(self.config_section_name)
-        for i in self.bookmark_model:
-            self.config.set(self.config_section_name, i[1], i[2])
+        """clear and re-save all the bookmarks with current values"""
+        self.book_mark_dbi.set_book_marks(tuple((row[1], row[2]) for row in self.bookmark_model))
 
     def reload_bookmarks(self):
         """
         load saved bookmarks into the bookmark treeview
         Note: this does not reload, it only appends
         """
-        for key in self.config[self.config_section_name]:
-            if os.path.isdir(self.config[self.config_section_name][key]):
-                icon = Gtk.IconTheme.get_default().load_icon('folder', 24, 0)
-                self.bookmark_model.append([icon, key, self.config[self.config_section_name][key]])
+        for row in self.book_mark_dbi.get_bookmarks():
+            if os.path.isdir(row[1]):
+                icon = Gtk.IconTheme.get_default().load_icon('folder', 24, Gtk.IconLookupFlags.GENERIC_FALLBACK)
+                self.bookmark_model.append([icon, row[0], row[1]])
 
 
 class Image_View:
@@ -816,7 +841,7 @@ def main(unused_args):
     # left side file viewer
     files_view_1 = Files_View(builder.get_object("files_1"), files, config)
     # left side bookmarks
-    BookMark(builder.get_object("bookmarks_1"), files_view_1, files, config)
+    BookMark(builder.get_object("bookmarks_1"), files_view_1, files)
     # image pane
     Image_View(files, config, builder)
 
