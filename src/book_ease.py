@@ -111,10 +111,9 @@ class BookMarkDBI:
 
 class BookMark:
     """Controller and View for Bookmark functionality inside the file view"""
-    def __init__(self, bookmark_view, f_view, files, config):
+    def __init__(self, bookmark_view, f_view, files):
         self.files = files
-        self.config = config
-        self.config_section_name = 'bookmarks'
+        self.book_mark_dbi = BookMarkDBI()
         self.f_view = f_view
 
         self.icon_pos, self.name_pos, self.target_pos = (0, 1, 2)
@@ -237,7 +236,7 @@ class BookMark:
             icon = Gtk.IconTheme.get_default().load_icon('folder', 24, 0)
             self.bookmark_model.append([icon, name, path])
             # update the config for data persistence
-            self.config.set(self.config_section_name, name, path)
+            self.book_mark_dbi.append_book_mark(name, path)
 
     def cm_on_deactivate(self, __):
         """
@@ -304,21 +303,18 @@ class BookMark:
         self.update_bookmark_config()
 
     def update_bookmark_config(self):
-        """clear and resave all of the bookmarks with current values"""
-        self.config.remove_section(self.config_section_name)
-        self.config.add_section(self.config_section_name)
-        for i in self.bookmark_model:
-            self.config.set(self.config_section_name, i[1], i[2])
+        """clear and re-save all the bookmarks with current values"""
+        self.book_mark_dbi.set_book_marks(tuple((row[1], row[2]) for row in self.bookmark_model))
 
     def reload_bookmarks(self):
         """
         load saved bookmarks into the bookmark treeview
         Note: this does not reload, it only appends
         """
-        for key in self.config[self.config_section_name]:
-            if os.path.isdir(self.config[self.config_section_name][key]):
-                icon = Gtk.IconTheme.get_default().load_icon('folder', 24, 0)
-                self.bookmark_model.append([icon, key, self.config[self.config_section_name][key]])
+        for row in self.book_mark_dbi.get_bookmarks():
+            if os.path.isdir(row[1]):
+                icon = Gtk.IconTheme.get_default().load_icon('folder', 24, Gtk.IconLookupFlags.GENERIC_FALLBACK)
+                self.bookmark_model.append([icon, row[0], row[1]])
 
 
 class Image_View:
@@ -845,7 +841,7 @@ def main(unused_args):
     # left side file viewer
     files_view_1 = Files_View(builder.get_object("files_1"), files, config)
     # left side bookmarks
-    BookMark(builder.get_object("bookmarks_1"), files_view_1, files, config)
+    BookMark(builder.get_object("bookmarks_1"), files_view_1, files)
     # image pane
     Image_View(files, config, builder)
 
