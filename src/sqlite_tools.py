@@ -28,7 +28,7 @@ from pathlib import Path
 class DBConnectionManager:
     """provide database connection management for multi queries"""
 
-    def __init__(self, database: Path):
+    def __init__(self, database: Path | str):
         self.database = database
         self.con = None
 
