@@ -80,6 +80,35 @@ class RenameTvEntryDialog(Gtk.Dialog):
             self.entry_2.set_text(path)
 
 
+class BookMarkDBI:
+    """Adapter to help BookMark interface with the book_ease.db database"""
+
+    def __init__(self):
+        self.settings_string = book_ease_tables.SettingsString()
+
+    def get_bookmarks(self) -> tuple[tuple[str, str]] | None:
+        """Get the list of saved bookmarks from the database."""
+        con = book_ease_tables.DB_CONNECTION_MANAGER.query_begin()
+        book_mark_db_rows = self.settings_string.get_category(con, 'book_mark')
+        book_ease_tables.DB_CONNECTION_MANAGER.query_end(con)
+        return tuple((row['attribute'], row['value']) for row in book_mark_db_rows)
+
+    def set_book_marks(self, book_marks: tuple[tuple[str, str]]):
+        """Save the bookmarks to the database"""
+        print('set book marks')
+        con = book_ease_tables.DB_CONNECTION_MANAGER.query_begin()
+        self.settings_string.clear_category(con, 'book_mark')
+        for row in book_marks:
+            self.settings_string.set(con, 'book_mark', row[0], row[1])
+        book_ease_tables.DB_CONNECTION_MANAGER.query_end(con)
+
+    def append_book_mark(self, title: str, target: str):
+        """append a bookmark entry to the 'book_mark' category in the settings_string database"""
+        con = book_ease_tables.DB_CONNECTION_MANAGER.query_begin()
+        self.settings_string.set(con, 'book_mark', title, target)
+        book_ease_tables.DB_CONNECTION_MANAGER.query_end(con)
+
+
 class BookMark:
     """Controller and View for Bookmark functionality inside the file view"""
     def __init__(self, bookmark_view, f_view, files, config):
