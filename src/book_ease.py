@@ -320,10 +320,17 @@ class BookMark:
 class Image_View:
     """Display images inside a playlist folder"""
 
-    def __init__(self, files, config, builder):
+    # image file types supported by Image_View
+    file_types = ('.jpg', '.jpeg', '.png')
+    # build compiled regexes for matching list of media suffixes.
+    f_type_regexes = []
+    for suffix in file_types:
+        suffix = '.*.\\' + suffix.strip() + '$'
+        f_type_regexes.append(re.compile(suffix))
+
+    def __init__(self, files, builder):
         self.image_view_section = 'image_view'
         self.files = files
-        self.config = config
         self.builder = builder
         self.image_view = builder.get_object("image_view")
         self.image_view_da = builder.get_object("image_view_da")
@@ -333,16 +340,10 @@ class Image_View:
         self.surface = None
         # TODO: setup locating the image files automatically
         # image_filetypes key has values given in a comma separated list
-        file_types = config[self.image_view_section]['image_filetypes'].split(",")
-        # build compiled regexes for matching list of media suffixes.
-        self.f_type_re = []
-        for i in file_types:
-            i = '.*.\\' + i.strip() + '$'
-            self.f_type_re.append(re.compile(i))
 
     def is_image_file(self, file_):
         """Test if file_ is an image file"""
-        for i in self.f_type_re:
+        for i in self.f_type_regexes:
             if i.match(file_):
                 return True
         return False
@@ -843,7 +844,7 @@ def main(unused_args):
     # left side bookmarks
     BookMark(builder.get_object("bookmarks_1"), files_view_1, files)
     # image pane
-    Image_View(files, config, builder)
+    Image_View(files, builder)
 
     # bookreader backend
     book_reader.BookReader(files, builder)
