@@ -95,7 +95,6 @@ class BookMarkDBI:
 
     def set_book_marks(self, book_marks: tuple[tuple[str, str]]):
         """Save the bookmarks to the database"""
-        print('set book marks')
         con = book_ease_tables.DB_CONNECTION_MANAGER.query_begin()
         self.settings_string.clear_category(con, 'book_mark')
         for row in book_marks:
