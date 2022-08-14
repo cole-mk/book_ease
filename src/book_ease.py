@@ -210,7 +210,7 @@ class BookMark:
             # update the config for data persistence
             self.config.set(self.config_section_name, name, path)
 
-    def cm_on_deactivate(self):
+    def cm_on_deactivate(self, __):
         """
         callback to cleanup after a context menu is closed
         unselects any entries in the view that were being acted upon by the context menu
