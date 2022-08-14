@@ -75,8 +75,8 @@ class SettingsNumeric:
             category: str,
             attribute: str,
             value: int) -> int:
-
         """add entry row to table settings_numeric"""
+
         sql = """
             INSERT INTO settings_numeric(category, attribute, value)
             VALUES (?,?,?)
@@ -89,8 +89,8 @@ class SettingsNumeric:
             con: sqlite3.Connection,
             category: str,
             attribute: str) -> list[sqlite3.Row]:
-
         """get all entries that match the category and attribute columns"""
+
         sql = """
             SELECT * FROM settings_numeric
             WHERE category = (?)
@@ -105,6 +105,7 @@ class SettingsNumeric:
                         category: str,
                         attribute: str):
         """delete all rows that from settings_numeric that contain category and attribute"""
+
         sql = """
             DELETE FROM settings_numeric
             WHERE category = (?)
@@ -119,6 +120,7 @@ class SettingsNumeric:
                     attribute: str,
                     value: int):
         """Delete row in settings_numeric"""
+
         sql = """
             DELETE FROM settings_numeric
             WHERE category = (?)
@@ -157,8 +159,8 @@ class SettingsString:
             category: str,
             attribute: str,
             value: str) -> int:
-
         """add entry row to table settings_string"""
+
         sql = """
             INSERT INTO settings_string(category, attribute, value)
             VALUES (?,?,?)
@@ -171,8 +173,8 @@ class SettingsString:
             con: sqlite3.Connection,
             category: str,
             attribute: str) -> list[sqlite3.Row]:
-
         """get all entries from settings_string that match the category and attribute columns"""
+
         sql = """
             SELECT * FROM settings_string
             WHERE category = (?)
@@ -187,6 +189,7 @@ class SettingsString:
                         category: str,
                         attribute: str):
         """delete all rows that from settings_string that contain category and attribute"""
+
         sql = """
             DELETE FROM settings_string
             WHERE category = (?)
@@ -201,6 +204,7 @@ class SettingsString:
                     attribute: str,
                     value: str):
         """Delete row in settings_string"""
+
         sql = """
             DELETE FROM settings_string
             WHERE category = (?)
@@ -214,6 +218,7 @@ class SettingsString:
                        con: sqlite3.Connection,
                        category: str):
         """delete all rows from settings_string that contain category."""
+
         sql = """
             DELETE FROM settings_string
             WHERE category = (?)
@@ -225,6 +230,7 @@ class SettingsString:
                      con: sqlite3.Connection,
                      category: str) -> list[sqlite3.Row]:
         """get all rows that match category"""
+
         sql = """
             SELECT * FROM settings_string
             WHERE category = (?)
