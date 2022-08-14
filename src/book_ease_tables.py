@@ -93,7 +93,7 @@ class SettingsNumeric:
             WHERE category = (?)
             AND attribute = (?)
             """
-        cur = con.execute(sql,(category, attribute))
+        cur = con.execute(sql, (category, attribute))
         return cur.fetchall()
 
     def clear_attribute(self,
@@ -170,7 +170,7 @@ class SettingsString:
             WHERE category = (?)
             AND attribute = (?)
             """
-        cur = con.execute(sql,(category, attribute))
+        cur = con.execute(sql, (category, attribute))
         return cur.fetchall()
 
     def clear_attribute(self,
