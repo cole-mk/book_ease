@@ -26,15 +26,21 @@ from pathlib import Path
 
 
 class DBConnectionManager:
-    """provide database connection management for multi queries"""
+    """
+    Provide database connection management for multi queries.
 
-    def __init__(self, database: Path | str):
+    database is the path to the database or string representing an in memory database
+    connection_kwargs are additional args to be passed to sqlite3.connect() during self.create_connection()
+    """
+
+    def __init__(self, database: Path | str, **connection_kwargs):
         self.database = database
         self.con = None
+        self.connection_kwargs = connection_kwargs
 
     def create_connection(self) -> sqlite3.Connection:
         """ create a sqlite3 connection object and return it"""
-        con = sqlite3.connect(self.database, isolation_level=None)
+        con = sqlite3.connect(self.database, isolation_level=None, **self.connection_kwargs)
         con.row_factory = sqlite3.Row
         return con
 
