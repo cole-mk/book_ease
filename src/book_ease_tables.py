@@ -123,6 +123,25 @@ class SettingsNumeric:
             """
         con.execute(sql, (category, attribute, value))
 
+    @classmethod
+    def update_row_by_id(cls,
+                         con: sqlite3.Connection,
+                         id_: int,
+                         category: str,
+                         attribute: str,
+                         value: int):
+        """Find row by searching for id_, and then update the category, attribute, and value columns of that row."""
+
+        sql = """
+            Update settings_numeric
+            SET category = (?)
+                attribute = (?)
+                value = (?)
+            WHERE
+                rowid = (?)
+            """
+        con.execute(sql, (category, attribute, value, id_))
+
 
 class SettingsString:
     """
