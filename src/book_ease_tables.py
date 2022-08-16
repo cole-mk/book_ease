@@ -37,10 +37,10 @@ if TYPE_CHECKING:
 
 
 # set database file creating config directory
-config_dir = Path.home() / '.config' / 'book_ease'
-db_dir = config_dir / 'data'
-db_dir.mkdir(mode=511, parents=True, exist_ok=True)
-db = db_dir / 'book_ease.db'
+__CONFIG_DIR = Path.home() / '.config' / 'book_ease'
+__DATABSE_DIR = __CONFIG_DIR / 'data'
+__DATABSE_DIR.mkdir(mode=511, parents=True, exist_ok=True)
+__DATABASE_FILE_PATH = __DATABSE_DIR / 'book_ease.db'
 
 
 class SettingsNumeric:
