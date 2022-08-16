@@ -54,6 +54,7 @@ class SettingsNumeric:
         """Create table settings_numeric in book_ease.db"""
         sql = """
             CREATE TABLE IF NOT EXISTS settings_numeric (
+                id_ INTEGER PRIMARY KEY,
                 category  STRING,
                 attribute STRING,
                 value     INT
