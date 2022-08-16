@@ -52,6 +52,7 @@ class SettingsNumeric:
     @classmethod
     def init_table(cls, con: sqlite3.Connection):
         """Create table settings_numeric in book_ease.db"""
+
         sql = """
             CREATE TABLE IF NOT EXISTS settings_numeric (
                 id_ INTEGER PRIMARY KEY,
