@@ -20,6 +20,7 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
+import abc
 
 
 """
@@ -252,6 +253,39 @@ DB_CONNECTION_MANAGER = DBConnectionManager(db)
 with DB_CONNECTION_MANAGER.create_connection() as conn:
     SettingsNumeric.init_table(conn)
     SettingsString.init_table(conn)
+
+
+class _TableLoader(metaclass=abc.ABCMeta):
+    """
+    This is an interface class that defines the methods required to move table data back and forth between the copies
+    of the db on disc and in ram:
+
+    load_to_mem()
+    save_to_hd()
+    clear_from_mem()
+    """
+
+    @classmethod
+    def __subclasshook__(cls, subclass):
+        return (hasattr(subclass, 'load_to_mem') and
+                callable(subclass.load_to_mem) and
+                hasattr(subclass, 'save_to_hd') and
+                callable(subclass.save_to_hd) and
+                hasattr(subclass, 'clear_from_mem') and
+                callable(subclass.clear_from_mem) or
+                NotImplemented)
+
+    @abc.abstractmethod
+    def load_to_mem(self):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def save_to_hd(self):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def clear_from_mem(self):
+        raise NotImplementedError
 
 
 if __name__ == '__main__':
