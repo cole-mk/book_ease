@@ -827,6 +827,7 @@ class MainWindow(Gtk.Window):
 
 def main(unused_args):
     """entry point for book_ease"""
+    book_ease_tables.load_data()
     #configuration file
     config_dir = Path.home() / '.config' / 'book_ease'
     config_dir.mkdir(mode=511, parents=True, exist_ok=True)
@@ -855,7 +856,7 @@ def main(unused_args):
     # write any changes to the config
     with open(config_file, 'w', encoding="utf-8") as configfile:
         config.write(configfile)
-
+    book_ease_tables.save_data()
     return 0
 
 if __name__ == '__main__':
