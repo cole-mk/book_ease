@@ -80,43 +80,80 @@ class RenameTvEntryDialog(Gtk.Dialog):
             self.entry_2.set_text(path)
 
 
+class BookMarkData:
+    """DTO for bookmark data"""
+    __slots__ = ['id_', 'name', 'target', 'index']
+
+    def __init__(self, id_, name, target, index):
+        self.id_ = id_
+        self.name = name
+        self.target = target
+        self.index = index
+
+
 class BookMarkDBI:
     """Adapter to help BookMark interface with the book_ease.db database"""
 
-    def __init__(self):
+    def __init__(self, column_map):
+        self.column_map = column_map
         self.settings_string = book_ease_tables.SettingsString()
+        self.book_marks_table = book_ease_tables.BookMarks()
 
-    def get_bookmarks(self) -> tuple[tuple[str, str]] | None:
+    def get_bookmarks(self) -> tuple[BookMarkData]:
         """Get the list of saved bookmarks from the database."""
         con = book_ease_tables.DB_CONNECTION_MANAGER.query_begin()
-        book_mark_db_rows = self.settings_string.get_category(con, 'book_mark')
+        book_mark_db_rows = self.book_marks_table.get_all_rows_sorted_by_index_asc(con)
         book_ease_tables.DB_CONNECTION_MANAGER.query_end(con)
-        return tuple((row['attribute'], row['value']) for row in book_mark_db_rows)
+        return tuple(BookMarkData(
+            id_=row[self.column_map['id']['title']],
+            name=row[self.column_map['name']['title']],
+            target=row[self.column_map['target']['title']],
+            index=row[self.column_map['index']['title']]
+        )for row in book_mark_db_rows)
 
-    def set_book_marks(self, book_marks: tuple[tuple[str, str]]):
+    def set_book_marks(self, book_marks: tuple[BookMarkData]):
         """Save the bookmarks to the database"""
         con = book_ease_tables.DB_CONNECTION_MANAGER.query_begin()
-        self.settings_string.clear_category(con, 'book_mark')
-        for row in book_marks:
-            self.settings_string.set(con, 'book_mark', row[0], row[1])
+        id_set = set()
+        for bm_data in book_marks:
+            self.book_marks_table.update_row_by_id(con,
+                                                   id_=bm_data.id_,
+                                                   name=bm_data.name,
+                                                   target=bm_data.target,
+                                                   index=bm_data.index)
+            id_set.add(bm_data.id_)
+        self.book_marks_table.delete_rows_not_in_ids(con, tuple(id_set))
         book_ease_tables.DB_CONNECTION_MANAGER.query_end(con)
 
-    def append_book_mark(self, title: str, target: str):
-        """append a bookmark entry to the 'book_mark' category in the settings_string database"""
+    def append_book_mark(self, name: str, target: str, index: int) -> int:
+        """
+        Append a bookmark entry to the 'book_mark' category in the settings_string database.
+        Returns the rowid of the newly inserted row.
+        """
         con = book_ease_tables.DB_CONNECTION_MANAGER.query_begin()
-        self.settings_string.set(con, 'book_mark', title, target)
+        rowid = self.book_marks_table.set(con, name=name, target=target, index=index)
         book_ease_tables.DB_CONNECTION_MANAGER.query_end(con)
+        return rowid
 
 
 class BookMark:
     """Controller and View for Bookmark functionality inside the file view"""
+
+    # map database columns to the bookmark g_model (ListStore) columns
+    column_map = {
+        'icon': {'g_col': 0},
+        'id': {'g_col': 1, 'title': 'id_'},
+        'name': {'g_col': 2, 'title': 'name'},
+        'target': {'g_col': 3, 'title': 'target'},
+        'index': {'title': 'index_'}
+    }
+
     def __init__(self, bookmark_view, f_view, files):
         self.files = files
-        self.book_mark_dbi = BookMarkDBI()
+        self.book_mark_dbi = BookMarkDBI(self.column_map)
         self.f_view = f_view
 
-        self.icon_pos, self.name_pos, self.target_pos = (0, 1, 2)
-        self.bookmark_model = Gtk.ListStore(Pixbuf, str, str)
+        self.bookmark_model = Gtk.ListStore(Pixbuf, int, str, str)
         self.bookmark_model.connect('row-deleted', self.on_row_deleted)
 
         self.bookmark_view = bookmark_view
@@ -134,8 +171,8 @@ class BookMark:
         self.column = Gtk.TreeViewColumn("Bookmarks")
         self.column.pack_start(self.renderer_icon, False)
         self.column.pack_start(self.renderer_text, True)
-        self.column.add_attribute(self.renderer_icon, "pixbuf", self.icon_pos)
-        self.column.add_attribute(self.renderer_text, "text", self.name_pos)
+        self.column.add_attribute(self.renderer_icon, "pixbuf", self.column_map['icon']['g_col'])
+        self.column.add_attribute(self.renderer_text, "text", self.column_map['name']['g_col'])
 
         self.bookmark_view.append_column(self.column)
         self.bookmark_view.set_reorderable(True)
@@ -181,8 +218,8 @@ class BookMark:
         # get the selected bookmark model from the row
         for pth in paths:
             itr = model.get_iter(pth)
-            name = model.get_value(itr, self.name_pos)
-            target = model.get_value(itr, self.target_pos)
+            name = model.get_value(itr, self.column_map['name']['g_col'])
+            target = model.get_value(itr, self.column_map['target']['g_col'])
             # get rename info from the user
             dialog = RenameTvEntryDialog(title='Rename Bookmark')
             dialog.label_1.set_text("Rename: " + name)
@@ -197,8 +234,8 @@ class BookMark:
             if response == Gtk.ResponseType.OK:
                 name = dialog.entry_1.get_text()
                 target = dialog.entry_2.get_text()
-                model.set_value(itr, self.name_pos, name)
-                model.set_value(itr, self.target_pos, target)
+                model.set_value(itr, self.column_map['name']['g_col'], name)
+                model.set_value(itr, self.column_map['target']['g_col'], target)
                 # update config for data persistence
                 self.update_bookmark_config()
             dialog.destroy()
@@ -231,11 +268,13 @@ class BookMark:
         add bookmark, defined by name and path, by adding it
         to the bookmark model and saving it to file
         """
+        # This needs to be done so that the id is pushed into the bookmarks model
         if name is not None and path is not None:
+            index = len(self.bookmark_model)
+            new_id = self.book_mark_dbi.append_book_mark(name=name, target=path, index=index)
             icon = Gtk.IconTheme.get_default().load_icon('folder', 24, 0)
-            self.bookmark_model.append([icon, name, path])
-            # update the config for data persistence
-            self.book_mark_dbi.append_book_mark(name, path)
+            self.bookmark_model.append([icon, new_id, name, path])
+
 
     def cm_on_deactivate(self, __):
         """
@@ -271,7 +310,7 @@ class BookMark:
                 (model, pathlist) = tvs.get_selected_rows()
                 for path in pathlist :
                     tree_iter = model.get_iter(path)
-                    value = model.get_value(tree_iter, self.target_pos)
+                    value = model.get_value(tree_iter, self.column_map['target']['g_col'])
                     tvs.unselect_all()
                     self.files.cd(value)
 
@@ -280,6 +319,7 @@ class BookMark:
         handle callbacks for a button press on a bookmark by any mouse button.
         currently its only action is to call a context menu when the bookmark view is right clicked
         """
+        print('on_button_press')
         if event.get_button()[0] is True:
             if event.get_button()[1] == 1:
                 pass
@@ -303,7 +343,14 @@ class BookMark:
 
     def update_bookmark_config(self):
         """clear and re-save all the bookmarks with current values"""
-        self.book_mark_dbi.set_book_marks(tuple((row[1], row[2]) for row in self.bookmark_model))
+        cmap = BookMark.column_map
+        data = tuple(BookMarkData(id_=row[cmap['id']['g_col']],
+                                  name=row[cmap['name']['g_col']],
+                                  target=row[cmap['target']['g_col']],
+                                  index=i)
+                     for i, row in enumerate(self.bookmark_model))
+
+        self.book_mark_dbi.set_book_marks(data)
 
     def reload_bookmarks(self):
         """
@@ -311,9 +358,11 @@ class BookMark:
         Note: this does not reload, it only appends
         """
         for row in self.book_mark_dbi.get_bookmarks():
-            if os.path.isdir(row[1]):
+            # if os.path.isdir(row[1]):
+
+            if os.path.isdir(row.target):
                 icon = Gtk.IconTheme.get_default().load_icon('folder', 24, Gtk.IconLookupFlags.GENERIC_FALLBACK)
-                self.bookmark_model.append([icon, row[0], row[1]])
+                self.bookmark_model.append([icon, row.id_, row.name, row.target])
 
 
 class Image_View:
