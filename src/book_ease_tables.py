@@ -367,9 +367,11 @@ def load_data():
     DB_CONNECTION_MANAGER.multi_query_begin()
     _LoaderSettingsNumeric.clear_from_mem()
     _LoaderSettingsString.clear_from_mem()
+    _LoaderBookMarks.clear_from_mem()
     _attach_book_ease_db()
     _LoaderSettingsNumeric.load_to_mem()
     _LoaderSettingsString.load_to_mem()
+    _LoaderBookMarks.load_to_mem()
     DB_CONNECTION_MANAGER.con.commit()
     _detach_book_ease_db()
     DB_CONNECTION_MANAGER.multi_query_end()
@@ -385,9 +387,11 @@ def save_data():
     _attach_book_ease_db()
     _LoaderSettingsNumeric.save_to_hd()
     _LoaderSettingsString.save_to_hd()
+    _LoaderBookMarks.save_to_hd()
     # id_ values are now corrupted in the in memory database.
     _LoaderSettingsNumeric.clear_from_mem()
     _LoaderSettingsString.clear_from_mem()
+    _LoaderBookMarks.clear_from_mem()
     DB_CONNECTION_MANAGER.con.commit()
     _detach_book_ease_db()
     DB_CONNECTION_MANAGER.multi_query_end()
@@ -412,6 +416,7 @@ def _init_database(connection_manager: sqlite_tools.DBConnectionManager):
     with connection_manager.create_connection() as conn:
         SettingsNumeric.init_table(conn)
         SettingsString.init_table(conn)
+        BookMarks.init_table(conn)
 
 
 # Initialize the on disk db connection and ensure that the database is set up properly.
@@ -576,6 +581,52 @@ class _LoaderSettingsNumeric(_LoaderInterface):
         """clear all data from the in memory database"""
         con = DB_CONNECTION_MANAGER.query_begin()
         con.execute('DELETE FROM settings_numeric')
+        DB_CONNECTION_MANAGER.query_end(con)
+
+
+class _LoaderBookMarks(_LoaderInterface):
+    """Move SettingsNumeric data back and forth between the copies of the db on disc and in ram."""
+
+    @classmethod
+    def load_to_mem(cls):
+        """Copy all data from book_ease.db:book_marks into the in memory copy of the database"""
+        con = DB_CONNECTION_MANAGER.query_begin()
+        sql = """
+            INSERT INTO book_marks
+            SELECT * FROM database_hd.book_marks
+            """
+        con.execute(sql)
+        DB_CONNECTION_MANAGER.query_end(con)
+
+    @classmethod
+    def save_to_hd(cls):
+        """Move all data from the in memory copy of book_marks into book_ease.db:book_marks"""
+        con = DB_CONNECTION_MANAGER.query_begin()
+        # first delete rows in the disk database who's id_col is not in the in memory database.
+        sql = """
+            DELETE FROM database_hd.book_marks
+            WHERE
+                id_ NOT IN(
+                    SELECT id_
+                    FROM book_marks
+                )
+            """
+        con.execute(sql)
+        # Replace any rows that have changed, or insert if id_ is not in database_hd.book_marks
+        sql = """
+            INSERT OR REPLACE INTO database_hd.book_marks
+            SELECT * FROM book_marks
+            EXCEPT
+            SELECT * FROM database_hd.book_marks
+            """
+        con.execute(sql)
+        DB_CONNECTION_MANAGER.query_end(con)
+
+    @classmethod
+    def clear_from_mem(cls):
+        """clear all data from the in memory database"""
+        con = DB_CONNECTION_MANAGER.query_begin()
+        con.execute('DELETE FROM book_marks')
         DB_CONNECTION_MANAGER.query_end(con)
 
 
