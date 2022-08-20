@@ -442,7 +442,7 @@ class _LoaderSettingsString(_LoaderInterface):
             INSERT OR REPLACE INTO database_hd.settings_string
             SELECT * FROM settings_string
             EXCEPT
-            SELECT * FROM database_hd.settings_string;
+            SELECT * FROM database_hd.settings_string
             """
         con.execute(sql)
         DB_CONNECTION_MANAGER.query_end(con)
@@ -488,7 +488,7 @@ class _LoaderSettingsNumeric(_LoaderInterface):
             INSERT OR REPLACE INTO database_hd.settings_numeric
             SELECT * FROM settings_numeric
             EXCEPT
-            SELECT * FROM database_hd.settings_numeric;
+            SELECT * FROM database_hd.settings_numeric
             """
         con.execute(sql)
         DB_CONNECTION_MANAGER.query_end(con)
