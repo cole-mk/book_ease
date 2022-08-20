@@ -284,6 +284,84 @@ class SettingsString:
         con.execute(sql, (category, attribute, value, id_))
 
 
+class BookMarks:
+    """
+    sql queries for table book_marks
+    This table stores the list of bookmarks displayed in the BookMark View.
+    """
+
+    @classmethod
+    def init_table(cls, con: sqlite3.Connection):
+        """Create table settings_numeric in book_ease.db"""
+
+        sql = """
+            CREATE TABLE IF NOT EXISTS book_marks (
+                id_ INTEGER PRIMARY KEY,
+                name STRING,
+                target STRING,
+                index_ INTEGER
+            )
+            """
+        con.execute(sql)
+
+    @classmethod
+    def get_all_rows_sorted_by_index_asc(cls, con: sqlite3.Connection) -> list['sqlite3.Row']:
+        """Get all rows in the book_marks table"""
+
+        sql = """
+            SELECT * FROM book_marks
+            ORDER BY
+            index_ ASC
+            """
+        cur = con.execute(sql)
+        return cur.fetchall()
+
+    @classmethod
+    def update_row_by_id(cls,
+                         con: sqlite3.Connection,
+                         id_: int,
+                         name: str,
+                         target: str,
+                         index: int):
+        """update all rows that match id_"""
+
+        sql = """
+            UPDATE book_marks
+            SET name = (?),
+                target = (?),
+                index_ = (?)
+            WHERE
+                id_ = (?)
+            """
+        con.execute(sql, (name, target, index, id_))
+
+    @classmethod
+    def delete_rows_not_in_ids(cls, con: sqlite3.Connection, ids: tuple):
+        """Delete any row whose id_ column is not included in ids."""
+
+        sql = f"""
+            DELETE FROM book_marks
+            WHERE
+            id_ NOT IN ({','.join(['?'] * len(ids))})
+            """
+        con.execute(sql, ids)
+
+    @classmethod
+    def set(cls,
+            con: sqlite3.Connection,
+            name: str,
+            target: str,
+            index: int) -> int:
+        """Add a new row to table book_marks"""
+
+        sql = """
+            INSERT INTO book_marks(name, target, index_)
+            VALUES (?, ?, ?)
+            """
+        cur = con.execute(sql, (name, target, index))
+        return cur.lastrowid
+
+
 def load_data():
     """Copy all data from book_ease.db into the in memory copy of the database"""
     DB_CONNECTION_MANAGER.multi_query_begin()
