@@ -380,10 +380,6 @@ def load_data():
 def save_data():
     """Copy all data from the in memory copy of the database into book_ease.db"""
     DB_CONNECTION_MANAGER.multi_query_begin()
-    curr = DB_CONNECTION_MANAGER.con.execute('SELECT * from settings_string')
-    result = curr.fetchall()
-    print('save_data', result)
-
     _attach_book_ease_db()
     _LoaderSettingsNumeric.save_to_hd()
     _LoaderSettingsString.save_to_hd()
