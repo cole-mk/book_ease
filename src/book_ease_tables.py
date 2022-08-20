@@ -269,7 +269,7 @@ class SettingsString:
                          con: sqlite3.Connection,
                          id_: int,
                          category: str,
-                         atrtribute: str,
+                         attribute: str,
                          value: int):
         """Find row by searching for id_, and then update the category, attribute, and value columns of that row."""
 
@@ -281,7 +281,7 @@ class SettingsString:
             WHERE
                 id_ = (?)
             """
-        con.execute(sql, (category, atrtribute, value, id_))
+        con.execute(sql, (category, attribute, value, id_))
 
 
 def load_data():
