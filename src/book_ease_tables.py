@@ -139,8 +139,8 @@ class SettingsNumeric:
 
         sql = """
             Update settings_numeric
-            SET category = (?)
-                attribute = (?)
+            SET category = (?),
+                attribute = (?),
                 value = (?)
             WHERE
                 rowid = (?)
