@@ -653,14 +653,11 @@ class Files_(signal_.Signal):
 class Files_View:
     """Display file infrmation for files in the cwd"""
 
-    def __init__(self, files_view, files, config):
+    def __init__(self, files_view, files):
         self.files_view = files_view
+        self.files_view.connect('destroy', self.on_destroy)
+        self.files_view_dbi = FilesViewDBI()
         self.files = files
-
-        self.config = config
-
-        self.config_section_name = 'FilesView'
-
         # set up the data model and containers
         self.files_ls = self.files.get_file_list()
         self.files_ls.set_sort_func(1, self.files.cmp_f_list_dir_fst, None)
@@ -676,9 +673,9 @@ class Files_View:
         self.name_col.add_attribute(name_r_text, "text", 1)
         self.name_col.set_sort_column_id(1)
         self.name_col.set_resizable(True)
-        # reset column width to previous size
-        name_width = int(self.config[self.config_section_name]['column_width_name'])
-        self.name_col.set_fixed_width(name_width)
+        # reset name column width to previous size iff previous size exists.
+        if name_width := self.files_view_dbi.get_name_col_width():
+            self.name_col.set_fixed_width(name_width)
         self.files_view.append_column(self.name_col)
 
         # size column
@@ -711,7 +708,7 @@ class Files_View:
         """
         if event.get_button()[0] is True:
             if event.get_button()[1] == 1:
-                self.on_col_width_change()
+                pass
                 #print('left button clicked')
             elif event.get_button()[1] == 2:
                 pass
@@ -726,13 +723,6 @@ class Files_View:
                 self.files.cd_ahead()
                 #print('forward button clicked')
 
-    def on_col_width_change(self):
-        """save new column width to config parser, creating a new section name if it doesn't exist'"""
-        name_width_config = int(self.config[self.config_section_name]['column_width_name'])
-        name_width = self.name_col.get_width()
-        if name_width_config != name_width:
-            self.config.set(self.config_section_name, 'column_width_name', str(name_width))
-
     def row_activated(self, treeview, path, unused_column):
         """
         a file was cicked in the view.
@@ -746,6 +736,43 @@ class Files_View:
             # cd into selected dir
             new_path = os.path.join(self.files.get_path_current(), value)
             self.files.cd(new_path)
+
+    def on_destroy(self, *unused_args):
+        """save the gui's state"""
+        self.files_view_dbi.save_name_col_width(self.name_col.get_width())
+
+
+class FilesViewDBI:
+    """Class to help FilesView interface with a database"""
+
+    def __init__(self):
+        self.settings_numeric = book_ease_tables.SettingsNumeric()
+        # ids dict stores attribute:rowid to ease calls to update or insert a new row in the database
+        self.ids = {}
+
+    def get_name_col_width(self) -> int | None:
+        """retrieve the saved width of the name column in the FilesView treeview."""
+        con = book_ease_tables.DB_CONNECTION_MANAGER.query_begin()
+        width_result = self.settings_numeric.get(con, 'FilesView', 'name_col_width')
+        book_ease_tables.DB_CONNECTION_MANAGER.query_end(con)
+
+        if width_result:
+            width = width_result[0]['value']
+            self.ids['name_col_width'] = width_result[0]['id_']
+        else:
+            width = None
+            self.ids['name_col_width'] = None
+        return width
+
+    def save_name_col_width(self, width: int):
+        """Save the width of the name column in the FilesView:TreeView to a database."""
+        con = book_ease_tables.DB_CONNECTION_MANAGER.query_begin()
+        if id_ := self.ids['name_col_width']:
+            self.settings_numeric.update_value_by_id(con, id_, width)
+        else:
+            self.settings_numeric.set(con, 'FilesView', 'name_col_width', width)
+        book_ease_tables.DB_CONNECTION_MANAGER.query_end(con)
+
 
 class MainWindow(Gtk.Window):
     """The main display window"""
@@ -889,7 +916,7 @@ def main(unused_args):
     # files backend
     files = Files_()
     # left side file viewer
-    files_view_1 = Files_View(builder.get_object("files_1"), files, config)
+    files_view_1 = Files_View(builder.get_object("files_1"), files)
     # left side bookmarks
     BookMark(builder.get_object("bookmarks_1"), files_view_1, files)
     # image pane
