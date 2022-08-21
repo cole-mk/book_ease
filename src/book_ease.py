@@ -747,6 +747,40 @@ class Files_View:
             new_path = os.path.join(self.files.get_path_current(), value)
             self.files.cd(new_path)
 
+
+
+class FilesViewDBI:
+    """Class to help FilesView interface with a database"""
+
+    def __init__(self):
+        self.settings_numeric = book_ease_tables.SettingsNumeric()
+        # ids dict stores attribute:rowid to ease calls to update or insert a new row in the database
+        self.ids = {}
+
+    def get_name_col_width(self) -> int | None:
+        """retrieve the saved width of the name column in the FilesView treeview."""
+        con = book_ease_tables.DB_CONNECTION_MANAGER.query_begin()
+        width_result = self.settings_numeric.get(con, 'FilesView', 'name_col_width')
+        book_ease_tables.DB_CONNECTION_MANAGER.query_end(con)
+
+        if width_result:
+            width = width_result[0]['value']
+            self.ids['name_col_width'] = width_result[0]['id_']
+        else:
+            width = None
+            self.ids['name_col_width'] = None
+        return width
+
+    def save_name_col_width(self, width: int):
+        """Save the width of the name column in the FilesView:TreeView to a database."""
+        con = book_ease_tables.DB_CONNECTION_MANAGER.query_begin()
+        if id_ := self.ids['name_col_width']:
+            self.settings_numeric.update_value_by_id(con, id_, width)
+        else:
+            self.settings_numeric.set(con, 'FilesView', 'name_col_width', width)
+        book_ease_tables.DB_CONNECTION_MANAGER.query_end(con)
+
+
 class MainWindow(Gtk.Window):
     """The main display window"""
 
