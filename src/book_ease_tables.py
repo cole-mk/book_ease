@@ -147,6 +147,19 @@ class SettingsNumeric:
             """
         con.execute(sql, (category, attribute, value, id_))
 
+    def update_value_by_id(self,
+                           con: sqlite3.Connection,
+                           id_: int,
+                           value: int):
+        """update the value column of the row that contains id_"""
+
+        sql = """
+            UPDATE settings_numeric
+            SET value = (?)
+            WHERE rowid = (?)
+            """
+        con.execute(sql, (value, id_))
+
 
 class SettingsString:
     """
