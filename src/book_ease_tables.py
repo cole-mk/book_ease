@@ -74,7 +74,10 @@ class SettingsNumeric:
             category: str,
             attribute: str,
             value: int) -> int:
-        """add entry row to table settings_numeric"""
+        """
+        Add entry row to table settings_numeric.
+        Returns the id of the newly created row.
+        """
 
         sql = """
             INSERT INTO settings_numeric(category, attribute, value)
