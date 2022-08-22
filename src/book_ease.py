@@ -23,7 +23,6 @@
 #  MA 02110-1301, USA.
 """Entry point for book_ease program"""
 import os
-import configparser
 from datetime import datetime
 import re
 from pathlib import Path
@@ -903,14 +902,8 @@ class MainWindow(Gtk.Window):
 
 def main(unused_args):
     """entry point for book_ease"""
+    # cache the settings database
     book_ease_tables.load_data()
-    #configuration file
-    config_dir = Path.home() / '.config' / 'book_ease'
-    config_dir.mkdir(mode=511, parents=True, exist_ok=True)
-    config_file = config_dir / 'book_ease.ini'
-    config = configparser.ConfigParser()
-    config.read(config_file)
-    # Load the gui from glade
     builder = Gtk.Builder()
     builder.add_from_file("book_ease.glade")
     # files backend
@@ -929,11 +922,10 @@ def main(unused_args):
     MainWindow(builder.get_object("window1"), builder.get_object("window_1_pane"), builder)
 
     Gtk.main()
-    # write any changes to the config
-    with open(config_file, 'w', encoding="utf-8") as configfile:
-        config.write(configfile)
+    # Sync the in memory database to the on file database.
     book_ease_tables.save_data()
     return 0
+
 
 if __name__ == '__main__':
     import sys
