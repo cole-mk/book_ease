@@ -74,7 +74,10 @@ class SettingsNumeric:
             category: str,
             attribute: str,
             value: int) -> int:
-        """add entry row to table settings_numeric"""
+        """
+        Add entry row to table settings_numeric.
+        Returns the id of the newly created row.
+        """
 
         sql = """
             INSERT INTO settings_numeric(category, attribute, value)
@@ -147,10 +150,10 @@ class SettingsNumeric:
             """
         con.execute(sql, (category, attribute, value, id_))
 
-    def update_value_by_id(self,
-                           con: sqlite3.Connection,
+    @staticmethod
+    def update_value_by_id(con: sqlite3.Connection,
                            id_: int,
-                           value: int):
+                           value: int) -> bool:
         """update the value column of the row that contains id_"""
 
         sql = """
@@ -158,7 +161,29 @@ class SettingsNumeric:
             SET value = (?)
             WHERE rowid = (?)
             """
-        con.execute(sql, (value, id_))
+        cur = con.execute(sql, (value, id_))
+        return bool(cur.rowcount)
+
+    @staticmethod
+    def update_value(con: sqlite3.Connection,
+                     category: str,
+                     attribute: str,
+                     value: int) -> int | None:
+        """
+        Update the value column on the first row that matches category and attribute.
+        returns rowid if the update was successful or None if no match was found.
+        """
+
+        updated_by_id = None
+        sql = """
+            SELECT * FROM settings_numeric
+            WHERE category = (?)
+            AND attribute = (?)
+            """
+        cur = con.execute(sql, (category, attribute))
+        if row := cur.fetchone():
+            updated_by_id = SettingsNumeric.update_value_by_id(con, row['id_'], value)
+        return row['id_'] if updated_by_id else None
 
 
 class SettingsString:
@@ -295,6 +320,56 @@ class SettingsString:
                 id_ = (?)
             """
         con.execute(sql, (category, attribute, value, id_))
+
+
+class SettingsNumericDBI:
+    """
+    A simple adapter for the SettingsNumeric table class.
+    This should allow other classes to store and retrieve data in a manner similar to using configparser.
+    """
+
+    @staticmethod
+    def get(category: str, attribute: str) -> int | None:
+        """
+        Retrieve a single numeric value from SettingsNumeric where row contains category and attribute.
+
+        Returns None if a row matching  category:attribute is not found in table.
+        """
+        con = DB_CONNECTION_MANAGER.query_begin()
+        value = SettingsNumeric.get(con, category, attribute)
+        DB_CONNECTION_MANAGER.query_end(con)
+        return value[0]['value'] if value else None
+
+    @staticmethod
+    def set(category: str, attribute: str, value: int) -> int:
+        """
+        Update the first row that matches category and attribute or insert new row.
+        return the id of the modified row.
+        """
+        con = DB_CONNECTION_MANAGER.query_begin()
+        if id_ := SettingsNumeric.update_value(con, category, attribute, value) is None:
+            id_ = SettingsNumeric.set(con, category, attribute, value)
+        DB_CONNECTION_MANAGER.query_end(con)
+        return id_
+
+    @staticmethod
+    def get_bool(category: str, attribute: str) -> bool | None:
+        """
+        Retrieve a boolean value from SettingsNumeric
+        Returns None if a row matching  category:attribute is not found in table
+        """
+        val = SettingsNumericDBI.get(category, attribute)
+        return bool(val) if val is not None else None
+
+    @staticmethod
+    def set_bool(category: str, attribute: str, value: bool) -> int:
+        """
+        Set a boolean value in table settings_numeric.
+        This is just a convenience function added for readability in the caller classes.
+
+        Returns the rowid of the modified row.
+        """
+        return SettingsNumericDBI.set(category, attribute, int(value))
 
 
 class BookMarks:
