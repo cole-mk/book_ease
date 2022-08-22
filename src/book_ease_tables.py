@@ -159,6 +159,26 @@ class SettingsNumeric:
             WHERE rowid = (?)
             """
         con.execute(sql, (value, id_))
+    @staticmethod
+    def update_value(con: sqlite3.Connection,
+                     category: str,
+                     attribute: str,
+                     value: int) -> int | None:
+        """
+        Update the value column on the first row that matches category and attribute.
+        returns rowid if the update was successful or None if no match was found.
+        """
+
+        updated_by_id = None
+        sql = """
+            SELECT * FROM settings_numeric
+            WHERE category = (?)
+            AND attribute = (?)
+            """
+        cur = con.execute(sql, (category, attribute))
+        if row := cur.fetchone():
+            updated_by_id = SettingsNumeric.update_value_by_id(con, row['id_'], value)
+        return row['id_'] if updated_by_id else None
 
 
 class SettingsString:
