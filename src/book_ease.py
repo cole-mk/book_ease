@@ -776,94 +776,95 @@ class FilesViewDBI:
 
 class MainWindow(Gtk.Window):
     """The main display window"""
+    SettingsNumericDBI = book_ease_tables.SettingsNumericDBI
 
     def __init__(self, book_reader_window, window_pane, config, builder):
         self.config = config
         self.book_reader_window = book_reader_window
         self.window_pane = window_pane
 
-        # visibility buttons
-        self.show_files_switch1 = builder.get_object("show_files_switch1")
-        self.show_files_switch1.connect('state-set', self.on_visibility_switch_changed)
-        self.show_files_switch1_state = self.config['book_reader_window'].getboolean('show_files_switch1_state')
+        # visibility switches
+        #
+        # put the visibility switches in a set, so they can be iterated over when saving and retrieving values
+        # from the database.
+        self.visibility_switches = set()
+        show_files_switch1 = builder.get_object("show_files_switch1")
+        show_files_switch1.connect('state-set', self.on_visibility_switch_changed)
+        self.visibility_switches.add(show_files_switch1)
         self.file_manager1 = builder.get_object("file_manager1")
         #
-        self.show_files_switch2 = builder.get_object("show_files_switch2")
-        self.show_files_switch2.connect('state-set', self.on_visibility_switch_changed)
-        self.show_files_switch2_state = self.config['book_reader_window'].getboolean('show_files_switch2_state')
+        show_files_switch2 = builder.get_object("show_files_switch2")
+        show_files_switch2.connect('state-set', self.on_visibility_switch_changed)
+        self.visibility_switches.add(show_files_switch2)
         self.file_manager2 = builder.get_object("file_manager2")
         #
-        self.show_playlist_switch = builder.get_object("show_playlist_switch")
-        self.show_playlist_switch.connect('state-set', self.on_visibility_switch_changed)
-        self.show_playlist_switch_state = self.config['book_reader_window'].getboolean('show_playlist_switch_state')
+        show_playlist_switch = builder.get_object("show_playlist_switch")
+        show_playlist_switch.connect('state-set', self.on_visibility_switch_changed)
+        self.visibility_switches.add(show_playlist_switch)
         self.book_reader_view = builder.get_object("book_reader_view")
         #
         self.image_view = builder.get_object("image_view")
-        self.show_image_switch = builder.get_object("show_image_switch")
-        self.show_image_switch.connect('state-set', self.on_visibility_switch_changed)
-        self.show_image_switch_state = self.config['book_reader_window'].getboolean('show_image_switch_state')
+        show_image_switch = builder.get_object("show_image_switch")
+        show_image_switch.connect('state-set', self.on_visibility_switch_changed)
+        self.visibility_switches.add(show_image_switch)
         # file_manager_pane
         self.file_manager_pane = builder.get_object("file_manager_pane")
-        self.file_manager_pane_pos = self.config['book_reader_window'].getint('file_manager_pane_pos')
-        self.file_manager_pane.set_position(int(self.file_manager_pane_pos))
+        if file_manager_pane_pos := self.SettingsNumericDBI.get('book_reader_window', 'file_manager_pane_pos'):
+            self.file_manager_pane.set_position(file_manager_pane_pos)
         # book_reader_pane
         self.book_reader_pane = builder.get_object("book_reader_pane")
-        self.book_reader_pane_pos = self.config['book_reader_window'].getint('book_reader_pane_pos')
-        self.book_reader_pane.set_position(int(self.book_reader_pane_pos))
+        # set saved state
+        if book_reader_pane_pos := self.SettingsNumericDBI.get('book_reader_window', 'book_reader_pane_pos'):
+            self.book_reader_pane.set_position(book_reader_pane_pos)
         # window callbacks
         self.book_reader_window.connect('destroy', self.on_destroy)
         self.book_reader_window.connect('delete-event', self.on_delete_event, self.book_reader_window )
         # load previous window state
-        width = self.config['book_reader_window'].getint('width')
-        height = self.config['book_reader_window'].getint('height')
-        self.book_reader_window.set_default_size(width, height)
-        window_1_pane_pos = self.config['book_reader_window'].getint('window_1_pane_pos')
-        self.window_pane.set_position(window_1_pane_pos)
+        width = book_ease_tables.SettingsNumericDBI.get('book_reader_window', 'width')
+        height = book_ease_tables.SettingsNumericDBI.get('book_reader_window', 'height')
+        if width and height:
+            self.book_reader_window.set_default_size(width, height)
+        # window_1_pane_pos = self.config['book_reader_window'].getint('window_1_pane_pos')
+        if window_1_pane_pos := book_ease_tables.SettingsNumericDBI.get('book_reader_window', 'window_1_pane_pos'):
+            self.window_pane.set_position(window_1_pane_pos)
         # launch
         self.book_reader_window.show_all()
 
         # set switch states
         # must be after the call to show all; these trigger interrupts that hide their views
-        if self.show_files_switch1_state is not None:
-            self.show_files_switch1.set_state(bool(self.show_files_switch1_state))
-        if self.show_files_switch2_state is not None:
-            self.show_files_switch2.set_state(bool(self.show_files_switch2_state))
-        if self.show_playlist_switch_state is not None:
-            self.show_playlist_switch.set_state(bool(self.show_playlist_switch_state))
-        if self.show_image_switch_state is not None:
-            self.show_image_switch.set_state(self.show_image_switch_state)
-
+        for switch in self.visibility_switches:
+            state = self.SettingsNumericDBI.get_bool('book_reader_window', f'{switch.get_name()}_state')
+            if state is not None:
+                switch.set_state(state)
 
     def on_delete_event(self, unused_widget, unused_val, window=None):
         """
         The view has been closed.
         Save the view state to file
         """
-        # save settings to config
-        # window size
-        window_1_pane_pos = self.window_pane.get_position()
-        width, height = window.get_size()
-        self.config.set('book_reader_window', 'window_1_pane_pos', str(window_1_pane_pos))
-        self.config.set('book_reader_window', 'width', str(width))
-        self.config.set('book_reader_window', 'height', str(height))
-        # pane positions
-        book_reader_pane_pos = self.book_reader_pane.get_position()
-        file_manager_pane_pos = self.file_manager_pane.get_position()
-        self.config.set('book_reader_window', 'book_reader_pane_pos', str(book_reader_pane_pos))
-        self.config.set('book_reader_window', 'file_manager_pane_pos', str(file_manager_pane_pos))
-        # button states
-        show_image_switch_state = self.show_image_switch.get_state()
-        self.config.set('book_reader_window', 'show_image_switch_state', str(show_image_switch_state))
-        #
-        show_files_switch2_state = self.show_files_switch2.get_state()
-        self.config.set('book_reader_window', 'show_files_switch2_state', str(show_files_switch2_state))
-        #
-        show_files_switch1_state = self.show_files_switch1.get_state()
-        self.config.set('book_reader_window', 'show_files_switch1_state', str(show_files_switch1_state))
-        #
-        show_playlist_switch_state = self.show_playlist_switch.get_state()
-        self.config.set('book_reader_window', 'show_playlist_switch_state', str(show_playlist_switch_state))
 
+        for switch in self.visibility_switches:
+            self.SettingsNumericDBI.set_bool('book_reader_window', f'{switch.get_name()}_state', switch.get_state())
+
+        book_ease_tables.SettingsNumericDBI.set('book_reader_window',
+                                                'window_1_pane_pos',
+                                                self.window_pane.get_position())
+
+        book_ease_tables.SettingsNumericDBI.set('book_reader_window',
+                                                'width',
+                                                window.get_size()[0])
+
+        book_ease_tables.SettingsNumericDBI.set('book_reader_window',
+                                                'height',
+                                                window.get_size()[1])
+
+        book_ease_tables.SettingsNumericDBI.set('book_reader_window',
+                                                'file_manager_pane_pos',
+                                                self.file_manager_pane.get_position())
+
+        book_ease_tables.SettingsNumericDBI.set('book_reader_window',
+                                                'book_reader_pane_pos',
+                                                self.book_reader_pane.get_position())
 
     def on_destroy(self, unused_window):
         """exit the gui main loop"""
