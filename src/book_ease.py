@@ -778,8 +778,7 @@ class MainWindow(Gtk.Window):
     """The main display window"""
     SettingsNumericDBI = book_ease_tables.SettingsNumericDBI
 
-    def __init__(self, book_reader_window, window_pane, config, builder):
-        self.config = config
+    def __init__(self, book_reader_window, window_pane, builder):
         self.book_reader_window = book_reader_window
         self.window_pane = window_pane
 
@@ -927,7 +926,7 @@ def main(unused_args):
     book_reader.BookReader(files, builder)
 
     # main window
-    MainWindow(builder.get_object("window1"), builder.get_object("window_1_pane"), config, builder)
+    MainWindow(builder.get_object("window1"), builder.get_object("window_1_pane"), builder)
 
     Gtk.main()
     # write any changes to the config
