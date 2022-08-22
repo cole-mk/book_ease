@@ -150,10 +150,10 @@ class SettingsNumeric:
             """
         con.execute(sql, (category, attribute, value, id_))
 
-    def update_value_by_id(self,
-                           con: sqlite3.Connection,
+    @staticmethod
+    def update_value_by_id(con: sqlite3.Connection,
                            id_: int,
-                           value: int):
+                           value: int) -> bool:
         """update the value column of the row that contains id_"""
 
         sql = """
@@ -161,7 +161,9 @@ class SettingsNumeric:
             SET value = (?)
             WHERE rowid = (?)
             """
-        con.execute(sql, (value, id_))
+        cur = con.execute(sql, (value, id_))
+        return bool(cur.rowcount)
+
     @staticmethod
     def update_value(con: sqlite3.Connection,
                      category: str,
