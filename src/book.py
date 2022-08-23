@@ -505,7 +505,7 @@ class TrackFI:
     entry_formatter = playlist.TrackMDEntryFormatter()
 
     @classmethod
-    def get_track(cls, path) -> 'Track':
+    def get_track(cls, path: str) -> playlist.Track:
         """
         create and return a track populated with file data and metadata
         Raises exception if path does not represent a media file
@@ -519,7 +519,7 @@ class TrackFI:
         return track
 
     @classmethod
-    def load_metadata(cls, track):
+    def load_metadata(cls, track: playlist.Track):
         """
         load passed in Track instance with media file metadata.
         mutagen returns a dict where each property value is a list of entries.
@@ -540,7 +540,7 @@ class TrackFI:
             track.set_entry(key, md_entry_list)
 
     @classmethod
-    def is_media_file(cls, file_):
+    def is_media_file(cls, file_: str):
         """determine is file_ matches any of the media file definitions"""
         for i in cls.f_type_re:
             if i.match(file_):
