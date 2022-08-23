@@ -563,7 +563,7 @@ class BookC:
     def __init__(self,
                  path: str,
                  file_list: list[tuple] | None,
-                 book_reader: book_reader.BookReader):
+                 book_reader_: book_reader.BookReader):
 
         # the model
         self.book = Book(path, file_list)
@@ -600,7 +600,7 @@ class BookC:
         book_view.PlaylistVC(self.book, self.transmitter, self.component_transmitter, book_view_builder)
         # pinned button view does not use the component_transmitter because it is responsible for signalling its own
         # controller.
-        book_reader.pinned_books.get_pinned_button_new(self.transmitter, book_view_builder)
+        book_reader_.pinned_books.get_pinned_button_new(self.transmitter, book_view_builder)
 
     def get_view(self) -> object:
         """get the main outer most view"""
