@@ -85,35 +85,6 @@ class DBConnection: #pylint: disable=too-few-public-methods
 DB_CONNECTION = DBConnection()
 
 
-class BookData:
-    """DTO for Book's"""
-
-    def __init__(self, playlist_data: PlaylistData):
-        self.playlist_data = playlist_data
-        self.track_list = []
-        self.saved_playlist = False
-
-    def is_saved(self) -> bool:
-        """tell if this playlist has already been saved"""
-        return self.saved_playlist
-
-    def set_saved(self, bool_: bool):
-        """set this playlist's saved flag"""
-        self.saved_playlist = bool_
-
-    def pop_track(self) -> playlist.Track:
-        """pop and return a Track object from the self.track_list"""
-        try:
-            track = self.track_list.pop()
-        except IndexError:
-            track = None
-        return track
-
-    def sort_track_list_by_number(self):
-        """sort self.track_list in place"""
-        self.track_list.sort(key=lambda row: row.number, reverse=True)
-
-
 class PlaylistData:
     """Class to encapsulate the data that describes a playlist"""
 
@@ -152,6 +123,35 @@ class PlaylistData:
     def __eq__(self, other):
         return(isinstance(other, self.__class__)
                and self.__dict__ == other.__dict__)
+
+
+class BookData:
+    """DTO for Book's"""
+
+    def __init__(self, playlist_data: PlaylistData):
+        self.playlist_data = playlist_data
+        self.track_list = []
+        self.saved_playlist = False
+
+    def is_saved(self) -> bool:
+        """tell if this playlist has already been saved"""
+        return self.saved_playlist
+
+    def set_saved(self, bool_: bool):
+        """set this playlist's saved flag"""
+        self.saved_playlist = bool_
+
+    def pop_track(self) -> playlist.Track:
+        """pop and return a Track object from the self.track_list"""
+        try:
+            track = self.track_list.pop()
+        except IndexError:
+            track = None
+        return track
+
+    def sort_track_list_by_number(self):
+        """sort self.track_list in place"""
+        self.track_list.sort(key=lambda row: row.number, reverse=True)
 
 
 class Book(playlist.Playlist, signal_.Signal):
