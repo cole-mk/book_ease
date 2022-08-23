@@ -53,8 +53,8 @@ class SettingsNumeric:
     This table stores key value pairs where value is int and bool data types
     """
 
-    @classmethod
-    def init_table(cls, con: sqlite3.Connection):
+    @staticmethod
+    def init_table(con: sqlite3.Connection):
         """Create table settings_numeric in book_ease.db"""
 
         sql = """
@@ -67,9 +67,8 @@ class SettingsNumeric:
             """
         con.execute(sql)
 
-    @classmethod
-    def set(cls,
-            con: sqlite3.Connection,
+    @staticmethod
+    def set(con: sqlite3.Connection,
             category: str,
             attribute: str,
             value: int) -> int:
@@ -85,9 +84,8 @@ class SettingsNumeric:
         cur = con.execute(sql, (category, attribute, value))
         return cur.lastrowid
 
-    @classmethod
-    def get(cls,
-            con: sqlite3.Connection,
+    @staticmethod
+    def get(con: sqlite3.Connection,
             category: str,
             attribute: str) -> list[sqlite3.Row]:
         """get all entries that match the category and attribute columns"""
@@ -100,9 +98,8 @@ class SettingsNumeric:
         cur = con.execute(sql, (category, attribute))
         return cur.fetchall()
 
-    @classmethod
-    def clear_attribute(cls,
-                        con: sqlite3.Connection,
+    @staticmethod
+    def clear_attribute(con: sqlite3.Connection,
                         category: str,
                         attribute: str):
         """delete all rows that from settings_numeric that contain category and attribute"""
@@ -114,9 +111,8 @@ class SettingsNumeric:
             """
         con.execute(sql, (category, attribute))
 
-    @classmethod
-    def clear_value(cls,
-                    con: sqlite3.Connection,
+    @staticmethod
+    def clear_value(con: sqlite3.Connection,
                     category: str,
                     attribute: str,
                     value: int):
@@ -130,9 +126,8 @@ class SettingsNumeric:
             """
         con.execute(sql, (category, attribute, value))
 
-    @classmethod
-    def update_row_by_id(cls,
-                         con: sqlite3.Connection,
+    @staticmethod
+    def update_row_by_id(con: sqlite3.Connection,
                          id_: int,
                          category: str,
                          attribute: str,
@@ -191,8 +186,8 @@ class SettingsString:
     This table stores key value pairs where value is string data type
     """
 
-    @classmethod
-    def init_table(cls, con: sqlite3.Connection):
+    @staticmethod
+    def init_table(con: sqlite3.Connection):
         """Create table settings_string in book_ease.db"""
         sql = """
             CREATE TABLE IF NOT EXISTS settings_string (
@@ -204,9 +199,8 @@ class SettingsString:
             """
         con.execute(sql)
 
-    @classmethod
-    def set(cls,
-            con: sqlite3.Connection,
+    @staticmethod
+    def set(con: sqlite3.Connection,
             category: str,
             attribute: str,
             value: str) -> int:
@@ -219,9 +213,8 @@ class SettingsString:
         cur = con.execute(sql, (category, attribute, value))
         return cur.lastrowid
 
-    @classmethod
-    def get(cls,
-            con: sqlite3.Connection,
+    @staticmethod
+    def get(con: sqlite3.Connection,
             category: str,
             attribute: str) -> list[sqlite3.Row]:
         """get all entries from settings_string that match the category and attribute columns"""
@@ -234,9 +227,8 @@ class SettingsString:
         cur = con.execute(sql, (category, attribute))
         return cur.fetchall()
 
-    @classmethod
-    def clear_attribute(cls,
-                        con: sqlite3.Connection,
+    @staticmethod
+    def clear_attribute(con: sqlite3.Connection,
                         category: str,
                         attribute: str):
         """delete all rows that from settings_string that contain category and attribute"""
@@ -248,9 +240,8 @@ class SettingsString:
             """
         con.execute(sql, (category, attribute))
 
-    @classmethod
-    def delete_row_by_id(cls,
-                         con: sqlite3.Connection,
+    @staticmethod
+    def delete_row_by_id(con: sqlite3.Connection,
                          id_: int):
         """delete all rows that from settings_string that contain category and attribute"""
 
@@ -260,9 +251,8 @@ class SettingsString:
             """
         con.execute(sql, (id_,))
 
-    @classmethod
-    def clear_value(cls,
-                    con: sqlite3.Connection,
+    @staticmethod
+    def clear_value(con: sqlite3.Connection,
                     category: str,
                     attribute: str,
                     value: str):
@@ -276,9 +266,8 @@ class SettingsString:
             """
         con.execute(sql, (category, attribute, value))
 
-    @classmethod
-    def clear_category(cls,
-                       con: sqlite3.Connection,
+    @staticmethod
+    def clear_category(con: sqlite3.Connection,
                        category: str):
         """delete all rows from settings_string that contain category."""
 
@@ -288,9 +277,8 @@ class SettingsString:
             """
         con.execute(sql, (category,))
 
-    @classmethod
-    def get_category(cls,
-                     con: sqlite3.Connection,
+    @staticmethod
+    def get_category(con: sqlite3.Connection,
                      category: str) -> list[sqlite3.Row]:
         """get all rows that match category"""
 
@@ -301,9 +289,8 @@ class SettingsString:
         cur = con.execute(sql, (category,))
         return cur.fetchall()
 
-    @classmethod
-    def update_row_by_id(cls,
-                         con: sqlite3.Connection,
+    @staticmethod
+    def update_row_by_id(con: sqlite3.Connection,
                          id_: int,
                          category: str,
                          attribute: str,
@@ -377,8 +364,8 @@ class BookMarks:
     This table stores the list of bookmarks displayed in the BookMark View.
     """
 
-    @classmethod
-    def init_table(cls, con: sqlite3.Connection):
+    @staticmethod
+    def init_table(con: sqlite3.Connection):
         """Create table settings_numeric in book_ease.db"""
 
         sql = """
@@ -391,8 +378,8 @@ class BookMarks:
             """
         con.execute(sql)
 
-    @classmethod
-    def get_all_rows_sorted_by_index_asc(cls, con: sqlite3.Connection) -> list['sqlite3.Row']:
+    @staticmethod
+    def get_all_rows_sorted_by_index_asc(con: sqlite3.Connection) -> list['sqlite3.Row']:
         """Get all rows in the book_marks table"""
 
         sql = """
@@ -403,9 +390,8 @@ class BookMarks:
         cur = con.execute(sql)
         return cur.fetchall()
 
-    @classmethod
-    def update_row_by_id(cls,
-                         con: sqlite3.Connection,
+    @staticmethod
+    def update_row_by_id(con: sqlite3.Connection,
                          id_: int,
                          name: str,
                          target: str,
@@ -422,8 +408,8 @@ class BookMarks:
             """
         con.execute(sql, (name, target, index, id_))
 
-    @classmethod
-    def delete_rows_not_in_ids(cls, con: sqlite3.Connection, ids: tuple):
+    @staticmethod
+    def delete_rows_not_in_ids(con: sqlite3.Connection, ids: tuple):
         """Delete any row whose id_ column is not included in ids."""
 
         sql = f"""
@@ -433,9 +419,8 @@ class BookMarks:
             """
         con.execute(sql, ids)
 
-    @classmethod
-    def set(cls,
-            con: sqlite3.Connection,
+    @staticmethod
+    def set(con: sqlite3.Connection,
             name: str,
             target: str,
             index: int) -> int:
