@@ -110,6 +110,46 @@ class BookData:
         self.track_list.sort(key=lambda row: row.number, reverse=True)
 
 
+class PlaylistData:
+    """Class to encapsulate the data that describes a playlist"""
+
+    def __init__(self,
+                 title: str = None,
+                 path: str = None,
+                 id_: int = None):
+        self.title = title
+        self.path = path
+        self.id_ = id_
+
+    def get_title(self) -> str:
+        """get title attribute from PlaylistData"""
+        return self.title
+
+    def set_title(self, title: str):
+        """set title attribute of PlaylistData"""
+        self.title = title
+
+    def get_path(self) -> str:
+        """get path attribute from PlaylistData"""
+        return self.path
+
+    def set_path(self, path: str):
+        """set path attribute of PlaylistData"""
+        self.path = path
+
+    def get_id(self) -> int:
+        """get id attribute from PlaylistData"""
+        return self.id_
+
+    def set_id(self, id_: int):
+        """set id attribute of PlaylistData"""
+        self.id_ = id_
+
+    def __eq__(self, other):
+        return(isinstance(other, self.__class__)
+               and self.__dict__ == other.__dict__)
+
+
 class Book(playlist.Playlist, signal_.Signal):
     """Book is the model for a book"""
 
@@ -307,46 +347,6 @@ class PlaylistDBI():
             self.playlist.update(con, pl_data.get_title(), pl_data.get_path(), id_)
         DB_CONNECTION.query_end(con)
         return id_
-
-
-class PlaylistData:
-    """Class to encapsulate the data that describes a playlist"""
-
-    def __init__(self,
-                 title: str = None,
-                 path: str = None,
-                 id_: int = None):
-        self.title = title
-        self.path = path
-        self.id_ = id_
-
-    def get_title(self) -> str:
-        """get title attribute from PlaylistData"""
-        return self.title
-
-    def set_title(self, title: str):
-        """set title attribute of PlaylistData"""
-        self.title = title
-
-    def get_path(self) -> str:
-        """get path attribute from PlaylistData"""
-        return self.path
-
-    def set_path(self, path: str):
-        """set path attribute of PlaylistData"""
-        self.path = path
-
-    def get_id(self) -> int:
-        """get id attribute from PlaylistData"""
-        return self.id_
-
-    def set_id(self, id_: int):
-        """set id attribute of PlaylistData"""
-        self.id_ = id_
-
-    def __eq__(self, other):
-        return(isinstance(other, self.__class__)
-               and self.__dict__ == other.__dict__)
 
 
 class TrackDBI():
