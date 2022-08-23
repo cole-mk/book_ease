@@ -524,7 +524,7 @@ class Files_(signal_.Signal):
             if i.is_dir():
                 icon = Gtk.IconTheme.get_default().load_icon('folder', 24, 0)
             # append to file list
-            file_list.append([icon, i.name, i.is_dir(), size_f, units, str(timestamp_formatted)])
+            file_list.append((icon, i.name, i.is_dir(), size_f, units, str(timestamp_formatted)))
 
 
     def get_file_list(self):
