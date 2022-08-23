@@ -153,7 +153,7 @@ class PlaylistData:
 class Book(playlist.Playlist, signal_.Signal):
     """Book is the model for a book"""
 
-    def __init__(self, path, file_list):
+    def __init__(self, path: str, file_list: list[tuple] | None):
         playlist.Playlist.__init__(self)
         signal_.Signal.__init__(self)
         self.index = None
@@ -172,19 +172,19 @@ class Book(playlist.Playlist, signal_.Signal):
         # this is used during the saving process.
         self.pl_track_counter = 0
 
-    def get_cur_pl_list(self):
+    def get_cur_pl_list(self) -> PlaylistData:
         """get list of playlists associated with current path"""
         return self.playlist_dbi.get_by_path(self.playlist_data)
 
-    def get_index(self):
+    def get_index(self) -> int:
         """get the index of this book's position in the BookReader's list of books"""
         return self.index
 
-    def set_index(self, index):
+    def set_index(self, index: int):
         """set the index of this book's position in the BookReader's list of books"""
         self.index = index
 
-    def book_data_load(self, playlist_data):
+    def book_data_load(self, playlist_data: PlaylistData):
         """load a saved playlist from the database"""
 
         self.playlist_data = playlist_data
@@ -235,7 +235,7 @@ class Book(playlist.Playlist, signal_.Signal):
             self.playlist_data.set_title(title_list[0].get_entry())
         return book_data
 
-    def set_unique_playlist_title(self, playlist_data) -> 'title:str':
+    def set_unique_playlist_title(self, playlist_data: PlaylistData) -> str:
         """add a incremented suffix to self.playlist_data.title if there are duplicates"""
         suffix = ''
         count = 1
@@ -255,7 +255,7 @@ class Book(playlist.Playlist, signal_.Signal):
         # update the playlist saved flag
         self.set_saved(True)
 
-    def save_track(self, track):
+    def save_track(self, track: playlist.Track):
         """Save all of the Track data."""
         # increment the pl_track_counter that was initialized in save_book_begin
         self.pl_track_counter += 1
