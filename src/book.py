@@ -27,6 +27,8 @@ this includes the book model, database interfaces for the book, and the main con
 import re
 import os
 import mutagen
+
+import book_reader
 import playlist
 import signal_
 import audio_book_tables
@@ -547,7 +549,11 @@ class BookC:
     # the list of signals that the component views is allowed to send to BookC
     component_tx_api = ['save_button', 'cancel_button', 'edit_button', 'close']
 
-    def __init__(self, path, file_list, book_reader):
+    def __init__(self,
+                 path: str,
+                 file_list: list[tuple] | None,
+                 book_reader: book_reader.BookReader):
+
         # the model
         self.book = Book(path, file_list)
         # allow BookReader to track BookC's position in its books list
@@ -585,19 +591,19 @@ class BookC:
         # controller.
         book_reader.pinned_books.get_pinned_button_new(self.transmitter, book_view_builder)
 
-    def get_view(self):
+    def get_view(self) -> object:
         """get the main outer most view"""
         return self.book_vc.get_view()
 
-    def get_playlist_id(self):
+    def get_playlist_id(self) -> int:
         """get this book instance's unique id"""
         return self.book.playlist_data.get_id()
 
-    def set_index(self, index):
+    def set_index(self, index: int):
         """save position in BookReader.books"""
         self.index = index
 
-    def get_index(self):
+    def get_index(self) -> int:
         """return position in BookReader.books"""
         return self.index
 
@@ -607,11 +613,11 @@ class BookC:
         self.transmitter.send('update', book_data)
         self.transmitter.send('begin_edit_mode')
 
-    def get_title(self):
+    def get_title(self) -> str:
         """get this books title from the model"""
         return self.book.playlist_data.get_title()
 
-    def open_existing_playlist(self, playlist_data):
+    def open_existing_playlist(self, playlist_data: PlaylistData):
         """open a previously saved book"""
         book_data = self.book.book_data_load(playlist_data)
         self.transmitter.send('update', book_data)
@@ -645,7 +651,7 @@ class BookC:
         """Tell the component controllers to close"""
         self.transmitter.send('close')
 
-    def receive(self, control_signal):
+    def receive(self, control_signal: str):
         """convert signals from the component views into actions by calling the appropriate methods"""
         match control_signal:
             case 'save_button':
