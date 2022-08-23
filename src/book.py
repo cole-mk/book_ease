@@ -86,7 +86,7 @@ DB_CONNECTION = DBConnection()
 class BookData:
     """DTO for Book's"""
 
-    def __init__(self, playlist_data):
+    def __init__(self, playlist_data: PlaylistData):
         self.playlist_data = playlist_data
         self.track_list = []
         self.saved_playlist = False
@@ -99,7 +99,7 @@ class BookData:
         """set this playlist's saved flag"""
         self.saved_playlist = bool_
 
-    def pop_track(self) -> 'Track':
+    def pop_track(self) -> playlist.Track:
         """pop and return a Track object from the self.track_list"""
         try:
             track = self.track_list.pop()
@@ -107,7 +107,7 @@ class BookData:
             track = None
         return track
 
-    def sort_track_list_by_number(self) -> None:
+    def sort_track_list_by_number(self):
         """sort self.track_list in place"""
         self.track_list.sort(key=lambda row: row.number, reverse=True)
 
