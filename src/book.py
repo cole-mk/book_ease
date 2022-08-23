@@ -312,32 +312,35 @@ class PlaylistDBI():
 class PlaylistData:
     """Class to encapsulate the data that describes a playlist"""
 
-    def __init__(self, title=None, path=None, id_=None):
+    def __init__(self,
+                 title: str = None,
+                 path: str = None,
+                 id_: int = None):
         self.title = title
         self.path = path
         self.id_ = id_
 
-    def get_title(self):
+    def get_title(self) -> str:
         """get title attribute from PlaylistData"""
         return self.title
 
-    def set_title(self, title):
+    def set_title(self, title: str):
         """set title attribute of PlaylistData"""
         self.title = title
 
-    def get_path(self):
+    def get_path(self) -> str:
         """get path attribute from PlaylistData"""
         return self.path
 
-    def set_path(self, path):
+    def set_path(self, path: str):
         """set path attribute of PlaylistData"""
         self.path = path
 
-    def get_id(self):
+    def get_id(self) -> int:
         """get id attribute from PlaylistData"""
         return self.id_
 
-    def set_id(self, id_):
+    def set_id(self, id_: int):
         """set id attribute of PlaylistData"""
         self.id_ = id_
 
