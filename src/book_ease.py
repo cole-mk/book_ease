@@ -468,7 +468,7 @@ class FilesDBI:
 
 class Files_(signal_.Signal):
     """class to manage the file management features of book_ease"""
-    default_library_path = Path.home()
+    default_library_path = str(Path.home())
 
     def __init__(self):
         signal_.Signal.__init__(self)
