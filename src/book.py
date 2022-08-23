@@ -309,7 +309,7 @@ class PlaylistDBI():
     def __init__(self):
         self.playlist = audio_book_tables.Playlist()
 
-    def count_duplicates(self, pl_data) -> 'int':
+    def count_duplicates(self, pl_data: PlaylistData) -> int:
         """
         get a count of the number of playlist titles associated with this path
         that have the same title, but exclude playlist_id from the list
@@ -322,13 +322,13 @@ class PlaylistDBI():
         DB_CONNECTION.query_end(con)
         return count[0]
 
-    def exists_in_path(self, pl_data) -> 'bool':
+    def exists_in_path(self, pl_data: PlaylistData) -> bool:
         """tell if any playlists are associated with this path"""
         if self.get_by_path(pl_data) is not None:
             return True
         return False
 
-    def get_by_path(self, pl_data) -> '[PlaylistData, ...]':
+    def get_by_path(self, pl_data: PlaylistData) -> list[PlaylistData]:
         """get playlists associated with path"""
         playlists = []
         con = DB_CONNECTION.query_begin()
@@ -341,8 +341,11 @@ class PlaylistDBI():
             playlists.append(play_list)
         return playlists
 
-    def save(self, pl_data) -> 'playlist_id:int':
-        """"insert or update playlist"""
+    def save(self, pl_data: PlaylistData) -> int:
+        """"
+        Insert or update playlist
+        returns playlist id
+        """
         con = DB_CONNECTION.query_begin()
         id_ = pl_data.get_id()
         if self.playlist.get_row(con, id_) is None:
