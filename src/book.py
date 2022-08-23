@@ -24,18 +24,19 @@
 This module is all of the classes responsible for being a book
 this includes the book model, database interfaces for the book, and the main controller class for the book
 """
+from __future__ import annotations
+from typing import TYPE_CHECKING
 import re
 import os
 import sqlite3
-
 import mutagen
-
-import book_reader
 import playlist
 import signal_
 import audio_book_tables
 from gui.gtk import book_view
 import book_columns
+if TYPE_CHECKING:
+    import book_reader
 
 
 class DBConnection: #pylint: disable=too-few-public-methods
