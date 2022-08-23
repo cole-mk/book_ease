@@ -27,20 +27,24 @@ This module is responsible for reading and writing to the book_ease.db.
 book_ease.db stores all application data that is not directly related to playlists.
 """
 
+# disable=too-many-arguments because this module is mostly sql queries, some of which set entire rows at a time.
+# pylint: disable=too-many-arguments
+
 
 from __future__ import annotations
 from typing import TYPE_CHECKING
 from pathlib import Path
+import sqlite_tools
 from sqlite_tools import DBConnectionManager
 if TYPE_CHECKING:
     import sqlite3
 
 
 # set database file creating config directory
-config_dir = Path.home() / '.config' / 'book_ease'
-db_dir = config_dir / 'data'
-db_dir.mkdir(mode=511, parents=True, exist_ok=True)
-db = db_dir / 'book_ease.db'
+__CONFIG_DIR = Path.home() / '.config' / 'book_ease'
+__DATABASE_DIR = __CONFIG_DIR / 'data'
+__DATABASE_DIR.mkdir(mode=511, parents=True, exist_ok=True)
+__DATABASE_FILE_PATH = __DATABASE_DIR / 'book_ease.db'
 
 
 class SettingsNumeric:
@@ -52,11 +56,13 @@ class SettingsNumeric:
     @classmethod
     def init_table(cls, con: sqlite3.Connection):
         """Create table settings_numeric in book_ease.db"""
+
         sql = """
             CREATE TABLE IF NOT EXISTS settings_numeric (
+                id_ INTEGER PRIMARY KEY,
                 category  STRING,
                 attribute STRING,
-                value     INT
+                value     INTEGER
             )
             """
         con.execute(sql)
@@ -67,7 +73,10 @@ class SettingsNumeric:
             category: str,
             attribute: str,
             value: int) -> int:
-        """add entry row to table settings_numeric"""
+        """
+        Add entry row to table settings_numeric.
+        Returns the id of the newly created row.
+        """
 
         sql = """
             INSERT INTO settings_numeric(category, attribute, value)
@@ -121,6 +130,60 @@ class SettingsNumeric:
             """
         con.execute(sql, (category, attribute, value))
 
+    @classmethod
+    def update_row_by_id(cls,
+                         con: sqlite3.Connection,
+                         id_: int,
+                         category: str,
+                         attribute: str,
+                         value: int):
+        """Find row by searching for id_, and then update the category, attribute, and value columns of that row."""
+
+        sql = """
+            Update settings_numeric
+            SET category = (?),
+                attribute = (?),
+                value = (?)
+            WHERE
+                rowid = (?)
+            """
+        con.execute(sql, (category, attribute, value, id_))
+
+    @staticmethod
+    def update_value_by_id(con: sqlite3.Connection,
+                           id_: int,
+                           value: int) -> bool:
+        """update the value column of the row that contains id_"""
+
+        sql = """
+            UPDATE settings_numeric
+            SET value = (?)
+            WHERE rowid = (?)
+            """
+        cur = con.execute(sql, (value, id_))
+        return bool(cur.rowcount)
+
+    @staticmethod
+    def update_value(con: sqlite3.Connection,
+                     category: str,
+                     attribute: str,
+                     value: int) -> int | None:
+        """
+        Update the value column on the first row that matches category and attribute.
+        returns rowid if the update was successful or None if no match was found.
+        """
+
+        updated_by_id = None
+        sql = """
+            SELECT * FROM settings_numeric
+            WHERE category = (?)
+            AND attribute = (?)
+            """
+        cur = con.execute(sql, (category, attribute))
+        if row := cur.fetchone():
+            updated_by_id = SettingsNumeric.update_value_by_id(con, row['id_'], value)
+        return row['id_'] if updated_by_id else None
+
 
 class SettingsString:
     """
@@ -135,7 +198,8 @@ class SettingsString:
             CREATE TABLE IF NOT EXISTS settings_string (
                 category  STRING,
                 attribute STRING,
-                value     STRING
+                value     STRING,
+                id_ INTEGER  PRIMARY KEY
             )
             """
         con.execute(sql)
@@ -185,6 +249,18 @@ class SettingsString:
         con.execute(sql, (category, attribute))
 
     @classmethod
+    def delete_row_by_id(cls,
+                         con: sqlite3.Connection,
+                         id_: int):
+        """delete all rows that from settings_string that contain category and attribute"""
+
+        sql = """
+            DELETE FROM settings_string
+            WHERE id_ = (?)
+            """
+        con.execute(sql, (id_,))
+
+    @classmethod
     def clear_value(cls,
                     con: sqlite3.Connection,
                     category: str,
@@ -225,13 +301,167 @@ class SettingsString:
         cur = con.execute(sql, (category,))
         return cur.fetchall()
 
+    @classmethod
+    def update_row_by_id(cls,
+                         con: sqlite3.Connection,
+                         id_: int,
+                         category: str,
+                         attribute: str,
+                         value: int):
+        """Find row by searching for id_, and then update the category, attribute, and value columns of that row."""
 
-# initialize the db connection and ensure that the database is set up properly
-DB_CONNECTION_MANAGER = DBConnectionManager(db)
-with DB_CONNECTION_MANAGER.create_connection() as conn:
-    SettingsNumeric.init_table(conn)
-    SettingsString.init_table(conn)
+        sql = """
+            Update settings_string
+            SET category = (?),
+                attribute = (?),
+                value = (?)
+            WHERE
+                id_ = (?)
+            """
+        con.execute(sql, (category, attribute, value, id_))
 
+
+class SettingsNumericDBI:
+    """
+    A simple adapter for the SettingsNumeric table class.
+    This should allow other classes to store and retrieve data in a manner similar to using configparser.
+    """
+
+    @staticmethod
+    def get(category: str, attribute: str) -> int | None:
+        """
+        Retrieve a single numeric value from SettingsNumeric where row contains category and attribute.
+
+        Returns None if a row matching  category:attribute is not found in table.
+        """
+        con = DB_CONNECTION_MANAGER.query_begin()
+        value = SettingsNumeric.get(con, category, attribute)
+        DB_CONNECTION_MANAGER.query_end(con)
+        return value[0]['value'] if value else None
+
+    @staticmethod
+    def set(category: str, attribute: str, value: int) -> int:
+        """
+        Update the first row that matches category and attribute or insert new row.
+        return the id of the modified row.
+        """
+        con = DB_CONNECTION_MANAGER.query_begin()
+        if id_ := SettingsNumeric.update_value(con, category, attribute, value) is None:
+            id_ = SettingsNumeric.set(con, category, attribute, value)
+        DB_CONNECTION_MANAGER.query_end(con)
+        return id_
+
+    @staticmethod
+    def get_bool(category: str, attribute: str) -> bool | None:
+        """
+        Retrieve a boolean value from SettingsNumeric
+        Returns None if a row matching  category:attribute is not found in table
+        """
+        val = SettingsNumericDBI.get(category, attribute)
+        return bool(val) if val is not None else None
+
+    @staticmethod
+    def set_bool(category: str, attribute: str, value: bool) -> int:
+        """
+        Set a boolean value in table settings_numeric.
+        This is just a convenience function added for readability in the caller classes.
+
+        Returns the rowid of the modified row.
+        """
+        return SettingsNumericDBI.set(category, attribute, int(value))
+
+
+class BookMarks:
+    """
+    sql queries for table book_marks
+    This table stores the list of bookmarks displayed in the BookMark View.
+    """
+
+    @classmethod
+    def init_table(cls, con: sqlite3.Connection):
+        """Create table settings_numeric in book_ease.db"""
+
+        sql = """
+            CREATE TABLE IF NOT EXISTS book_marks (
+                id_ INTEGER PRIMARY KEY,
+                name STRING,
+                target STRING,
+                index_ INTEGER
+            )
+            """
+        con.execute(sql)
+
+    @classmethod
+    def get_all_rows_sorted_by_index_asc(cls, con: sqlite3.Connection) -> list['sqlite3.Row']:
+        """Get all rows in the book_marks table"""
+
+        sql = """
+            SELECT * FROM book_marks
+            ORDER BY
+            index_ ASC
+            """
+        cur = con.execute(sql)
+        return cur.fetchall()
+
+    @classmethod
+    def update_row_by_id(cls,
+                         con: sqlite3.Connection,
+                         id_: int,
+                         name: str,
+                         target: str,
+                         index: int):
+        """update all rows that match id_"""
+
+        sql = """
+            UPDATE book_marks
+            SET name = (?),
+                target = (?),
+                index_ = (?)
+            WHERE
+                id_ = (?)
+            """
+        con.execute(sql, (name, target, index, id_))
+
+    @classmethod
+    def delete_rows_not_in_ids(cls, con: sqlite3.Connection, ids: tuple):
+        """Delete any row whose id_ column is not included in ids."""
+
+        sql = f"""
+            DELETE FROM book_marks
+            WHERE
+            id_ NOT IN ({','.join(['?'] * len(ids))})
+            """
+        con.execute(sql, ids)
+
+    @classmethod
+    def set(cls,
+            con: sqlite3.Connection,
+            name: str,
+            target: str,
+            index: int) -> int:
+        """Add a new row to table book_marks"""
+
+        sql = """
+            INSERT INTO book_marks(name, target, index_)
+            VALUES (?, ?, ?)
+            """
+        cur = con.execute(sql, (name, target, index))
+        return cur.lastrowid
+
+
+def _init_database(connection_manager: sqlite_tools.DBConnectionManager):
+    """Ensure that the correct tables have been created inside the connected database"""
+    with connection_manager.create_connection() as conn:
+        SettingsNumeric.init_table(conn)
+        SettingsString.init_table(conn)
+        BookMarks.init_table(conn)
+
+
+# The connection manager that is accessible from outside the module
+DB_CONNECTION_MANAGER: DBConnectionManager = DBConnectionManager(__DATABASE_FILE_PATH)
+
+# create the required tables in memory.
+_init_database(DB_CONNECTION_MANAGER)
 
 if __name__ == '__main__':
     import sys

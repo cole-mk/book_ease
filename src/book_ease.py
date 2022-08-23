@@ -23,7 +23,6 @@
 #  MA 02110-1301, USA.
 """Entry point for book_ease program"""
 import os
-import configparser
 from datetime import datetime
 import re
 from pathlib import Path
@@ -80,43 +79,80 @@ class RenameTvEntryDialog(Gtk.Dialog):
             self.entry_2.set_text(path)
 
 
+class BookMarkData:
+    """DTO for bookmark data"""
+    __slots__ = ['id_', 'name', 'target', 'index']
+
+    def __init__(self, id_, name, target, index):
+        self.id_ = id_
+        self.name = name
+        self.target = target
+        self.index = index
+
+
 class BookMarkDBI:
     """Adapter to help BookMark interface with the book_ease.db database"""
 
-    def __init__(self):
+    def __init__(self, column_map):
+        self.column_map = column_map
         self.settings_string = book_ease_tables.SettingsString()
+        self.book_marks_table = book_ease_tables.BookMarks()
 
-    def get_bookmarks(self) -> tuple[tuple[str, str]] | None:
+    def get_bookmarks(self) -> tuple[BookMarkData]:
         """Get the list of saved bookmarks from the database."""
         con = book_ease_tables.DB_CONNECTION_MANAGER.query_begin()
-        book_mark_db_rows = self.settings_string.get_category(con, 'book_mark')
+        book_mark_db_rows = self.book_marks_table.get_all_rows_sorted_by_index_asc(con)
         book_ease_tables.DB_CONNECTION_MANAGER.query_end(con)
-        return tuple((row['attribute'], row['value']) for row in book_mark_db_rows)
+        return tuple(BookMarkData(
+            id_=row[self.column_map['id']['title']],
+            name=row[self.column_map['name']['title']],
+            target=row[self.column_map['target']['title']],
+            index=row[self.column_map['index']['title']]
+        )for row in book_mark_db_rows)
 
-    def set_book_marks(self, book_marks: tuple[tuple[str, str]]):
+    def set_book_marks(self, book_marks: tuple[BookMarkData]):
         """Save the bookmarks to the database"""
         con = book_ease_tables.DB_CONNECTION_MANAGER.query_begin()
-        self.settings_string.clear_category(con, 'book_mark')
-        for row in book_marks:
-            self.settings_string.set(con, 'book_mark', row[0], row[1])
+        id_set = set()
+        for bm_data in book_marks:
+            self.book_marks_table.update_row_by_id(con,
+                                                   id_=bm_data.id_,
+                                                   name=bm_data.name,
+                                                   target=bm_data.target,
+                                                   index=bm_data.index)
+            id_set.add(bm_data.id_)
+        self.book_marks_table.delete_rows_not_in_ids(con, tuple(id_set))
         book_ease_tables.DB_CONNECTION_MANAGER.query_end(con)
 
-    def append_book_mark(self, title: str, target: str):
-        """append a bookmark entry to the 'book_mark' category in the settings_string database"""
+    def append_book_mark(self, name: str, target: str, index: int) -> int:
+        """
+        Append a bookmark entry to the 'book_mark' category in the settings_string database.
+        Returns the rowid of the newly inserted row.
+        """
         con = book_ease_tables.DB_CONNECTION_MANAGER.query_begin()
-        self.settings_string.set(con, 'book_mark', title, target)
+        rowid = self.book_marks_table.set(con, name=name, target=target, index=index)
         book_ease_tables.DB_CONNECTION_MANAGER.query_end(con)
+        return rowid
 
 
 class BookMark:
     """Controller and View for Bookmark functionality inside the file view"""
+
+    # map database columns to the bookmark g_model (ListStore) columns
+    column_map = {
+        'icon': {'g_col': 0},
+        'id': {'g_col': 1, 'title': 'id_'},
+        'name': {'g_col': 2, 'title': 'name'},
+        'target': {'g_col': 3, 'title': 'target'},
+        'index': {'title': 'index_'}
+    }
+
     def __init__(self, bookmark_view, f_view, files):
         self.files = files
-        self.book_mark_dbi = BookMarkDBI()
+        self.book_mark_dbi = BookMarkDBI(self.column_map)
         self.f_view = f_view
 
-        self.icon_pos, self.name_pos, self.target_pos = (0, 1, 2)
-        self.bookmark_model = Gtk.ListStore(Pixbuf, str, str)
+        self.bookmark_model = Gtk.ListStore(Pixbuf, int, str, str)
         self.bookmark_model.connect('row-deleted', self.on_row_deleted)
 
         self.bookmark_view = bookmark_view
@@ -134,8 +170,8 @@ class BookMark:
         self.column = Gtk.TreeViewColumn("Bookmarks")
         self.column.pack_start(self.renderer_icon, False)
         self.column.pack_start(self.renderer_text, True)
-        self.column.add_attribute(self.renderer_icon, "pixbuf", self.icon_pos)
-        self.column.add_attribute(self.renderer_text, "text", self.name_pos)
+        self.column.add_attribute(self.renderer_icon, "pixbuf", self.column_map['icon']['g_col'])
+        self.column.add_attribute(self.renderer_text, "text", self.column_map['name']['g_col'])
 
         self.bookmark_view.append_column(self.column)
         self.bookmark_view.set_reorderable(True)
@@ -181,8 +217,8 @@ class BookMark:
         # get the selected bookmark model from the row
         for pth in paths:
             itr = model.get_iter(pth)
-            name = model.get_value(itr, self.name_pos)
-            target = model.get_value(itr, self.target_pos)
+            name = model.get_value(itr, self.column_map['name']['g_col'])
+            target = model.get_value(itr, self.column_map['target']['g_col'])
             # get rename info from the user
             dialog = RenameTvEntryDialog(title='Rename Bookmark')
             dialog.label_1.set_text("Rename: " + name)
@@ -197,8 +233,8 @@ class BookMark:
             if response == Gtk.ResponseType.OK:
                 name = dialog.entry_1.get_text()
                 target = dialog.entry_2.get_text()
-                model.set_value(itr, self.name_pos, name)
-                model.set_value(itr, self.target_pos, target)
+                model.set_value(itr, self.column_map['name']['g_col'], name)
+                model.set_value(itr, self.column_map['target']['g_col'], target)
                 # update config for data persistence
                 self.update_bookmark_config()
             dialog.destroy()
@@ -231,11 +267,13 @@ class BookMark:
         add bookmark, defined by name and path, by adding it
         to the bookmark model and saving it to file
         """
+        # This needs to be done so that the id is pushed into the bookmarks model
         if name is not None and path is not None:
+            index = len(self.bookmark_model)
+            new_id = self.book_mark_dbi.append_book_mark(name=name, target=path, index=index)
             icon = Gtk.IconTheme.get_default().load_icon('folder', 24, 0)
-            self.bookmark_model.append([icon, name, path])
-            # update the config for data persistence
-            self.book_mark_dbi.append_book_mark(name, path)
+            self.bookmark_model.append([icon, new_id, name, path])
+
 
     def cm_on_deactivate(self, __):
         """
@@ -271,7 +309,7 @@ class BookMark:
                 (model, pathlist) = tvs.get_selected_rows()
                 for path in pathlist :
                     tree_iter = model.get_iter(path)
-                    value = model.get_value(tree_iter, self.target_pos)
+                    value = model.get_value(tree_iter, self.column_map['target']['g_col'])
                     tvs.unselect_all()
                     self.files.cd(value)
 
@@ -280,6 +318,7 @@ class BookMark:
         handle callbacks for a button press on a bookmark by any mouse button.
         currently its only action is to call a context menu when the bookmark view is right clicked
         """
+        print('on_button_press')
         if event.get_button()[0] is True:
             if event.get_button()[1] == 1:
                 pass
@@ -303,7 +342,14 @@ class BookMark:
 
     def update_bookmark_config(self):
         """clear and re-save all the bookmarks with current values"""
-        self.book_mark_dbi.set_book_marks(tuple((row[1], row[2]) for row in self.bookmark_model))
+        cmap = BookMark.column_map
+        data = tuple(BookMarkData(id_=row[cmap['id']['g_col']],
+                                  name=row[cmap['name']['g_col']],
+                                  target=row[cmap['target']['g_col']],
+                                  index=i)
+                     for i, row in enumerate(self.bookmark_model))
+
+        self.book_mark_dbi.set_book_marks(data)
 
     def reload_bookmarks(self):
         """
@@ -311,9 +357,11 @@ class BookMark:
         Note: this does not reload, it only appends
         """
         for row in self.book_mark_dbi.get_bookmarks():
-            if os.path.isdir(row[1]):
+            # if os.path.isdir(row[1]):
+
+            if os.path.isdir(row.target):
                 icon = Gtk.IconTheme.get_default().load_icon('folder', 24, Gtk.IconLookupFlags.GENERIC_FALLBACK)
-                self.bookmark_model.append([icon, row[0], row[1]])
+                self.bookmark_model.append([icon, row.id_, row.name, row.target])
 
 
 class Image_View:
@@ -604,14 +652,11 @@ class Files_(signal_.Signal):
 class Files_View:
     """Display file infrmation for files in the cwd"""
 
-    def __init__(self, files_view, files, config):
+    def __init__(self, files_view, files):
         self.files_view = files_view
+        self.files_view.connect('destroy', self.on_destroy)
+        self.files_view_dbi = FilesViewDBI()
         self.files = files
-
-        self.config = config
-
-        self.config_section_name = 'FilesView'
-
         # set up the data model and containers
         self.files_ls = self.files.get_file_list()
         self.files_ls.set_sort_func(1, self.files.cmp_f_list_dir_fst, None)
@@ -627,9 +672,9 @@ class Files_View:
         self.name_col.add_attribute(name_r_text, "text", 1)
         self.name_col.set_sort_column_id(1)
         self.name_col.set_resizable(True)
-        # reset column width to previous size
-        name_width = int(self.config[self.config_section_name]['column_width_name'])
-        self.name_col.set_fixed_width(name_width)
+        # reset name column width to previous size iff previous size exists.
+        if name_width := self.files_view_dbi.get_name_col_width():
+            self.name_col.set_fixed_width(name_width)
         self.files_view.append_column(self.name_col)
 
         # size column
@@ -662,7 +707,7 @@ class Files_View:
         """
         if event.get_button()[0] is True:
             if event.get_button()[1] == 1:
-                self.on_col_width_change()
+                pass
                 #print('left button clicked')
             elif event.get_button()[1] == 2:
                 pass
@@ -676,13 +721,6 @@ class Files_View:
             elif event.get_button()[1] == 9:
                 self.files.cd_ahead()
                 #print('forward button clicked')
-
-    def on_col_width_change(self):
-        """save new column width to config parser, creating a new section name if it doesn't exist'"""
-        name_width_config = int(self.config[self.config_section_name]['column_width_name'])
-        name_width = self.name_col.get_width()
-        if name_width_config != name_width:
-            self.config.set(self.config_section_name, 'column_width_name', str(name_width))
 
     def row_activated(self, treeview, path, unused_column):
         """
@@ -698,96 +736,133 @@ class Files_View:
             new_path = os.path.join(self.files.get_path_current(), value)
             self.files.cd(new_path)
 
+    def on_destroy(self, *unused_args):
+        """save the gui's state"""
+        self.files_view_dbi.save_name_col_width(self.name_col.get_width())
+
+
+class FilesViewDBI:
+    """Class to help FilesView interface with a database"""
+
+    def __init__(self):
+        self.settings_numeric = book_ease_tables.SettingsNumeric()
+        # ids dict stores attribute:rowid to ease calls to update or insert a new row in the database
+        self.ids = {}
+
+    def get_name_col_width(self) -> int | None:
+        """retrieve the saved width of the name column in the FilesView treeview."""
+        con = book_ease_tables.DB_CONNECTION_MANAGER.query_begin()
+        width_result = self.settings_numeric.get(con, 'FilesView', 'name_col_width')
+        book_ease_tables.DB_CONNECTION_MANAGER.query_end(con)
+
+        if width_result:
+            width = width_result[0]['value']
+            self.ids['name_col_width'] = width_result[0]['id_']
+        else:
+            width = None
+            self.ids['name_col_width'] = None
+        return width
+
+    def save_name_col_width(self, width: int):
+        """Save the width of the name column in the FilesView:TreeView to a database."""
+        con = book_ease_tables.DB_CONNECTION_MANAGER.query_begin()
+        if id_ := self.ids['name_col_width']:
+            self.settings_numeric.update_value_by_id(con, id_, width)
+        else:
+            self.settings_numeric.set(con, 'FilesView', 'name_col_width', width)
+        book_ease_tables.DB_CONNECTION_MANAGER.query_end(con)
+
+
 class MainWindow(Gtk.Window):
     """The main display window"""
+    SettingsNumericDBI = book_ease_tables.SettingsNumericDBI
 
-    def __init__(self, book_reader_window, window_pane, config, builder):
-        self.config = config
+    def __init__(self, book_reader_window, window_pane, builder):
         self.book_reader_window = book_reader_window
         self.window_pane = window_pane
 
-        # visibility buttons
-        self.show_files_switch1 = builder.get_object("show_files_switch1")
-        self.show_files_switch1.connect('state-set', self.on_visibility_switch_changed)
-        self.show_files_switch1_state = self.config['book_reader_window'].getboolean('show_files_switch1_state')
+        # visibility switches
+        #
+        # put the visibility switches in a set, so they can be iterated over when saving and retrieving values
+        # from the database.
+        self.visibility_switches = set()
+        show_files_switch1 = builder.get_object("show_files_switch1")
+        show_files_switch1.connect('state-set', self.on_visibility_switch_changed)
+        self.visibility_switches.add(show_files_switch1)
         self.file_manager1 = builder.get_object("file_manager1")
         #
-        self.show_files_switch2 = builder.get_object("show_files_switch2")
-        self.show_files_switch2.connect('state-set', self.on_visibility_switch_changed)
-        self.show_files_switch2_state = self.config['book_reader_window'].getboolean('show_files_switch2_state')
+        show_files_switch2 = builder.get_object("show_files_switch2")
+        show_files_switch2.connect('state-set', self.on_visibility_switch_changed)
+        self.visibility_switches.add(show_files_switch2)
         self.file_manager2 = builder.get_object("file_manager2")
         #
-        self.show_playlist_switch = builder.get_object("show_playlist_switch")
-        self.show_playlist_switch.connect('state-set', self.on_visibility_switch_changed)
-        self.show_playlist_switch_state = self.config['book_reader_window'].getboolean('show_playlist_switch_state')
+        show_playlist_switch = builder.get_object("show_playlist_switch")
+        show_playlist_switch.connect('state-set', self.on_visibility_switch_changed)
+        self.visibility_switches.add(show_playlist_switch)
         self.book_reader_view = builder.get_object("book_reader_view")
         #
         self.image_view = builder.get_object("image_view")
-        self.show_image_switch = builder.get_object("show_image_switch")
-        self.show_image_switch.connect('state-set', self.on_visibility_switch_changed)
-        self.show_image_switch_state = self.config['book_reader_window'].getboolean('show_image_switch_state')
+        show_image_switch = builder.get_object("show_image_switch")
+        show_image_switch.connect('state-set', self.on_visibility_switch_changed)
+        self.visibility_switches.add(show_image_switch)
         # file_manager_pane
         self.file_manager_pane = builder.get_object("file_manager_pane")
-        self.file_manager_pane_pos = self.config['book_reader_window'].getint('file_manager_pane_pos')
-        self.file_manager_pane.set_position(int(self.file_manager_pane_pos))
+        if file_manager_pane_pos := self.SettingsNumericDBI.get('book_reader_window', 'file_manager_pane_pos'):
+            self.file_manager_pane.set_position(file_manager_pane_pos)
         # book_reader_pane
         self.book_reader_pane = builder.get_object("book_reader_pane")
-        self.book_reader_pane_pos = self.config['book_reader_window'].getint('book_reader_pane_pos')
-        self.book_reader_pane.set_position(int(self.book_reader_pane_pos))
+        # set saved state
+        if book_reader_pane_pos := self.SettingsNumericDBI.get('book_reader_window', 'book_reader_pane_pos'):
+            self.book_reader_pane.set_position(book_reader_pane_pos)
         # window callbacks
         self.book_reader_window.connect('destroy', self.on_destroy)
         self.book_reader_window.connect('delete-event', self.on_delete_event, self.book_reader_window )
         # load previous window state
-        width = self.config['book_reader_window'].getint('width')
-        height = self.config['book_reader_window'].getint('height')
-        self.book_reader_window.set_default_size(width, height)
-        window_1_pane_pos = self.config['book_reader_window'].getint('window_1_pane_pos')
-        self.window_pane.set_position(window_1_pane_pos)
+        width = book_ease_tables.SettingsNumericDBI.get('book_reader_window', 'width')
+        height = book_ease_tables.SettingsNumericDBI.get('book_reader_window', 'height')
+        if width and height:
+            self.book_reader_window.set_default_size(width, height)
+        # window_1_pane_pos = self.config['book_reader_window'].getint('window_1_pane_pos')
+        if window_1_pane_pos := book_ease_tables.SettingsNumericDBI.get('book_reader_window', 'window_1_pane_pos'):
+            self.window_pane.set_position(window_1_pane_pos)
         # launch
         self.book_reader_window.show_all()
 
         # set switch states
         # must be after the call to show all; these trigger interrupts that hide their views
-        if self.show_files_switch1_state is not None:
-            self.show_files_switch1.set_state(bool(self.show_files_switch1_state))
-        if self.show_files_switch2_state is not None:
-            self.show_files_switch2.set_state(bool(self.show_files_switch2_state))
-        if self.show_playlist_switch_state is not None:
-            self.show_playlist_switch.set_state(bool(self.show_playlist_switch_state))
-        if self.show_image_switch_state is not None:
-            self.show_image_switch.set_state(self.show_image_switch_state)
-
+        for switch in self.visibility_switches:
+            state = self.SettingsNumericDBI.get_bool('book_reader_window', f'{switch.get_name()}_state')
+            if state is not None:
+                switch.set_state(state)
 
     def on_delete_event(self, unused_widget, unused_val, window=None):
         """
         The view has been closed.
         Save the view state to file
         """
-        # save settings to config
-        # window size
-        window_1_pane_pos = self.window_pane.get_position()
-        width, height = window.get_size()
-        self.config.set('book_reader_window', 'window_1_pane_pos', str(window_1_pane_pos))
-        self.config.set('book_reader_window', 'width', str(width))
-        self.config.set('book_reader_window', 'height', str(height))
-        # pane positions
-        book_reader_pane_pos = self.book_reader_pane.get_position()
-        file_manager_pane_pos = self.file_manager_pane.get_position()
-        self.config.set('book_reader_window', 'book_reader_pane_pos', str(book_reader_pane_pos))
-        self.config.set('book_reader_window', 'file_manager_pane_pos', str(file_manager_pane_pos))
-        # button states
-        show_image_switch_state = self.show_image_switch.get_state()
-        self.config.set('book_reader_window', 'show_image_switch_state', str(show_image_switch_state))
-        #
-        show_files_switch2_state = self.show_files_switch2.get_state()
-        self.config.set('book_reader_window', 'show_files_switch2_state', str(show_files_switch2_state))
-        #
-        show_files_switch1_state = self.show_files_switch1.get_state()
-        self.config.set('book_reader_window', 'show_files_switch1_state', str(show_files_switch1_state))
-        #
-        show_playlist_switch_state = self.show_playlist_switch.get_state()
-        self.config.set('book_reader_window', 'show_playlist_switch_state', str(show_playlist_switch_state))
 
+        for switch in self.visibility_switches:
+            self.SettingsNumericDBI.set_bool('book_reader_window', f'{switch.get_name()}_state', switch.get_state())
+
+        book_ease_tables.SettingsNumericDBI.set('book_reader_window',
+                                                'window_1_pane_pos',
+                                                self.window_pane.get_position())
+
+        book_ease_tables.SettingsNumericDBI.set('book_reader_window',
+                                                'width',
+                                                window.get_size()[0])
+
+        book_ease_tables.SettingsNumericDBI.set('book_reader_window',
+                                                'height',
+                                                window.get_size()[1])
+
+        book_ease_tables.SettingsNumericDBI.set('book_reader_window',
+                                                'file_manager_pane_pos',
+                                                self.file_manager_pane.get_position())
+
+        book_ease_tables.SettingsNumericDBI.set('book_reader_window',
+                                                'book_reader_pane_pos',
+                                                self.book_reader_pane.get_position())
 
     def on_destroy(self, unused_window):
         """exit the gui main loop"""
@@ -827,19 +902,12 @@ class MainWindow(Gtk.Window):
 
 def main(unused_args):
     """entry point for book_ease"""
-    #configuration file
-    config_dir = Path.home() / '.config' / 'book_ease'
-    config_dir.mkdir(mode=511, parents=True, exist_ok=True)
-    config_file = config_dir / 'book_ease.ini'
-    config = configparser.ConfigParser()
-    config.read(config_file)
-    # Load the gui from glade
     builder = Gtk.Builder()
     builder.add_from_file("book_ease.glade")
     # files backend
     files = Files_()
     # left side file viewer
-    files_view_1 = Files_View(builder.get_object("files_1"), files, config)
+    files_view_1 = Files_View(builder.get_object("files_1"), files)
     # left side bookmarks
     BookMark(builder.get_object("bookmarks_1"), files_view_1, files)
     # image pane
@@ -849,14 +917,11 @@ def main(unused_args):
     book_reader.BookReader(files, builder)
 
     # main window
-    MainWindow(builder.get_object("window1"), builder.get_object("window_1_pane"), config, builder)
+    MainWindow(builder.get_object("window1"), builder.get_object("window_1_pane"), builder)
 
     Gtk.main()
-    # write any changes to the config
-    with open(config_file, 'w', encoding="utf-8") as configfile:
-        config.write(configfile)
-
     return 0
+
 
 if __name__ == '__main__':
     import sys
