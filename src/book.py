@@ -371,7 +371,7 @@ class TrackDBI():
         self.playlist = audio_book_tables.Playlist()
         self.track_file = audio_book_tables.TrackFile()
 
-    def save_track_file(self, track) -> 'track_file_id:int':
+    def save_track_file(self, track: playlist.Track) -> int:
         """
         save to database track_file information held in Track
         returns track_file_id
@@ -383,7 +383,10 @@ class TrackDBI():
         DB_CONNECTION.query_end(con)
         return track_file_id
 
-    def save_pl_track(self, playlist_id, track_file_id, track) -> 'int':
+    def save_pl_track(self,
+                      playlist_id: int,
+                      track_file_id: int,
+                      track: playlist.Track) -> int:
         """add entry to pl_track table"""
         con = DB_CONNECTION.query_begin()
         track_number = track.get_number()
@@ -397,7 +400,10 @@ class TrackDBI():
         DB_CONNECTION.query_end(con)
         return pl_track_id
 
-    def save_track_metadata(self, md_entry, pl_track_id, key):
+    def save_track_metadata(self,
+                            md_entry: playlist.TrackMDEntry,
+                            pl_track_id: int,
+                            key: str):
         """save a TrackMDEntry instance to database"""
         con = DB_CONNECTION.query_begin()
         # extract info from TrackMDEntry oject
@@ -424,7 +430,7 @@ class TrackDBI():
         DB_CONNECTION.query_end(con)
         return id_
 
-    def remove_deleted_metadata(self, max_index, pl_track_id, key):
+    def remove_deleted_metadata(self, max_index: int, pl_track_id: int, key: str):
         """
         remove deleted entries from table.pl_track_metadata by looking for null indices
         and indices greater than the current max_index
@@ -435,7 +441,7 @@ class TrackDBI():
             self.pl_track_metadata.remove_row_by_id(con, row['id'])
         DB_CONNECTION.query_end(con)
 
-    def remove_deleted_pl_tracks(self, playlist_id, max_index):
+    def remove_deleted_pl_tracks(self, playlist_id: int, max_index: int):
         """
         remove deleted entries from table.pl_track by looking for null indices
         pl_track.track_number entries are a one based index
@@ -446,7 +452,7 @@ class TrackDBI():
             self.pl_track.remove_row_by_id(con, row['id'])
         DB_CONNECTION.query_end(con)
 
-    def get_track_list_by_pl_id(self, playlist_id) -> '[playlist.Track, ...]':
+    def get_track_list_by_pl_id(self, playlist_id: int) -> list[playlist.Track]:
         """create list of Track objects by searching the database for pl_tracks matching playlist ids"""
         track_list = []
         con = DB_CONNECTION.query_begin()
@@ -460,7 +466,7 @@ class TrackDBI():
         DB_CONNECTION.query_end(con)
         return track_list
 
-    def get_metadata_list(self, key, pl_track_id):
+    def get_metadata_list(self, key: str, pl_track_id: int):
         """create a list of TrackMDEntry by searching for pl_track_id"""
         md_list = []
         con = DB_CONNECTION.query_begin()
