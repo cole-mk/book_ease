@@ -26,6 +26,8 @@ this includes the book model, database interfaces for the book, and the main con
 """
 import re
 import os
+import sqlite3
+
 import mutagen
 
 import book_reader
@@ -60,7 +62,7 @@ class DBConnection: #pylint: disable=too-few-public-methods
         self.con.close()
         self.con = None
 
-    def query_begin(self) -> 'sqlite3.Connection':
+    def query_begin(self) -> sqlite3.Connection:
         """
         get an sqlite connection object
         returns self.con if a multi_query is in effect.
@@ -70,7 +72,7 @@ class DBConnection: #pylint: disable=too-few-public-methods
             return audio_book_tables.create_connection()
         return self.con
 
-    def query_end(self, con):
+    def query_end(self, con: sqlite3.Connection):
         """
         commit and close connection if a multi_query
         is not in effect.
