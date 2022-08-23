@@ -902,6 +902,8 @@ class MainWindow(Gtk.Window):
 
 def main(unused_args):
     """entry point for book_ease"""
+    # cache the settings database
+    book_ease_tables.load_data()
     builder = Gtk.Builder()
     builder.add_from_file("book_ease.glade")
     # files backend
@@ -920,6 +922,8 @@ def main(unused_args):
     MainWindow(builder.get_object("window1"), builder.get_object("window_1_pane"), builder)
 
     Gtk.main()
+    # Sync the in memory database to the on file database.
+    book_ease_tables.save_data()
     return 0
 
 
