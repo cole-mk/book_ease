@@ -161,7 +161,6 @@ class Book(playlist.Playlist, signal_.Signal):
     def __init__(self, path: str, file_list: list[tuple] | None):
         playlist.Playlist.__init__(self)
         signal_.Signal.__init__(self)
-        self.index = None
         self.playlist_data = PlaylistData(title='New Book', path=path)
         #database interfaces
         self.track_dbi = TrackDBI()
@@ -180,14 +179,6 @@ class Book(playlist.Playlist, signal_.Signal):
     def get_cur_pl_list(self) -> PlaylistData:
         """get list of playlists associated with current path"""
         return self.playlist_dbi.get_by_path(self.playlist_data)
-
-    def get_index(self) -> int:
-        """get the index of this book's position in the BookReader's list of books"""
-        return self.index
-
-    def set_index(self, index: int):
-        """set the index of this book's position in the BookReader's list of books"""
-        self.index = index
 
     def book_data_load(self, playlist_data: PlaylistData):
         """load a saved playlist from the database"""
