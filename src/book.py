@@ -176,10 +176,6 @@ class Book(playlist.Playlist, signal_.Signal):
         # this is used during the saving process.
         self.pl_track_counter = 0
 
-    def get_cur_pl_list(self) -> PlaylistData:
-        """get list of playlists associated with current path"""
-        return self.playlist_dbi.get_by_path(self.playlist_data)
-
     def book_data_load(self, playlist_data: PlaylistData):
         """load a saved playlist from the database"""
 
