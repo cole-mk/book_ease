@@ -227,7 +227,7 @@ class Book(playlist.Playlist, signal_.Signal):
             self.playlist_data.set_title(title_list[0].get_entry())
         return book_data
 
-    def set_unique_playlist_title(self, playlist_data: PlaylistData) -> str:
+    def _set_unique_playlist_title(self, playlist_data: PlaylistData) -> str:
         """add a incremented suffix to self.playlist_data.title if there are duplicates"""
         suffix = ''
         count = 1
@@ -238,18 +238,18 @@ class Book(playlist.Playlist, signal_.Signal):
             count += 1
         return playlist_data
 
-    def save_playlist_data(self):
+    def _save_playlist_data(self):
         """Save self.playlist_data which consists of title, path, and id"""
         # add suffix to book title to ensure uniqueness
-        self.set_unique_playlist_title(self.playlist_data)
+        self._set_unique_playlist_title(self.playlist_data)
         # save playlist_data (title,path,id) storing returned id in self.playlist_data
         self.playlist_data.set_id(self.playlist_dbi.save(self.playlist_data))
         # update the playlist saved flag
         self.set_saved(True)
 
-    def save_track(self, track: playlist.Track):
+    def _save_track(self, track: playlist.Track):
         """Save all of the Track data."""
-        # increment the pl_track_counter that was initialized in save_book_begin
+        # increment the pl_track_counter that was initialized in _save_book_begin
         self.pl_track_counter += 1
         # save the file path that the Track object references
         track_file_id = self.track_dbi.save_track_file(track)
@@ -267,14 +267,14 @@ class Book(playlist.Playlist, signal_.Signal):
             # remove deleted entries from database
             self.track_dbi.remove_deleted_metadata(len(md_entry_l) - 1, pl_track_id, col['key'])
 
-    def save_book_finished(self):
+    def _save_book_finished(self):
         """cleanup after saving the book and close the connection to the database."""
         # remove deleted entries from database using self.pl_track_counter to determine the actual size of the playlist
         self.track_dbi.remove_deleted_pl_tracks(self.playlist_data.get_id(), self.pl_track_counter)
         self.saved_playlist = True
         DB_CONNECTION.multi_query_end()
 
-    def save_book_begin(self):
+    def _save_book_begin(self):
         """prepare to begin saving book data by opening a connection to the database."""
         # initialize a counter to determine the size of the playlist that will be use to cleanup deleted files
         self.pl_track_counter = 0
@@ -283,12 +283,12 @@ class Book(playlist.Playlist, signal_.Signal):
 
     def save(self, book_data: BookData):
         """Save book_data to database"""
-        self.save_book_begin()
+        self._save_book_begin()
         self.playlist_data = book_data.playlist_data
-        self.save_playlist_data()
+        self._save_playlist_data()
         for track in book_data.track_list:
-            self.save_track(track)
-        self.save_book_finished()
+            self._save_track(track)
+        self._save_book_finished()
 
 
 class PlaylistDBI():
