@@ -22,7 +22,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 MA 02110-1301, USA.
 -->
- <interface>
+<interface>
   <requires lib="gtk+" version="3.20"/>
   <object class="GtkImage" id="image1">
     <property name="visible">True</property>
@@ -33,6 +33,41 @@ MA 02110-1301, USA.
     <property name="visible">True</property>
     <property name="can_focus">False</property>
     <property name="stock">gtk-go-forward</property>
+  </object>
+  <object class="GtkImage" id="image_media_forward">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="icon_name">media-seek-forward</property>
+  </object>
+  <object class="GtkImage" id="image_media_info">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="icon_name">dialog-information</property>
+  </object>
+  <object class="GtkImage" id="image_media_next">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="icon_name">media-skip-forward</property>
+  </object>
+  <object class="GtkImage" id="image_media_pause">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="icon_name">media-playback-pause</property>
+  </object>
+  <object class="GtkImage" id="image_media_play">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="icon_name">media-playback-start</property>
+  </object>
+  <object class="GtkImage" id="image_media_prev">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="icon_name">media-skip-backward</property>
+  </object>
+  <object class="GtkImage" id="image_media_rewind">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="icon_name">media-seek-backward</property>
   </object>
   <object class="GtkWindow" id="window1">
     <property name="can_focus">False</property>
@@ -213,48 +248,6 @@ MA 02110-1301, USA.
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <child>
-                  <object class="GtkSwitch" id="show_playlist_switch">
-                    <property name="name">show_playlist_switch</property>
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="valign">center</property>
-                    <property name="active">True</property>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">True</property>
-                    <property name="padding">4</property>
-                    <property name="pack_type">end</property>
-                    <property name="position">0</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkLabel">
-                    <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <property name="label" translatable="yes">Playlist</property>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">False</property>
-                    <property name="pack_type">end</property>
-                    <property name="position">1</property>
-                  </packing>
-                </child>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="padding">4</property>
-                <property name="pack_type">end</property>
-                <property name="position">1</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkBox">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <child>
                   <object class="GtkSwitch" id="show_image_switch">
                     <property name="name">show_image_switch</property>
                     <property name="visible">True</property>
@@ -279,6 +272,48 @@ MA 02110-1301, USA.
                   <packing>
                     <property name="expand">False</property>
                     <property name="fill">True</property>
+                    <property name="pack_type">end</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="padding">4</property>
+                <property name="pack_type">end</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkBox">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <child>
+                  <object class="GtkSwitch" id="show_playlist_switch">
+                    <property name="name">show_playlist_switch</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="valign">center</property>
+                    <property name="active">True</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="padding">4</property>
+                    <property name="pack_type">end</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="label" translatable="yes">Playlist</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
                     <property name="pack_type">end</property>
                     <property name="position">1</property>
                   </packing>
@@ -390,11 +425,11 @@ MA 02110-1301, USA.
             <property name="margin_top">6</property>
             <property name="margin_bottom">6</property>
             <child>
-              <object class="GtkButton">
-                <property name="label" translatable="yes">button</property>
+              <object class="GtkButton" id="button_stream_info">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <property name="image">image_media_info</property>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -404,13 +439,12 @@ MA 02110-1301, USA.
               </packing>
             </child>
             <child>
-              <object class="GtkButton" id="mark2">
-                <property name="label">gtk-media-play</property>
+              <object class="GtkButton" id="button_play">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
                 <property name="valign">start</property>
-                <property name="use_stock">True</property>
+                <property name="image">image_media_play</property>
                 <property name="always_show_image">True</property>
               </object>
               <packing>
@@ -420,12 +454,11 @@ MA 02110-1301, USA.
               </packing>
             </child>
             <child>
-              <object class="GtkButton">
-                <property name="label">gtk-media-pause</property>
+              <object class="GtkButton" id="button_pause">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
-                <property name="use_stock">True</property>
+                <property name="image">image_media_pause</property>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -434,11 +467,11 @@ MA 02110-1301, USA.
               </packing>
             </child>
             <child>
-              <object class="GtkButton">
-                <property name="label" translatable="yes">button</property>
+              <object class="GtkButton" id="button_previous">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <property name="image">image_media_prev</property>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -447,11 +480,11 @@ MA 02110-1301, USA.
               </packing>
             </child>
             <child>
-              <object class="GtkButton">
-                <property name="label" translatable="yes">button</property>
+              <object class="GtkButton" id="button_rewind">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <property name="image">image_media_rewind</property>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -460,11 +493,11 @@ MA 02110-1301, USA.
               </packing>
             </child>
             <child>
-              <object class="GtkButton">
-                <property name="label" translatable="yes">button</property>
+              <object class="GtkButton" id="button_forward">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <property name="image">image_media_forward</property>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -473,16 +506,15 @@ MA 02110-1301, USA.
               </packing>
             </child>
             <child>
-              <object class="GtkButton">
-                <property name="label" translatable="yes">button</property>
+              <object class="GtkButton" id="button_next">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <property name="image">image_media_next</property>
               </object>
               <packing>
                 <property name="expand">False</property>
                 <property name="fill">True</property>
-                <property name="pack_type">end</property>
                 <property name="position">6</property>
               </packing>
             </child>
