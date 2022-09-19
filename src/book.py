@@ -360,8 +360,8 @@ class TrackDBI():
         con = audio_book_tables.create_connection()
         with con:
             audio_book_tables.Playlist.init_table(con)
+            audio_book_tables.PlTrack.init_table(con)
         con.close()
-        self.pl_track = audio_book_tables.PlTrack()
         self.pl_track_metadata = audio_book_tables.PlTrackMetadata()
         self.track_file = audio_book_tables.TrackFile()
 
@@ -385,12 +385,12 @@ class TrackDBI():
         con = DB_CONNECTION.query_begin()
         track_number = track.get_number()
         # null pl_track_numbers to avoid duplicates in case they were reordered in the view
-        self.pl_track.null_duplicate_track_number(con, playlist_id, track_number)
+        audio_book_tables.PlTrack.null_duplicate_track_number(con, playlist_id, track_number)
         pl_track_id = track.get_pl_track_id()
         if pl_track_id:
-            self.pl_track.update_track_number_by_id(con, track_number, pl_track_id)
+            audio_book_tables.PlTrack.update_track_number_by_id(con, track_number, pl_track_id)
         else:
-            pl_track_id = self.pl_track.add(con, playlist_id, track_number, track_file_id)
+            pl_track_id = audio_book_tables.PlTrack.add(con, playlist_id, track_number, track_file_id)
         DB_CONNECTION.query_end(con)
         return pl_track_id
 
@@ -441,9 +441,9 @@ class TrackDBI():
         pl_track.track_number entries are a one based index
         """
         con = DB_CONNECTION.query_begin()
-        id_list = self.pl_track.get_ids_by_max_index_or_null(con, max_index, playlist_id)
+        id_list = audio_book_tables.PlTrack.get_ids_by_max_index_or_null(con, max_index, playlist_id)
         for row in id_list:
-            self.pl_track.remove_row_by_id(con, row['id'])
+            audio_book_tables.PlTrack.remove_row_by_id(con, row['id'])
         DB_CONNECTION.query_end(con)
 
     def get_track_list_by_pl_id(self, playlist_id: int) -> list[playlist.Track]:
@@ -451,7 +451,7 @@ class TrackDBI():
         track_list = []
         con = DB_CONNECTION.query_begin()
         # create Track instances and populate the simple instance variables
-        for trak in self.pl_track.get_rows_by_playlist_id(con, playlist_id):
+        for trak in audio_book_tables.PlTrack.get_rows_by_playlist_id(con, playlist_id):
             path = self.track_file.get_row_by_id(con, trak['track_id'])['path']
             track = playlist.Track(file_path=path)
             track.set_number(trak['track_number'])

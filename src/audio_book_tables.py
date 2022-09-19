@@ -234,14 +234,11 @@ class Playlist:
         con.execute(sql, (title, path, id_))
 
 
-
 class PlTrack:
     """database accessor for table pl_track"""
 
-    def __init__(self):
-        self.init_table(create_connection())
-
-    def init_table(self, con):
+    @staticmethod
+    def init_table(con):
         """create database table: pl_track"""
         sql = """
             CREATE TABLE IF NOT EXISTS pl_track (
@@ -258,7 +255,8 @@ class PlTrack:
             """
         con.execute(sql)
 
-    def add(self, con, playlist_id, track_number, track_id) -> 'lastrowid:int':
+    @staticmethod
+    def add(con, playlist_id, track_number, track_id) -> 'lastrowid:int':
         """insert track"""
         sql = """
             INSERT INTO pl_track(playlist_id, track_number, track_id)
@@ -267,7 +265,8 @@ class PlTrack:
         cur = con.execute(sql, (playlist_id, track_number, track_id))
         return cur.lastrowid
 
-    def null_duplicate_track_number(self, con, playlist_id, track_number):
+    @staticmethod
+    def null_duplicate_track_number(con, playlist_id, track_number):
         """look for what will be a duplicate track_num and change it to NULL"""
         sql = """
             UPDATE pl_track
@@ -277,7 +276,8 @@ class PlTrack:
             """
         con.execute(sql, (None, playlist_id, track_number))
 
-    def update_track_number_by_id(self, con, track_number, id_):
+    @staticmethod
+    def update_track_number_by_id(con, track_number, id_):
         """update column track_number in pl_track by matching id"""
         sql = """
             UPDATE pl_track
@@ -286,7 +286,8 @@ class PlTrack:
             """
         con.execute(sql, (track_number, id_))
 
-    def get_ids_by_max_index_or_null(self, con, max_track_number, playlist_id) -> '[sqlite3.row[int], ... ]':
+    @staticmethod
+    def get_ids_by_max_index_or_null(con, max_track_number, playlist_id) -> '[sqlite3.row[int], ... ]':
         """get list of ids that are greater than max_index or set to NULL"""
         sql = """
             SELECT id FROM pl_track
@@ -296,7 +297,8 @@ class PlTrack:
         cur = con.execute(sql, (playlist_id, max_track_number))
         return cur.fetchall()
 
-    def remove_row_by_id(self, con, id_):
+    @staticmethod
+    def remove_row_by_id(con, id_):
         """remove row from table pl_track that matches id"""
         sql = """
             DELETE FROM pl_track
@@ -304,7 +306,8 @@ class PlTrack:
             """
         con.execute(sql, (id_,))
 
-    def get_rows_by_playlist_id(self, con, playlist_id):
+    @staticmethod
+    def get_rows_by_playlist_id(con, playlist_id):
         """get all rows that match playlist_id"""
         sql = """
             SELECT * FROM pl_track
