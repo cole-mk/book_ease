@@ -50,10 +50,9 @@ def create_connection():
 
 class PinnedPlaylists:
     """database accessor for table pinned_playlists"""
-    def __init__(self):
-        self.init_table(create_connection())
 
-    def init_table(self, con):
+    @staticmethod
+    def init_table(con):
         """create database table: pinned_playlists"""
         sql = """
                 CREATE TABLE IF NOT EXISTS pinned_playlists (
@@ -64,7 +63,8 @@ class PinnedPlaylists:
                 """
         con.execute(sql)
 
-    def has_playlist(self, con, playlist_id):
+    @staticmethod
+    def has_playlist(con, playlist_id):
         """
         determine if playlist_id is stored in pinned_playlists table
         returns bool
@@ -80,7 +80,8 @@ class PinnedPlaylists:
             return False
         return True
 
-    def get_pinned_playlists(self, con):
+    @staticmethod
+    def get_pinned_playlists(con):
         """
         retreive entire list of pinned playlists
         returns sqlite3 row object
@@ -93,7 +94,8 @@ class PinnedPlaylists:
         rows = cur.fetchall()
         return rows
 
-    def insert_playlist(self, con, playlist_id):
+    @staticmethod
+    def insert_playlist(con, playlist_id):
         """
         insert a new playlist into the pinned_playlists table
         returns row id of the newly pinned playlist
@@ -105,7 +107,8 @@ class PinnedPlaylists:
         cur = con.execute(sql, (playlist_id,))
         return cur.lastrowid
 
-    def remove_playlist(self, con, playlist_id):
+    @staticmethod
+    def remove_playlist(con, playlist_id):
         """remove playlist from pinned_playlists table"""
 
         sql = """
