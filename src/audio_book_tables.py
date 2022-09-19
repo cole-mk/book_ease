@@ -428,10 +428,8 @@ class PlTrackMetadata:
 class TrackFile:
     """create database table: pltrack"""
 
-    def __init__(self):
-        self.init_table(create_connection())
-
-    def init_table(self, con):
+    @staticmethod
+    def init_table(con):
         """create database table: track_file"""
         sql = """
             CREATE TABLE IF NOT EXISTS track_file (
@@ -441,7 +439,8 @@ class TrackFile:
             """
         con.execute(sql)
 
-    def add_row(self, con, path):
+    @staticmethod
+    def add_row(con, path):
         """
         insert row into table track_file
         returns new track_id or 0 if already exists
@@ -453,7 +452,8 @@ class TrackFile:
         cur = con.execute(sql, (path,))
         return cur.lastrowid
 
-    def get_id_by_path(self, con, path):
+    @staticmethod
+    def get_id_by_path(con, path):
         """get row from table track_file that matches path"""
         sql = """
             SELECT id FROM track_file
@@ -462,7 +462,8 @@ class TrackFile:
         cur = con.execute(sql, (path,))
         return cur.fetchone()
 
-    def get_row_by_id(self, con, id_):
+    @staticmethod
+    def get_row_by_id(con, id_):
         """Get entire row from track_file that matches id_"""
         sql = """
             SELECT * FROM track_file

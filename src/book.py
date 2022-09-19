@@ -362,8 +362,8 @@ class TrackDBI():
             audio_book_tables.Playlist.init_table(con)
             audio_book_tables.PlTrack.init_table(con)
             audio_book_tables.PlTrackMetadata.init_table(con)
+            audio_book_tables.TrackFile.init_table(con)
         con.close()
-        self.track_file = audio_book_tables.TrackFile()
 
     def save_track_file(self, track: playlist.Track) -> int:
         """
@@ -372,8 +372,8 @@ class TrackDBI():
         """
         con = DB_CONNECTION.query_begin()
         # add entry to track_file table
-        self.track_file.add_row(con, path=track.get_file_path())
-        track_file_id = self.track_file.get_id_by_path(con, track.get_file_path())['id']
+        audio_book_tables.TrackFile.add_row(con, path=track.get_file_path())
+        track_file_id = audio_book_tables.TrackFile.get_id_by_path(con, track.get_file_path())['id']
         DB_CONNECTION.query_end(con)
         return track_file_id
 
@@ -452,7 +452,7 @@ class TrackDBI():
         con = DB_CONNECTION.query_begin()
         # create Track instances and populate the simple instance variables
         for trak in audio_book_tables.PlTrack.get_rows_by_playlist_id(con, playlist_id):
-            path = self.track_file.get_row_by_id(con, trak['track_id'])['path']
+            path = audio_book_tables.TrackFile.get_row_by_id(con, trak['track_id'])['path']
             track = playlist.Track(file_path=path)
             track.set_number(trak['track_number'])
             track.set_pl_track_id(trak['id'])
