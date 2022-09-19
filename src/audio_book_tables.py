@@ -50,10 +50,9 @@ def create_connection():
 
 class PinnedPlaylists:
     """database accessor for table pinned_playlists"""
-    def __init__(self):
-        self.init_table(create_connection())
 
-    def init_table(self, con):
+    @staticmethod
+    def init_table(con):
         """create database table: pinned_playlists"""
         sql = """
                 CREATE TABLE IF NOT EXISTS pinned_playlists (
@@ -64,7 +63,8 @@ class PinnedPlaylists:
                 """
         con.execute(sql)
 
-    def has_playlist(self, con, playlist_id):
+    @staticmethod
+    def has_playlist(con, playlist_id):
         """
         determine if playlist_id is stored in pinned_playlists table
         returns bool
@@ -80,7 +80,8 @@ class PinnedPlaylists:
             return False
         return True
 
-    def get_pinned_playlists(self, con):
+    @staticmethod
+    def get_pinned_playlists(con):
         """
         retreive entire list of pinned playlists
         returns sqlite3 row object
@@ -93,7 +94,8 @@ class PinnedPlaylists:
         rows = cur.fetchall()
         return rows
 
-    def insert_playlist(self, con, playlist_id):
+    @staticmethod
+    def insert_playlist(con, playlist_id):
         """
         insert a new playlist into the pinned_playlists table
         returns row id of the newly pinned playlist
@@ -105,7 +107,8 @@ class PinnedPlaylists:
         cur = con.execute(sql, (playlist_id,))
         return cur.lastrowid
 
-    def remove_playlist(self, con, playlist_id):
+    @staticmethod
+    def remove_playlist(con, playlist_id):
         """remove playlist from pinned_playlists table"""
 
         sql = """
@@ -118,10 +121,8 @@ class PinnedPlaylists:
 class Playlist:
     """ database accessor for table playlist"""
 
-    def __init__(self):
-        self.init_table(create_connection())
-
-    def init_table(self, con):
+    @staticmethod
+    def init_table(con):
         """create database table: playlist"""
         sql = '''
                 CREATE TABLE IF NOT EXISTS playlist (
@@ -137,7 +138,8 @@ class Playlist:
                 '''
         con.execute(sql)
 
-    def get_rows(self, con, playlist_ids) -> 'list of sqlite3.row':
+    @staticmethod
+    def get_rows(con, playlist_ids) -> 'list of sqlite3.row':
         """search for playlists by list of ids"""
         rows = []
         sql = """
@@ -150,7 +152,8 @@ class Playlist:
             rows.append(row)
         return rows
 
-    def get_row(self, con, id_) -> 'sqlite3.row':
+    @staticmethod
+    def get_row(con, id_) -> 'sqlite3.row':
         """search for playlist by id"""
         sql = """
             SELECT * FROM playlist
@@ -160,7 +163,8 @@ class Playlist:
         row = cur.fetchone()
         return row
 
-    def get_rows_by_path(self, con, path) -> 'list of sqlite3.row':
+    @staticmethod
+    def get_rows_by_path(con, path) -> 'list of sqlite3.row':
         """search for playlists by path"""
         rows = []
         sql = """
@@ -172,7 +176,8 @@ class Playlist:
             rows.append(row)
         return rows
 
-    def get_title_by_id(self, id_, con) -> 'sqlite3.row':
+    @staticmethod
+    def get_title_by_id(id_, con) -> 'sqlite3.row':
         """search for playlist title by id"""
         sql = '''
             SELECT title FROM playlists
@@ -182,7 +187,8 @@ class Playlist:
         row = cur.fetchone()
         return row
 
-    def count_duplicates(self, title, path, playlist_id, con) -> 'sqlite3.row':
+    @staticmethod
+    def count_duplicates(title, path, playlist_id, con) -> 'sqlite3.row':
         """
         Get a count of the number of playlist titles associated with this path that have the same title, but exclude
         playlist_id from the list.
@@ -199,13 +205,15 @@ class Playlist:
         cur = con.execute(sql, (title, path, playlist_id))
         return cur.fetchone()
 
-    def replace(self, con, title, path) -> 'id:int':
+    @staticmethod
+    def replace(con, title, path) -> 'id:int':
         """insert or replace a playlist"""
         cur = con.execute("REPLACE INTO playlist(title, path) VALUES (?,?)", (title, path))
         lastrowid = cur.lastrowid
         return lastrowid
 
-    def insert(self, con, title, path) -> 'lastrowid:int':
+    @staticmethod
+    def insert(con, title, path) -> 'lastrowid:int':
         """insert a playlist"""
         sql = """
             INSERT INTO playlist(title, path)
@@ -214,7 +222,8 @@ class Playlist:
         cur = con.execute(sql,(title, path))
         return cur.lastrowid
 
-    def update(self, con, title, path, id_):
+    @staticmethod
+    def update(con, title, path, id_):
         """update the title and path columns of playlist row thats matched to the id number"""
         sql = """
             UPDATE playlist
@@ -225,14 +234,11 @@ class Playlist:
         con.execute(sql, (title, path, id_))
 
 
-
 class PlTrack:
     """database accessor for table pl_track"""
 
-    def __init__(self):
-        self.init_table(create_connection())
-
-    def init_table(self, con):
+    @staticmethod
+    def init_table(con):
         """create database table: pl_track"""
         sql = """
             CREATE TABLE IF NOT EXISTS pl_track (
@@ -249,7 +255,8 @@ class PlTrack:
             """
         con.execute(sql)
 
-    def add(self, con, playlist_id, track_number, track_id) -> 'lastrowid:int':
+    @staticmethod
+    def add(con, playlist_id, track_number, track_id) -> 'lastrowid:int':
         """insert track"""
         sql = """
             INSERT INTO pl_track(playlist_id, track_number, track_id)
@@ -258,7 +265,8 @@ class PlTrack:
         cur = con.execute(sql, (playlist_id, track_number, track_id))
         return cur.lastrowid
 
-    def null_duplicate_track_number(self, con, playlist_id, track_number):
+    @staticmethod
+    def null_duplicate_track_number(con, playlist_id, track_number):
         """look for what will be a duplicate track_num and change it to NULL"""
         sql = """
             UPDATE pl_track
@@ -268,7 +276,8 @@ class PlTrack:
             """
         con.execute(sql, (None, playlist_id, track_number))
 
-    def update_track_number_by_id(self, con, track_number, id_):
+    @staticmethod
+    def update_track_number_by_id(con, track_number, id_):
         """update column track_number in pl_track by matching id"""
         sql = """
             UPDATE pl_track
@@ -277,7 +286,8 @@ class PlTrack:
             """
         con.execute(sql, (track_number, id_))
 
-    def get_ids_by_max_index_or_null(self, con, max_track_number, playlist_id) -> '[sqlite3.row[int], ... ]':
+    @staticmethod
+    def get_ids_by_max_index_or_null(con, max_track_number, playlist_id) -> '[sqlite3.row[int], ... ]':
         """get list of ids that are greater than max_index or set to NULL"""
         sql = """
             SELECT id FROM pl_track
@@ -287,7 +297,8 @@ class PlTrack:
         cur = con.execute(sql, (playlist_id, max_track_number))
         return cur.fetchall()
 
-    def remove_row_by_id(self, con, id_):
+    @staticmethod
+    def remove_row_by_id(con, id_):
         """remove row from table pl_track that matches id"""
         sql = """
             DELETE FROM pl_track
@@ -295,7 +306,8 @@ class PlTrack:
             """
         con.execute(sql, (id_,))
 
-    def get_rows_by_playlist_id(self, con, playlist_id):
+    @staticmethod
+    def get_rows_by_playlist_id(con, playlist_id):
         """get all rows that match playlist_id"""
         sql = """
             SELECT * FROM pl_track
@@ -304,13 +316,12 @@ class PlTrack:
         cur = con.execute(sql, (playlist_id,))
         return cur.fetchall()
 
+
 class PlTrackMetadata:
     """create database table: pl_track_mmetadata"""
 
-    def __init__(self):
-        self.init_table(create_connection())
-
-    def init_table(self, con):
+    @staticmethod
+    def init_table(con):
         """create database table: pl_track_metadata"""
         sql = """
             CREATE TABLE IF NOT EXISTS pl_track_metadata (
@@ -332,7 +343,8 @@ class PlTrackMetadata:
             """
         con.execute(sql)
 
-    def get_row_by_id(self, con, id_):
+    @staticmethod
+    def get_row_by_id(con, id_):
         """get the entire row from pl_track_metadata for row matches id"""
         sql = """
             SELECT * FROM pl_track_metadata
@@ -341,7 +353,8 @@ class PlTrackMetadata:
         cur = con.execute(sql, (id_,))
         return cur.fetchone()
 
-    def get_rows(self, con, key, pl_track_id):
+    @staticmethod
+    def get_rows(con, key, pl_track_id):
         """get all rows from pl_track_metadata that match key and pl_track_id"""
         sql = """
             SELECT * FROM pl_track_metadata
@@ -352,7 +365,8 @@ class PlTrackMetadata:
         return cur.fetchall()
 
 
-    def null_duplicate_indices(self, con, pl_track_id, index, key):
+    @staticmethod
+    def null_duplicate_indices(con, pl_track_id, index, key):
         """look for what will be a duplicate index and change it to NULL"""
         sql = """
             UPDATE pl_track_metadata
@@ -363,7 +377,8 @@ class PlTrackMetadata:
             """
         con.execute(sql, (index, pl_track_id, key))
 
-    def add_row(self, con, pl_track_id,  entry, index, key):
+    @staticmethod
+    def add_row(con, pl_track_id,  entry, index, key):
         """insert pl_track_metadata entry"""
         sql = """
             INSERT INTO pl_track_metadata(pl_track_id, entry, idx, _key)
@@ -372,7 +387,8 @@ class PlTrackMetadata:
         cur = con.execute(sql, (pl_track_id, entry, index, key))
         return cur.lastrowid
 
-    def update_row(self, con, pl_track_id, id_, entry, index, key):
+    @staticmethod
+    def update_row(con, pl_track_id, id_, entry, index, key):
         """update pl_track_metadata entry"""
         sql = """
             UPDATE pl_track_metadata
@@ -384,7 +400,8 @@ class PlTrackMetadata:
             """
         con.execute(sql, (pl_track_id, entry, index, key, id_))
 
-    def get_ids_by_max_index_or_null(self, con, max_index, pl_track_id, key) -> '[sqlite3.row[int], ... ]':
+    @staticmethod
+    def get_ids_by_max_index_or_null(con, max_index, pl_track_id, key) -> '[sqlite3.row[int], ... ]':
         """
         Get the id of any row:key that has and index higher than max_index
         or Null value for index
@@ -398,7 +415,8 @@ class PlTrackMetadata:
         cur = con.execute(sql, (pl_track_id, key, max_index))
         return cur.fetchall()
 
-    def remove_row_by_id(self, con, id_):
+    @staticmethod
+    def remove_row_by_id(con, id_):
         """Delete row with matching id"""
         sql = """
             DELETE FROM pl_track_metadata
@@ -410,10 +428,8 @@ class PlTrackMetadata:
 class TrackFile:
     """create database table: pltrack"""
 
-    def __init__(self):
-        self.init_table(create_connection())
-
-    def init_table(self, con):
+    @staticmethod
+    def init_table(con):
         """create database table: track_file"""
         sql = """
             CREATE TABLE IF NOT EXISTS track_file (
@@ -423,7 +439,8 @@ class TrackFile:
             """
         con.execute(sql)
 
-    def add_row(self, con, path):
+    @staticmethod
+    def add_row(con, path):
         """
         insert row into table track_file
         returns new track_id or 0 if already exists
@@ -435,7 +452,8 @@ class TrackFile:
         cur = con.execute(sql, (path,))
         return cur.lastrowid
 
-    def get_id_by_path(self, con, path):
+    @staticmethod
+    def get_id_by_path(con, path):
         """get row from table track_file that matches path"""
         sql = """
             SELECT id FROM track_file
@@ -444,7 +462,8 @@ class TrackFile:
         cur = con.execute(sql, (path,))
         return cur.fetchone()
 
-    def get_row_by_id(self, con, id_):
+    @staticmethod
+    def get_row_by_id(con, id_):
         """Get entire row from track_file that matches id_"""
         sql = """
             SELECT * FROM track_file

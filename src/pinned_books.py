@@ -193,8 +193,11 @@ class PinnedBooksDBI:
 
     def __init__(self):
         """init the database table classes"""
-        self.pinned_playlists = audio_book_tables.PinnedPlaylists()
-        self.playlist = audio_book_tables.Playlist()
+        con = audio_book_tables.create_connection()
+        with con:
+            audio_book_tables.PinnedPlaylists.init_table(con)
+            audio_book_tables.Playlist.init_table(con)
+        con.close()
 
     def get_playlist(self, playlist_id):
         """
@@ -204,7 +207,7 @@ class PinnedBooksDBI:
         con = audio_book_tables.create_connection()
         with con:
             # get sqlite row object from the table class
-            row = self.playlist.get_row(con, playlist_id)
+            row = audio_book_tables.Playlist.get_row(con, playlist_id)
         con.close()
         # return PinnedData object
         return book.PlaylistData(id_=row['id'], title=row['title'], path=row['path'])
@@ -217,7 +220,7 @@ class PinnedBooksDBI:
         con = audio_book_tables.create_connection()
         with con:
             # get the desired sqlite row objects
-            rows = self.playlist.get_rows(con, playlist_ids)
+            rows = audio_book_tables.Playlist.get_rows(con, playlist_ids)
         con.close()
         # return list of PinnedData objects copied from list of sqlite row objects
         playlists = []
@@ -232,7 +235,7 @@ class PinnedBooksDBI:
         """
         con = audio_book_tables.create_connection()
         with con:
-            has_playlist = self.pinned_playlists.has_playlist(con, playlist_id)
+            has_playlist = audio_book_tables.PinnedPlaylists.has_playlist(con, playlist_id)
         con.close()
         return has_playlist
 
@@ -240,14 +243,14 @@ class PinnedBooksDBI:
         """add a playlist to the pinned list in the database"""
         con = audio_book_tables.create_connection()
         with con:
-            self.pinned_playlists.insert_playlist(con, playlist_id)
+            audio_book_tables.PinnedPlaylists.insert_playlist(con, playlist_id)
         con.close()
 
     def unpin_playlist(self, playlist_id):
         """remove a playlist from the pinned list in the database"""
         con = audio_book_tables.create_connection()
         with con:
-            self.pinned_playlists.remove_playlist(con, playlist_id)
+            audio_book_tables.PinnedPlaylists.remove_playlist(con, playlist_id)
         con.close()
 
     def get_pinned_ids(self):
@@ -255,7 +258,7 @@ class PinnedBooksDBI:
         con = audio_book_tables.create_connection()
         pinned_list = []
         with con:
-            rows = self.pinned_playlists.get_pinned_playlists(con)
+            rows = audio_book_tables.PinnedPlaylists.get_pinned_playlists(con)
         con.close()
         # convert list of sqlite row object to list of tuples (str,)
         for row in rows:
