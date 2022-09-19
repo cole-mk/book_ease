@@ -316,13 +316,12 @@ class PlTrack:
         cur = con.execute(sql, (playlist_id,))
         return cur.fetchall()
 
+
 class PlTrackMetadata:
     """create database table: pl_track_mmetadata"""
 
-    def __init__(self):
-        self.init_table(create_connection())
-
-    def init_table(self, con):
+    @staticmethod
+    def init_table(con):
         """create database table: pl_track_metadata"""
         sql = """
             CREATE TABLE IF NOT EXISTS pl_track_metadata (
@@ -344,7 +343,8 @@ class PlTrackMetadata:
             """
         con.execute(sql)
 
-    def get_row_by_id(self, con, id_):
+    @staticmethod
+    def get_row_by_id(con, id_):
         """get the entire row from pl_track_metadata for row matches id"""
         sql = """
             SELECT * FROM pl_track_metadata
@@ -353,7 +353,8 @@ class PlTrackMetadata:
         cur = con.execute(sql, (id_,))
         return cur.fetchone()
 
-    def get_rows(self, con, key, pl_track_id):
+    @staticmethod
+    def get_rows(con, key, pl_track_id):
         """get all rows from pl_track_metadata that match key and pl_track_id"""
         sql = """
             SELECT * FROM pl_track_metadata
@@ -364,7 +365,8 @@ class PlTrackMetadata:
         return cur.fetchall()
 
 
-    def null_duplicate_indices(self, con, pl_track_id, index, key):
+    @staticmethod
+    def null_duplicate_indices(con, pl_track_id, index, key):
         """look for what will be a duplicate index and change it to NULL"""
         sql = """
             UPDATE pl_track_metadata
@@ -375,7 +377,8 @@ class PlTrackMetadata:
             """
         con.execute(sql, (index, pl_track_id, key))
 
-    def add_row(self, con, pl_track_id,  entry, index, key):
+    @staticmethod
+    def add_row(con, pl_track_id,  entry, index, key):
         """insert pl_track_metadata entry"""
         sql = """
             INSERT INTO pl_track_metadata(pl_track_id, entry, idx, _key)
@@ -384,7 +387,8 @@ class PlTrackMetadata:
         cur = con.execute(sql, (pl_track_id, entry, index, key))
         return cur.lastrowid
 
-    def update_row(self, con, pl_track_id, id_, entry, index, key):
+    @staticmethod
+    def update_row(con, pl_track_id, id_, entry, index, key):
         """update pl_track_metadata entry"""
         sql = """
             UPDATE pl_track_metadata
@@ -396,7 +400,8 @@ class PlTrackMetadata:
             """
         con.execute(sql, (pl_track_id, entry, index, key, id_))
 
-    def get_ids_by_max_index_or_null(self, con, max_index, pl_track_id, key) -> '[sqlite3.row[int], ... ]':
+    @staticmethod
+    def get_ids_by_max_index_or_null(con, max_index, pl_track_id, key) -> '[sqlite3.row[int], ... ]':
         """
         Get the id of any row:key that has and index higher than max_index
         or Null value for index
@@ -410,7 +415,8 @@ class PlTrackMetadata:
         cur = con.execute(sql, (pl_track_id, key, max_index))
         return cur.fetchall()
 
-    def remove_row_by_id(self, con, id_):
+    @staticmethod
+    def remove_row_by_id(con, id_):
         """Delete row with matching id"""
         sql = """
             DELETE FROM pl_track_metadata
