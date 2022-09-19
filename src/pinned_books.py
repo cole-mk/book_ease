@@ -196,7 +196,8 @@ class PinnedBooksDBI:
         con = audio_book_tables.create_connection()
         with con:
             audio_book_tables.PinnedPlaylists.init_table(con)
-        self.playlist = audio_book_tables.Playlist()
+            audio_book_tables.Playlist.init_table(con)
+        con.close()
 
     def get_playlist(self, playlist_id):
         """
@@ -206,7 +207,7 @@ class PinnedBooksDBI:
         con = audio_book_tables.create_connection()
         with con:
             # get sqlite row object from the table class
-            row = self.playlist.get_row(con, playlist_id)
+            row = audio_book_tables.Playlist.get_row(con, playlist_id)
         con.close()
         # return PinnedData object
         return book.PlaylistData(id_=row['id'], title=row['title'], path=row['path'])
@@ -219,7 +220,7 @@ class PinnedBooksDBI:
         con = audio_book_tables.create_connection()
         with con:
             # get the desired sqlite row objects
-            rows = self.playlist.get_rows(con, playlist_ids)
+            rows = audio_book_tables.Playlist.get_rows(con, playlist_ids)
         con.close()
         # return list of PinnedData objects copied from list of sqlite row objects
         playlists = []

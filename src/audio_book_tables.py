@@ -121,10 +121,8 @@ class PinnedPlaylists:
 class Playlist:
     """ database accessor for table playlist"""
 
-    def __init__(self):
-        self.init_table(create_connection())
-
-    def init_table(self, con):
+    @staticmethod
+    def init_table(con):
         """create database table: playlist"""
         sql = '''
                 CREATE TABLE IF NOT EXISTS playlist (
@@ -140,7 +138,8 @@ class Playlist:
                 '''
         con.execute(sql)
 
-    def get_rows(self, con, playlist_ids) -> 'list of sqlite3.row':
+    @staticmethod
+    def get_rows(con, playlist_ids) -> 'list of sqlite3.row':
         """search for playlists by list of ids"""
         rows = []
         sql = """
@@ -153,7 +152,8 @@ class Playlist:
             rows.append(row)
         return rows
 
-    def get_row(self, con, id_) -> 'sqlite3.row':
+    @staticmethod
+    def get_row(con, id_) -> 'sqlite3.row':
         """search for playlist by id"""
         sql = """
             SELECT * FROM playlist
@@ -163,7 +163,8 @@ class Playlist:
         row = cur.fetchone()
         return row
 
-    def get_rows_by_path(self, con, path) -> 'list of sqlite3.row':
+    @staticmethod
+    def get_rows_by_path(con, path) -> 'list of sqlite3.row':
         """search for playlists by path"""
         rows = []
         sql = """
@@ -175,7 +176,8 @@ class Playlist:
             rows.append(row)
         return rows
 
-    def get_title_by_id(self, id_, con) -> 'sqlite3.row':
+    @staticmethod
+    def get_title_by_id(id_, con) -> 'sqlite3.row':
         """search for playlist title by id"""
         sql = '''
             SELECT title FROM playlists
@@ -185,7 +187,8 @@ class Playlist:
         row = cur.fetchone()
         return row
 
-    def count_duplicates(self, title, path, playlist_id, con) -> 'sqlite3.row':
+    @staticmethod
+    def count_duplicates(title, path, playlist_id, con) -> 'sqlite3.row':
         """
         Get a count of the number of playlist titles associated with this path that have the same title, but exclude
         playlist_id from the list.
@@ -202,13 +205,15 @@ class Playlist:
         cur = con.execute(sql, (title, path, playlist_id))
         return cur.fetchone()
 
-    def replace(self, con, title, path) -> 'id:int':
+    @staticmethod
+    def replace(con, title, path) -> 'id:int':
         """insert or replace a playlist"""
         cur = con.execute("REPLACE INTO playlist(title, path) VALUES (?,?)", (title, path))
         lastrowid = cur.lastrowid
         return lastrowid
 
-    def insert(self, con, title, path) -> 'lastrowid:int':
+    @staticmethod
+    def insert(con, title, path) -> 'lastrowid:int':
         """insert a playlist"""
         sql = """
             INSERT INTO playlist(title, path)
@@ -217,7 +222,8 @@ class Playlist:
         cur = con.execute(sql,(title, path))
         return cur.lastrowid
 
-    def update(self, con, title, path, id_):
+    @staticmethod
+    def update(con, title, path, id_):
         """update the title and path columns of playlist row thats matched to the id number"""
         sql = """
             UPDATE playlist

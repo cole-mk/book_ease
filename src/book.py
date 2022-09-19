@@ -295,7 +295,10 @@ class PlaylistDBI():
     """Interface to help the Book save playlist specific data"""
 
     def __init__(self):
-        self.playlist = audio_book_tables.Playlist()
+        con = audio_book_tables.create_connection()
+        with con:
+            audio_book_tables.Playlist.init_table(con)
+        con.close()
 
     def count_duplicates(self, pl_data: PlaylistData) -> int:
         """
@@ -303,7 +306,7 @@ class PlaylistDBI():
         that have the same title, but exclude playlist_id from the list
         """
         con = DB_CONNECTION.query_begin()
-        count = self.playlist.count_duplicates(pl_data.get_title(),
+        count = audio_book_tables.Playlist.count_duplicates(pl_data.get_title(),
                                                pl_data.get_path(),
                                                pl_data.get_id(),
                                                con)
@@ -321,7 +324,7 @@ class PlaylistDBI():
         playlists = []
         con = DB_CONNECTION.query_begin()
         # execute query
-        pl_list = self.playlist.get_rows_by_path(con, pl_data.get_path())
+        pl_list = audio_book_tables.Playlist.get_rows_by_path(con, pl_data.get_path())
         DB_CONNECTION.query_end(con)
         # build playlists list
         for plst in pl_list:
@@ -336,10 +339,10 @@ class PlaylistDBI():
         """
         con = DB_CONNECTION.query_begin()
         id_ = pl_data.get_id()
-        if self.playlist.get_row(con, id_) is None:
-            id_ = self.playlist.insert(con, pl_data.get_title(), pl_data.get_path())
+        if audio_book_tables.Playlist.get_row(con, id_) is None:
+            id_ = audio_book_tables.Playlist.insert(con, pl_data.get_title(), pl_data.get_path())
         else:
-            self.playlist.update(con, pl_data.get_title(), pl_data.get_path(), id_)
+            audio_book_tables.Playlist.update(con, pl_data.get_title(), pl_data.get_path(), id_)
         DB_CONNECTION.query_end(con)
         return id_
 
@@ -354,9 +357,12 @@ class TrackDBI():
 
     def __init__(self):
         """create database table objects"""
+        con = audio_book_tables.create_connection()
+        with con:
+            audio_book_tables.Playlist.init_table(con)
+        con.close()
         self.pl_track = audio_book_tables.PlTrack()
         self.pl_track_metadata = audio_book_tables.PlTrackMetadata()
-        self.playlist = audio_book_tables.Playlist()
         self.track_file = audio_book_tables.TrackFile()
 
     def save_track_file(self, track: playlist.Track) -> int:
