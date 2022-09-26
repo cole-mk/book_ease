@@ -98,7 +98,6 @@ class TestQuery:
     def test_yields_sqlite3_connection_when_not_nested(self):
         """Assert that an outer context yields an sqlite connection."""
         db_con_mgr = sqlite_tools.DBConnectionManager(":memory:")
-        initial_state = db_con_mgr.con
         with db_con_mgr.query() as con:
             assert isinstance(con, sqlite3.Connection)
 
