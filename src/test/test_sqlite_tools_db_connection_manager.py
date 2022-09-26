@@ -85,6 +85,14 @@ class TestCreateConnection:
         con = db_con_mgr.create_connection()
         assert con.row_factory is sqlite3.Row
 
+    def test_enables_foreign_keys(self):
+        """Assert that the connection has enabled foreign key support."""
+        db_con_mgr = sqlite_tools.DBConnectionManager(":memory:")
+        con = db_con_mgr.create_connection()
+        row = con.execute('PRAGMA foreign_keys').fetchone()
+        foreign_keys_enabled = int(*row)
+        assert foreign_keys_enabled
+
 
 class TestQuery:
     """Test method DBConnectionManager.query"""
