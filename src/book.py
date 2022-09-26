@@ -40,53 +40,6 @@ if TYPE_CHECKING:
     import book_reader
 
 
-class DBConnection: #pylint: disable=too-few-public-methods
-    """provide database connection management for multi queries"""
-
-    def __init__(self):
-        self.con = None
-
-    def multi_query_begin(self):
-        """
-        create a semi-persistent connection
-        for executing multiple transactions
-        """
-        if self.con is not None:
-            raise RuntimeError('connection already exists')
-        self.con = abt.create_connection()
-        self.con.execute('BEGIN')
-
-    def multi_query_end(self):
-        """commit and close connection of a multi_query"""
-        if self.con is None:
-            raise RuntimeError('connection doesn\'t exist')
-        self.con.commit()
-        self.con.close()
-        self.con = None
-
-    def query_begin(self) -> sqlite3.Connection:
-        """
-        get an sqlite connection object
-        returns self.con if a multi_query is in effect.
-        Otherwise, create and return a new connection
-        """
-        if self.con is None:
-            return abt.create_connection()
-        return self.con
-
-    def query_end(self, con: sqlite3.Connection):
-        """
-        commit and close connection if a multi_query
-        is not in effect.
-        """
-        if con is not self.con:
-            con.commit()
-            con.close()
-
-# the module wide reference to DBConnection
-DB_CONNECTION = DBConnection()
-
-
 class PlaylistData:
     """Class to encapsulate the data that describes a playlist"""
 
