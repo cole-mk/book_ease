@@ -20,63 +20,62 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
-"""This module contains various helper classes specific to using an sqlite db."""
+
+"""This module contains various helper classes specific to using an sqlite database."""
+
 import sqlite3
 from pathlib import Path
+import contextlib
 
 
 class DBConnectionManager:
     """
-    Provide database connection management for multi queries.
+    Provide nested context management of database connections.
 
-    database is the path to the database or string representing an in memory database
-    connection_kwargs are additional args to be passed to sqlite3.connect() during self.create_connection()
+    Query context allows a single query to be executed before committing or rolling back a transaction.
+    When nested inside another query context, query simply returns the instance connection and defers context
+    management entirely to the parent query.
+
+    Nested query context allows multiple queries to be executed before committing or rolling back a transaction.
+
+    database is the path to the database or string representing an in memory database.
     """
 
-    def __init__(self, database: Path | str, **connection_kwargs):
+    def __init__(self, database: Path | str):
         self.database = database
-        self.con = None
-        self.connection_kwargs = connection_kwargs
+        self.con = self.create_connection()
+        self.query_count = 0
 
     def create_connection(self) -> sqlite3.Connection:
-        """ create a sqlite3 connection object and return it"""
-        con = sqlite3.connect(self.database, isolation_level=None, **self.connection_kwargs)
+        """Create an sqlite3 connection object and return it."""
+        con = sqlite3.connect(self.database, isolation_level=None)
         con.row_factory = sqlite3.Row
         return con
 
-    def multi_query_begin(self):
+    @contextlib.contextmanager
+    def query(self) -> sqlite3.Connection:
         """
-        create a semi-persistent connection
-        for executing multiple transactions
-        """
-        if self.con is not None:
-            raise RuntimeError('connection already exists')
-        self.con = self.create_connection()
-        self.con.execute('BEGIN')
+        Query context allows a single query to be executed before committing or rolling back a transaction.
+        When nested inside another query context, query simply returns the instance connection and defers context
+        management entirely to the parent query.
 
-    def multi_query_end(self):
-        """commit and close connection of a multi_query"""
-        if self.con is None:
-            raise RuntimeError('connection doesn\'t exist')
-        self.con.commit()
-        self.con.close()
-        self.con = None
-
-    def query_begin(self) -> sqlite3.Connection:
+        Nested query context allows multiple queries to be executed before committing or rolling back a transaction.
         """
-        get an sqlite connection object
-        returns self.con if a multi_query is in effect.
-        Otherwise, create and return a new connection
-        """
-        if self.con is None:
-            return self.create_connection()
-        return self.con
-
-    def query_end(self, con: sqlite3.Connection):
-        """
-        commit and close connection if a multi_query
-        is not in effect.
-        """
-        if con is not self.con:
-            con.commit()
-            con.close()
+        self.query_count += 1
+        if self.query_count > 1:
+            # Inner instance of nested context
+            try:
+                yield self.con
+            finally:
+                self.query_count -= 1
+        else:
+            # Outer instance of nested context
+            self.con.execute('BEGIN')
+            try:
+                yield self.con
+            except Exception:
+                self.con.rollback()
+                raise
+            finally:
+                self.con.commit()
+                self.query_count -= 1
