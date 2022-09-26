@@ -28,7 +28,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 import re
 import os
-import sqlite3
 import mutagen
 import playlist
 import signal_
