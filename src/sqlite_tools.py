@@ -50,6 +50,7 @@ class DBConnectionManager:
         """Create an sqlite3 connection object and return it."""
         con = sqlite3.connect(self.database, isolation_level=None)
         con.row_factory = sqlite3.Row
+        con.execute('PRAGMA foreign_keys = ON')
         return con
 
     @contextlib.contextmanager
