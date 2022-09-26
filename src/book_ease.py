@@ -100,9 +100,8 @@ class BookMarkDBI:
 
     def get_bookmarks(self) -> tuple[BookMarkData]:
         """Get the list of saved bookmarks from the database."""
-        con = book_ease_tables.DB_CONNECTION_MANAGER.query_begin()
-        book_mark_db_rows = self.book_marks_table.get_all_rows_sorted_by_index_asc(con)
-        book_ease_tables.DB_CONNECTION_MANAGER.query_end(con)
+        with book_ease_tables.DB_CONNECTION_MANAGER.query() as con:
+            book_mark_db_rows = self.book_marks_table.get_all_rows_sorted_by_index_asc(con)
         return tuple(BookMarkData(
             id_=row[self.column_map['id']['title']],
             name=row[self.column_map['name']['title']],
@@ -112,26 +111,24 @@ class BookMarkDBI:
 
     def set_book_marks(self, book_marks: tuple[BookMarkData]):
         """Save the bookmarks to the database"""
-        con = book_ease_tables.DB_CONNECTION_MANAGER.query_begin()
-        id_set = set()
-        for bm_data in book_marks:
-            self.book_marks_table.update_row_by_id(con,
-                                                   id_=bm_data.id_,
-                                                   name=bm_data.name,
-                                                   target=bm_data.target,
-                                                   index=bm_data.index)
-            id_set.add(bm_data.id_)
-        self.book_marks_table.delete_rows_not_in_ids(con, tuple(id_set))
-        book_ease_tables.DB_CONNECTION_MANAGER.query_end(con)
+        with book_ease_tables.DB_CONNECTION_MANAGER.query() as con:
+            id_set = set()
+            for bm_data in book_marks:
+                self.book_marks_table.update_row_by_id(con,
+                                                       id_=bm_data.id_,
+                                                       name=bm_data.name,
+                                                       target=bm_data.target,
+                                                       index=bm_data.index)
+                id_set.add(bm_data.id_)
+            self.book_marks_table.delete_rows_not_in_ids(con, tuple(id_set))
 
     def append_book_mark(self, name: str, target: str, index: int) -> int:
         """
         Append a bookmark entry to the 'book_mark' category in the settings_string database.
         Returns the rowid of the newly inserted row.
         """
-        con = book_ease_tables.DB_CONNECTION_MANAGER.query_begin()
-        rowid = self.book_marks_table.set(con, name=name, target=target, index=index)
-        book_ease_tables.DB_CONNECTION_MANAGER.query_end(con)
+        with book_ease_tables.DB_CONNECTION_MANAGER.query() as con:
+            rowid = self.book_marks_table.set(con, name=name, target=target, index=index)
         return rowid
 
 
@@ -453,9 +450,8 @@ class FilesDBI:
 
     def get_library_path(self) -> str | None:
         """get the saved path to the root directory of the book library"""
-        con = book_ease_tables.DB_CONNECTION_MANAGER.query_begin()
-        library_path_list = self.settings_string.get(con, 'Files', 'library_path')
-        book_ease_tables.DB_CONNECTION_MANAGER.query_end(con)
+        with book_ease_tables.DB_CONNECTION_MANAGER.query() as con:
+            library_path_list = self.settings_string.get(con, 'Files', 'library_path')
         return library_path_list[0]['value'] if library_path_list else None
 
     def set_library_path(self, library_path: str):
@@ -751,9 +747,8 @@ class FilesViewDBI:
 
     def get_name_col_width(self) -> int | None:
         """retrieve the saved width of the name column in the FilesView treeview."""
-        con = book_ease_tables.DB_CONNECTION_MANAGER.query_begin()
-        width_result = self.settings_numeric.get(con, 'FilesView', 'name_col_width')
-        book_ease_tables.DB_CONNECTION_MANAGER.query_end(con)
+        with book_ease_tables.DB_CONNECTION_MANAGER.query() as con:
+            width_result = self.settings_numeric.get(con, 'FilesView', 'name_col_width')
 
         if width_result:
             width = width_result[0]['value']
@@ -765,12 +760,11 @@ class FilesViewDBI:
 
     def save_name_col_width(self, width: int):
         """Save the width of the name column in the FilesView:TreeView to a database."""
-        con = book_ease_tables.DB_CONNECTION_MANAGER.query_begin()
-        if id_ := self.ids['name_col_width']:
-            self.settings_numeric.update_value_by_id(con, id_, width)
-        else:
-            self.settings_numeric.set(con, 'FilesView', 'name_col_width', width)
-        book_ease_tables.DB_CONNECTION_MANAGER.query_end(con)
+        with book_ease_tables.DB_CONNECTION_MANAGER.query() as con:
+            if id_ := self.ids['name_col_width']:
+                self.settings_numeric.update_value_by_id(con, id_, width)
+            else:
+                self.settings_numeric.set(con, 'FilesView', 'name_col_width', width)
 
 
 class MainWindow(Gtk.Window):

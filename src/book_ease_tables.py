@@ -321,9 +321,8 @@ class SettingsNumericDBI:
 
         Returns None if a row matching  category:attribute is not found in table.
         """
-        con = DB_CONNECTION_MANAGER.query_begin()
-        value = SettingsNumeric.get(con, category, attribute)
-        DB_CONNECTION_MANAGER.query_end(con)
+        with DB_CONNECTION_MANAGER.query() as con:
+            value = SettingsNumeric.get(con, category, attribute)
         return value[0]['value'] if value else None
 
     @staticmethod
@@ -332,10 +331,9 @@ class SettingsNumericDBI:
         Update the first row that matches category and attribute or insert new row.
         return the id of the modified row.
         """
-        con = DB_CONNECTION_MANAGER.query_begin()
-        if id_ := SettingsNumeric.update_value(con, category, attribute, value) is None:
-            id_ = SettingsNumeric.set(con, category, attribute, value)
-        DB_CONNECTION_MANAGER.query_end(con)
+        with DB_CONNECTION_MANAGER.query() as con:
+            if id_ := SettingsNumeric.update_value(con, category, attribute, value) is None:
+                id_ = SettingsNumeric.set(con, category, attribute, value)
         return id_
 
     @staticmethod
