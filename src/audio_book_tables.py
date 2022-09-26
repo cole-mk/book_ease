@@ -30,6 +30,7 @@ The classes in this module serve as an interface for a single table in the datab
 
 from pathlib import Path
 import sqlite3
+import sqlite_tools
 
 # disable=too-many-arguments because the data is unpacked in another class
 # pylint: disable=too-many-arguments
@@ -39,6 +40,9 @@ config_dir = Path.home() / '.config' / 'book_ease'
 db_dir = config_dir / 'data'
 db_dir.mkdir(mode=511, parents=True, exist_ok=True)
 db = db_dir / 'audio_books.db'
+
+DB_CONNECTION = sqlite_tools.DBConnectionManager(db)
+
 
 def create_connection():
     """ create a sqlite3 connection object and return it"""
