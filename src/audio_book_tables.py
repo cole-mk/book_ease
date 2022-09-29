@@ -250,7 +250,7 @@ class PlTrack:
                 playlist_id  INTEGER REFERENCES playlist (id)
                                     NOT NULL,
                 track_number INTEGER,
-                track_id     INTEGER NOT NULL REFERENCES track(id),
+                track_id     INTEGER NOT NULL REFERENCES track_file(id),
                 UNIQUE (
                     playlist_id,
                     track_number
