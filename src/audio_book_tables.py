@@ -20,6 +20,10 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
+#
+# pylint: disable=too-few-public-methods
+# disabled because these classes aren't really classes, just organizational blocks that correspond
+# to a table or view in the database.
 
 """
 This module is responsible for managing the connection to the sqlite tables database.
