@@ -20,10 +20,6 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
-#
-# pylint: disable=too-few-public-methods
-# disabled because these classes aren't really classes, just organizational blocks that correspond
-# to a table or view in the database.
 
 """
 This module is responsible for managing the connection to the sqlite tables database.
@@ -254,7 +250,7 @@ class PlTrack:
                 playlist_id  INTEGER REFERENCES playlist (id)
                                     NOT NULL,
                 track_number INTEGER,
-                track_id     INTEGER NOT NULL REFERENCES track_file(id),
+                track_id     INTEGER NOT NULL REFERENCES track(id),
                 UNIQUE (
                     playlist_id,
                     track_number
@@ -479,60 +475,3 @@ class TrackFile:
             """
         cur = con.execute(sql, (id_,))
         return cur.fetchone()
-
-
-class PlayerPosition:
-    """database accessor for table player_postion"""
-
-    @staticmethod
-    def init_table(con: sqlite3.Connection):
-        """create database table: pinned_playlists"""
-        sql = """
-            CREATE TABLE IF NOT EXISTS player_position (
-               playlist_id INTEGER REFERENCES playlist(id) UNIQUE NOT NULL ON CONFLICT ROLLBACK,
-               pl_track_id INTEGER REFERENCES pl_track(id) NOT NULL ON CONFLICT ROLLBACK,
-               position  INTEGER NOT NULL ON CONFLICT ROLLBACK
-            )
-            """
-        con.execute(sql)
-
-    @staticmethod
-    def upsert_row(con: sqlite3.Connection, pl_track_id: int, playlist_id: int, position: int):
-        """Update or insert a row into table player_position."""
-        sql = """
-            INSERT INTO player_position (pl_track_id, playlist_id, position)
-            VALUES (?, ?, ?)
-            ON CONFLICT(playlist_id)
-            DO UPDATE
-            SET position = (?), pl_track_id = (?)
-            """
-        cur = con.execute(sql, (pl_track_id, playlist_id, position, position, pl_track_id))
-        return cur.lastrowid
-
-    @staticmethod
-    def get_row_by_playlist_id(con: sqlite3.Connection, playlist_id: int) -> sqlite3.Row:
-        """get a single row with matching playlist_id from player position """
-        sql = """
-            SELECT * FROM player_position
-            WHERE playlist_id = (?)
-            """
-        cur = con.execute(sql, (playlist_id,))
-        return cur.fetchone()
-
-
-class JoinTrackFilePlTrackPlayerPosition:
-    """database accessor that joins tables track_file, player_position, and pl_track to perform queries"""
-
-    @staticmethod
-    def get_path_position_by_playlist_id(con, playlist_id):
-        """Get path and position by playlist_id"""
-        sql = """
-            SELECT track_file.path, player_position.position from track_file
-            INNER JOIN pl_track
-                on pl_track.track_id = track_file.id
-            INNER JOIN player_position
-                on player_position.playlist_id = pl_track.playlist_id
-                AND player_position.pl_track_id = pl_track.id
-            WHERE player_position.playlist_id = (?)
-            """
-        return con.execute(sql, (playlist_id,)).fetchone()
