@@ -20,10 +20,6 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
-#
-# pylint: disable=too-few-public-methods
-# disabled because these classes aren't really classes, just organizational blocks that correspond
-# to a table or view in the database.
 
 """
 This module is responsible for managing the connection to the sqlite tables database.
@@ -518,21 +514,3 @@ class PlayerPosition:
             """
         cur = con.execute(sql, (playlist_id,))
         return cur.fetchone()
-
-
-class JoinTrackFilePlTrackPlayerPosition:
-    """database accessor that joins tables track_file, player_position, and pl_track to perform queries"""
-
-    @staticmethod
-    def get_path_position_by_playlist_id(con, playlist_id):
-        """Get path and position by playlist_id"""
-        sql = """
-            SELECT track_file.path, player_position.position from track_file
-            INNER JOIN pl_track
-                on pl_track.track_id = track_file.id
-            INNER JOIN player_position
-                on player_position.playlist_id = pl_track.playlist_id
-                AND player_position.pl_track_id = pl_track.id
-            WHERE player_position.playlist_id = (?)
-            """
-        return con.execute(sql, (playlist_id,)).fetchone()
