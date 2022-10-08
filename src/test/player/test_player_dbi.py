@@ -81,8 +81,8 @@ class TestGetSavedPosition:
         magic_mock.return_value = None
         player_dbi = player.PlayerDBI()
         position_data = player_dbi.get_saved_position(playlist_id=1)
-        for key in position_data.__dict__:
-            assert position_data.__dict__[key] is None
+        for item in position_data.__dict__.items():
+            assert item[1] is None
 
 
 class TestSavePosition:
@@ -277,5 +277,3 @@ class TestGetNewPosition:
         assert position.playlist_id == playlist_id
         assert position.pl_track_id == pl_track_id
         assert position.time == time
-
-
