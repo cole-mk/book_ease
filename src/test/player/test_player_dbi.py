@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  test_player_player_dbi.py
+#  test_player_dbi.py
 #
 #  This file is part of book_ease.
 #
