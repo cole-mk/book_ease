@@ -20,6 +20,10 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
+#
+# pylint: disable=wrong-import-position
+# disabled because gi.repository requires an import order that pylint dislikes.
+#
 
 """
 This module controls the playback of playlists.
@@ -29,13 +33,12 @@ from __future__ import annotations
 import pathlib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
-import gi
-gi.require_version('Gst', '1.0')
+# import gi
+# gi.require_version('Gst', '1.0')
 # gi.require_version('Gtk', '3.0')
 # gi.require_version('GdkX11', '3.0')
 # gi.require_version('GstVideo', '1.0')
-from gi.repository import Gst
-
+# from gi.repository import Gst
 import audio_book_tables
 if TYPE_CHECKING:
     from pathlib import Path
@@ -131,7 +134,7 @@ class PositionData:
         return True
 
 
-class Player:
+class Player:  # pylint: disable=too-few-public-methods
     """The model class for the media player backend"""
 
     def __init__(self):
@@ -162,9 +165,11 @@ class GstPlayer:
         self.position = None
 
     def load_position(self, position: PositionData):
+        """Set the player position."""
         self.position = position
 
     def pop_position(self):
+        """remove and return player position."""
         if self.position is not None:
             pos = self.position
             self.position = None
