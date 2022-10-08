@@ -71,7 +71,7 @@ class PlayerDBI:
             for row in rows:
                 if row['track_number'] == track_number:
                     return row['track_id'], row['id']
-        return None
+        return None, None
 
     def get_path_by_id(self, pl_track_id: int) -> str | pathlib.Path:
         """Get a track's path based on track_id"""
