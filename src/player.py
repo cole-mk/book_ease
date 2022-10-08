@@ -29,6 +29,13 @@ from __future__ import annotations
 import pathlib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+import gi
+gi.require_version('Gst', '1.0')
+# gi.require_version('Gtk', '3.0')
+# gi.require_version('GdkX11', '3.0')
+# gi.require_version('GstVideo', '1.0')
+from gi.repository import Gst
+
 import audio_book_tables
 if TYPE_CHECKING:
     from pathlib import Path
@@ -98,3 +105,43 @@ class PositionData:
                 return False
         return True
 
+
+class Player:
+    """The model class for the media player backend"""
+
+    def __init__(self):
+        self.player_dbi = PlayerDBI()
+        self.gst_player = GstPlayer()
+        self.position = None
+
+    def load_playlist(self, playlist_data: book.PlaylistData):
+        """
+        Load self.position with a PositionData from the database if it exists, or set it to a newly created one that
+        starts at the beginning of the first track in the playlist.
+        """
+        playlist_id = playlist_data.get_id()
+        position = self.player_dbi.get_saved_position(playlist_id=playlist_id)
+        if not position.is_fully_set():
+            position = self.player_dbi.get_new_position(playlist_id=playlist_id, track_number=0, time=0)
+
+        if position.is_fully_set():
+            self.gst_player.load_position(position=position)
+        else:
+            raise RuntimeError('Failed to load playlist position ', position)
+
+
+class GstPlayer:
+    """The wrapper for the gstreamer backend"""
+
+    def __init__(self):
+        self.position = None
+
+    def load_position(self, position: PositionData):
+        self.position = position
+
+    def pop_position(self):
+        if self.position is not None:
+            pos = self.position
+            self.position = None
+            return pos
+        raise TypeError('GstPlayer.position is None')
