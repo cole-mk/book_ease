@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  untitled.py
+#  test_db_connection_manager.py
 #
 #  This file is part of book_ease.
 #
