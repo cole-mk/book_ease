@@ -27,7 +27,8 @@ This module controls the playback of playlists.
 
 from __future__ import annotations
 import pathlib
-from typing import NamedTuple, TYPE_CHECKING
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
 import audio_book_tables
 if TYPE_CHECKING:
     from pathlib import Path
