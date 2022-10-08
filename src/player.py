@@ -82,10 +82,10 @@ class PlayerDBI:
                     return row['track_id'], row['id']
         return None, None
 
-    def get_path_by_id(self, pl_track_id: int) -> str | pathlib.Path:
+    def get_path_by_id(self, track_id: int) -> str | pathlib.Path:
         """Get a track's path based on track_id"""
         with audio_book_tables.DB_CONNECTION.query() as con:
-            row = self.track.get_row_by_id(con=con, id_=pl_track_id)
+            row = self.track.get_row_by_id(con=con, id_=track_id)
             return row['path'] if row is not None else None
 
 
