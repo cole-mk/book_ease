@@ -524,10 +524,10 @@ class JoinTrackFilePlTrackPlayerPosition:
     """database accessor that joins tables track_file, player_position, and pl_track to perform queries"""
 
     @staticmethod
-    def get_path_position_by_playlist_id(con, playlist_id):
+    def get_row_by_playlist_id(con: sqlite3.Connection, playlist_id: int) -> sqlite3.Row | None:
         """Get path and position by playlist_id"""
         sql = """
-            SELECT track_file.path, player_position.position from track_file
+            SELECT * from track_file
             INNER JOIN pl_track
                 on pl_track.track_id = track_file.id
             INNER JOIN player_position
