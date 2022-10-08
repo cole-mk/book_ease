@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  test_abt_player_position.py
+#  test_player_position.py
 #
 #  This file is part of book_ease.
 #
@@ -34,7 +34,7 @@ state as what's being used in the program, ie foreign keys.
 """
 
 import sqlite3
-from test.audio_book_tables import audio_book_tables_test_data
+from test.audio_book_tables import sample_data
 import pytest
 import audio_book_tables
 import sqlite_tools
@@ -46,9 +46,9 @@ def in_mem_db_str() -> str:
     return ":memory:"
 
 
-def init_test_data_base(con) -> audio_book_tables_test_data.SampleDatabaseCreator:
+def init_test_data_base(con) -> sample_data.SampleDatabaseCreator:
     """initialize the necessary tables for this test"""
-    s_db_c = audio_book_tables_test_data.SampleDatabaseCreator()
+    s_db_c = sample_data.SampleDatabaseCreator()
     s_db_c.populate_track_file(con)
     s_db_c.populate_playlist(con)
     s_db_c.populate_pl_track(con)
@@ -72,7 +72,7 @@ class TestInitTable:
             cur = con.execute(sql)
             data = [(row['name'], row['type']) for row in cur.fetchall()]
             assert ('pl_track_id', 'INTEGER') in data
-            assert ('position', 'INTEGER') in data
+            assert ('time', 'INTEGER') in data
             assert ('playlist_id', 'INTEGER') in data
 
 
@@ -93,7 +93,7 @@ class TestUpsertRow:
                     pl_track_id = row['id'] + 1
             with pytest.raises(sqlite3.IntegrityError):
                 audio_book_tables.PlayerPosition.upsert_row(
-                    con, pl_track_id=pl_track_id, playlist_id=playlist_id, position=200
+                    con, pl_track_id=pl_track_id, playlist_id=playlist_id, time=200
                 )
 
     def test_upsert_row_fails_without_matching_playlist_foreign_key(self, in_mem_db_str):
@@ -109,7 +109,7 @@ class TestUpsertRow:
                     playlist_id = row['id'] + 1
             with pytest.raises(sqlite3.IntegrityError):
                 audio_book_tables.PlayerPosition.upsert_row(
-                    con, pl_track_id=pl_track_id, playlist_id=playlist_id, position=200
+                    con, pl_track_id=pl_track_id, playlist_id=playlist_id, time=200
                 )
 
     def test_upsert_row_updates_row_when_duplicate_playlist_id(self, in_mem_db_str):
@@ -125,14 +125,14 @@ class TestUpsertRow:
             rows = cur.fetchall()
             initial_number_of_rows = len(rows)
             initial_pl_track_id = rows[0]['pl_track_id']
-            initial_position = sample_data.player_position_list[0]['position']
+            initial_position = sample_data.player_position_list[0]['time']
             # test data
             pl_track_id = sample_data.pl_track_list[1]['id']
             playlist_id = sample_data.playlist_list[0]['id']
             position = initial_position + 200
             # test
             audio_book_tables.PlayerPosition.upsert_row(
-                con, pl_track_id=pl_track_id, playlist_id=playlist_id, position=position
+                con, pl_track_id=pl_track_id, playlist_id=playlist_id, time=position
             )
             # validate
             cur = con.execute('SELECT * FROM player_position')
@@ -147,7 +147,7 @@ class TestUpsertRow:
 
             assert rows[0]['pl_track_id'] == pl_track_id, 'The pl_track_id did not get updated'
 
-            assert rows[0]['position'] == position, 'The position did not get updated'
+            assert rows[0]['time'] == position, 'The position did not get updated'
 
     def test_upsert_row_adds_new_row(self, in_mem_db_str):
         """
@@ -163,7 +163,7 @@ class TestUpsertRow:
             pl_track_id = sample_data.pl_track_list[2]['id']
             playlist_id = sample_data.playlist_list[1]['id']
             audio_book_tables.PlayerPosition.upsert_row(
-                con, pl_track_id=pl_track_id, playlist_id=playlist_id, position=300
+                con, pl_track_id=pl_track_id, playlist_id=playlist_id, time=300
             )
             # validate
             sql = """
