@@ -57,7 +57,6 @@ class PlayerDBI:
 
     def get_saved_position(self, playlist_id: int) -> PositionData | None:
         """Get the playlist's saved position."""
-        print('get_saved_position() ,jadsfbda')
         with audio_book_tables.DB_CONNECTION.query() as con:
             pos = self.player_position_joined.get_path_position_by_playlist_id(con=con, playlist_id=playlist_id)
         return PositionData(path=pos['path'], position=pos['position']) if pos is not None else None
