@@ -32,7 +32,7 @@ This test requires sqlite_tools.DBConnectionManager, because it does matter that
 state as what's being used in the program, ie foreign keys.
 """
 
-from test import audio_book_tables_test_data
+from test.audio_book_tables import audio_book_tables_test_data
 import pytest
 import audio_book_tables
 import sqlite_tools

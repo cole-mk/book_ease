@@ -38,19 +38,20 @@ class TestGetSavedPosition:
     """Unit test for player.PlayerDBI.get_saved_position(playlist_id: int)"""
 
     @mock.patch.object(audio_book_tables, 'DB_CONNECTION', sqlite_tools.DBConnectionManager(":memory:"))
-    @mock.patch.object(audio_book_tables.JoinTrackFilePlTrackPlayerPosition, 'get_path_position_by_playlist_id')
-    def test_calls_get_path_position_by_playlist_id_with_correct_args(self, magic_mock):
+    @mock.patch.object(audio_book_tables.JoinTrackFilePlTrackPlayerPosition, 'get_row_by_playlist_id')
+    def test_calls_get_row_by_playlist_id_with_correct_args(self, magic_mock):
         """
         show that audio_book_tables.JoinTrackFilePlTrackPlayerPosition.get_path_position_by_playlist_id is passed an
         sqlite3 Connection object and the playlist_id.
         """
         player_dbi = player.PlayerDBI()
-        player_dbi.get_saved_position(1)
+        playlist_id = 1
+        player_dbi.get_saved_position(playlist_id=playlist_id)
         assert isinstance(magic_mock.call_args.kwargs['con'], sqlite3.Connection)
-        assert magic_mock.call_args.kwargs['playlist_id'] == 1
+        assert magic_mock.call_args.kwargs['playlist_id'] == playlist_id
 
     @mock.patch.object(audio_book_tables, 'DB_CONNECTION', sqlite_tools.DBConnectionManager(":memory:"))
-    @mock.patch.object(audio_book_tables.JoinTrackFilePlTrackPlayerPosition, 'get_path_position_by_playlist_id')
+    @mock.patch.object(audio_book_tables.JoinTrackFilePlTrackPlayerPosition, 'get_row_by_playlist_id')
     def test_returns_position_data_object_when_get_path_position_by_playlist_id_returns_sqlite3_row(self, magic_mock):
         """
         Show that get_saved_position returns a PositionData object when
@@ -58,14 +59,20 @@ class TestGetSavedPosition:
         returns an sqlite3.row object.
         """
         # sqlite3.row objects are accessed in the same way as dicts, which is sufficient similarity for this test.
-        magic_mock.return_value = {'path': 'some/path', 'position': 69}
+        magic_mock.return_value = {
+            'track_file.path': 'some/path',
+            'player_position.time': 69,
+            'player_position.pl_track_id': 1,
+            'player_position.playlist_id': 2,
+            'pl_track.track_number': 3
+        }
         player_dbi = player.PlayerDBI()
         val = player_dbi.get_saved_position(1)
         assert isinstance(val, player.PositionData)
 
     @mock.patch.object(audio_book_tables, 'DB_CONNECTION', sqlite_tools.DBConnectionManager(":memory:"))
-    @mock.patch.object(audio_book_tables.JoinTrackFilePlTrackPlayerPosition, 'get_path_position_by_playlist_id')
-    def test_returns_none_when_get_path_position_by_playlist_id_returns_none(self, magic_mock):
+    @mock.patch.object(audio_book_tables.JoinTrackFilePlTrackPlayerPosition, 'get_row_by_playlist_id')
+    def test_returns_empty_position_data_when_get_row_by_playlist_id_returns_none(self, magic_mock):
         """
         Show that get_saved_position returns None when
         audio_book_tables.JoinTrackFilePlTrackPlayerPosition.get_path_position_by_playlist_id
@@ -73,8 +80,9 @@ class TestGetSavedPosition:
         """
         magic_mock.return_value = None
         player_dbi = player.PlayerDBI()
-        val = player_dbi.get_saved_position(1)
-        assert val is None
+        position_data = player_dbi.get_saved_position(playlist_id=1)
+        for key in position_data.__dict__:
+            assert position_data.__dict__[key] is None
 
 
 class TestSavePosition:
@@ -85,10 +93,10 @@ class TestSavePosition:
     def test_calls_upsert_row_with_correct_args(self, magic_mock):
         """Assert that save_position calls audio_book_tables.PlayerPosition.upsert_row with the correct kwargs"""
         player_dbi = player.PlayerDBI()
-        player_dbi.save_position(pl_track_id=1, playlist_id=2, position=3)
+        player_dbi.save_position(pl_track_id=1, playlist_id=2, time=3)
         assert magic_mock.call_args.kwargs['pl_track_id'] == 1
         assert magic_mock.call_args.kwargs['playlist_id'] == 2
-        assert magic_mock.call_args.kwargs['position'] == 3
+        assert magic_mock.call_args.kwargs['time'] == 3
 
 
 class TestGetTrackIdPlTrackIdByNumber:
@@ -170,7 +178,7 @@ class TestGetTrackIdPlTrackIdByNumber:
         return_val = player_dbi.get_track_id_pl_track_id_by_number(
             playlist_id=playlist_ids[1], track_number=77
         )
-        assert return_val is None
+        assert return_val == (None, None)
 
     @mock.patch.object(audio_book_tables, 'DB_CONNECTION', sqlite_tools.DBConnectionManager(":memory:"))
     @mock.patch.object(audio_book_tables.PlTrack, 'get_rows_by_playlist_id')
@@ -184,7 +192,7 @@ class TestGetTrackIdPlTrackIdByNumber:
         return_val = player_dbi.get_track_id_pl_track_id_by_number(
             playlist_id=1, track_number=2
         )
-        assert return_val is None
+        assert return_val == (None, None)
 
 
 class TestGetPathByID:
@@ -227,3 +235,47 @@ class TestGetPathByID:
         player_dbi = player.PlayerDBI()
         ret_val = player_dbi.get_path_by_id(track_id)
         assert ret_val is None
+
+    @mock.patch.object(audio_book_tables, 'DB_CONNECTION', sqlite_tools.DBConnectionManager(":memory:"))
+    @mock.patch.object(audio_book_tables.TrackFile, 'get_row_by_id')
+    def test_raises_exception_when_id_is_none(self, magic_mock):
+        """
+        Assert that get_pl_track_by_number raises exception when the passed in parameter is None.
+        """
+        magic_mock.return_value = None
+        track_id = None
+        player_dbi = player.PlayerDBI()
+        ret_val = player_dbi.get_path_by_id(track_id)
+        assert ret_val is None
+
+
+class TestGetNewPosition:
+    """
+    Unit test for:
+    player.PlayerDBI.get_new_position(self,
+                                      playlist_id: int,
+                                      track_number: int,
+                                      time: int) -> PositionData:
+    """
+
+    @mock.patch.object(player.PlayerDBI, 'get_track_id_pl_track_id_by_number')
+    @mock.patch.object(player.PlayerDBI, 'get_path_by_id')
+    def test_returns_fully_set_position_data(self, mock_get_path_by_id, mock_get_track_id_pl_track_id_by_number):
+        """Assert that get_new_position returns a PositionData object fully set with the expected values"""
+        time = 0
+        playlist_id = 1
+        track_number = 2
+        track_id = 3
+        pl_track_id = 4
+        path = 'some/path'
+        mock_get_track_id_pl_track_id_by_number.return_value = track_id, pl_track_id
+        mock_get_path_by_id.return_value = path
+        player_dbi = player.PlayerDBI()
+        position = player_dbi.get_new_position(playlist_id=playlist_id, track_number=track_number, time=time)
+        assert position.path == path
+        assert position.track_number == track_number
+        assert position.playlist_id == playlist_id
+        assert position.pl_track_id == pl_track_id
+        assert position.time == time
+
+

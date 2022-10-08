@@ -34,7 +34,7 @@ state as what's being used in the program, ie foreign keys.
 """
 
 import sqlite3
-from test import audio_book_tables_test_data
+from test.audio_book_tables import audio_book_tables_test_data
 import pytest
 import audio_book_tables
 import sqlite_tools
@@ -44,6 +44,7 @@ import sqlite_tools
 def in_mem_db_str() -> str:
     """connection string for an in memory database"""
     return ":memory:"
+
 
 def init_test_data_base(con) -> audio_book_tables_test_data.SampleDatabaseCreator:
     """initialize the necessary tables for this test"""
