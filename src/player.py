@@ -31,6 +31,7 @@ from typing import NamedTuple, TYPE_CHECKING
 import audio_book_tables
 if TYPE_CHECKING:
     from pathlib import Path
+    import book
 
 
 class PlayerDBI:
