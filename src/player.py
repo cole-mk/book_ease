@@ -80,15 +80,19 @@ class PlayerDBI:
             return row['path'] if row is not None else None
 
 
-class PositionData(NamedTuple):
-    """
-    Container for position data— to be consumed by GstPlayer.
+@dataclass
+class PositionData:
+    """Container for position data."""
+    path: str | None = None
+    time: int | None = None
+    track_number: int | None = None
+    playlist_id: int | None = None
+    pl_track_id: int | None = None
 
-    attributes:
-        PositionData.path
-        PositionData.position
-    ex:
-        pd = PositionData(path='/some/path/to/playlist', position=69)
-    """
-    path: str | pathlib.Path
-    position: int
+    def is_fully_set(self):
+        """Check that all attributes have been set"""
+        for item in self.__dict__.items():
+            if item[1] is None:
+                return False
+        return True
+
