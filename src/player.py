@@ -72,7 +72,7 @@ class PlayerDBI:
                 position=position
             )
 
-    def get_track_id_pl_track_id_by_number(self, playlist_id: int, track_number: int) -> tuple[int, int] | None:
+    def get_track_id_pl_track_id_by_number(self, playlist_id: int, track_number: int) -> tuple[int | None, int | None]:
         """get the track_id and pl_track_id given a track_number and playlist_id as arguments."""
         with audio_book_tables.DB_CONNECTION.query() as con:
             rows = self.pl_track.get_rows_by_playlist_id(con=con, playlist_id=playlist_id)
