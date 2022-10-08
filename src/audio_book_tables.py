@@ -250,7 +250,7 @@ class PlTrack:
                 playlist_id  INTEGER REFERENCES playlist (id)
                                     NOT NULL,
                 track_number INTEGER,
-                track_id     INTEGER NOT NULL REFERENCES track(id),
+                track_id     INTEGER NOT NULL REFERENCES track_file(id),
                 UNIQUE (
                     playlist_id,
                     track_number
@@ -474,4 +474,43 @@ class TrackFile:
             WHERE id = (?)
             """
         cur = con.execute(sql, (id_,))
+        return cur.fetchone()
+
+
+class PlayerPosition:
+    """database accessor for table player_postion"""
+
+    @staticmethod
+    def init_table(con: sqlite3.Connection):
+        """create database table: pinned_playlists"""
+        sql = """
+            CREATE TABLE IF NOT EXISTS player_position (
+               playlist_id INTEGER REFERENCES playlist(id) UNIQUE NOT NULL ON CONFLICT ROLLBACK,
+               pl_track_id INTEGER REFERENCES pl_track(id) NOT NULL ON CONFLICT ROLLBACK,
+               position  INTEGER NOT NULL ON CONFLICT ROLLBACK
+            )
+            """
+        con.execute(sql)
+
+    @staticmethod
+    def upsert_row(con: sqlite3.Connection, pl_track_id: int, playlist_id: int, position: int):
+        """Update or insert a row into table player_position."""
+        sql = """
+            INSERT INTO player_position (pl_track_id, playlist_id, position)
+            VALUES (?, ?, ?)
+            ON CONFLICT(playlist_id)
+            DO UPDATE
+            SET position = (?), pl_track_id = (?)
+            """
+        cur = con.execute(sql, (pl_track_id, playlist_id, position, position, pl_track_id))
+        return cur.lastrowid
+
+    @staticmethod
+    def get_row_by_playlist_id(con: sqlite3.Connection, playlist_id: int) -> sqlite3.Row:
+        """get a single row with matching playlist_id from player position """
+        sql = """
+            SELECT * FROM player_position
+            WHERE playlist_id = (?)
+            """
+        cur = con.execute(sql, (playlist_id,))
         return cur.fetchone()
