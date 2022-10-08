@@ -55,11 +55,37 @@ class PlayerDBI:
             self.pl_track.init_table(con)
             self.track.init_table(con)
 
-    def get_saved_position(self, playlist_id: int) -> PositionData | None:
+    def get_saved_position(self, playlist_id: int) -> PositionData:
         """Get the playlist's saved position."""
         with audio_book_tables.DB_CONNECTION.query() as con:
-            pos = self.player_position_joined.get_path_position_by_playlist_id(con=con, playlist_id=playlist_id)
-        return PositionData(path=pos['path'], position=pos['position']) if pos is not None else None
+            row = self.player_position_joined.get_row_by_playlist_id(con=con, playlist_id=playlist_id)
+        position = PositionData()
+        if row is not None:
+            position.path = row['track_file.path']
+            position.time = row['player_position.time']
+            position.pl_track_id = row['player_position.pl_track_id']
+            position.playlist_id = row['player_position.playlist_id']
+            position.track_number = row['pl_track.track_number']
+        return position
+
+    def get_new_position(self, playlist_id: int, track_number: int, time: int) -> PositionData:
+        """
+        Create a PositionData object set to the beginning of the track_number of the playlist.
+        """
+        track_id, pl_track_id = self.get_track_id_pl_track_id_by_number(
+            playlist_id=playlist_id,
+            track_number=track_number
+        )
+        path = self.get_path_by_id(track_id=track_id)
+
+        position = PositionData(
+            pl_track_id=pl_track_id,
+            track_number=track_number,
+            playlist_id=playlist_id,
+            path=path,
+            time=time
+        )
+        return position
 
     def save_position(self, pl_track_id: int, playlist_id: int, time: int):
         """Save player position to the database."""
