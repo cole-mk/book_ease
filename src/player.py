@@ -20,6 +20,10 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
+#
+# pylint: disable=wrong-import-position
+# disabled because gi.repository requires an import order that pylint dislikes.
+#
 
 """
 This module controls the playback of playlists.
@@ -27,10 +31,18 @@ This module controls the playback of playlists.
 
 from __future__ import annotations
 import pathlib
-from typing import NamedTuple, TYPE_CHECKING
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+# import gi
+# gi.require_version('Gst', '1.0')
+# gi.require_version('Gtk', '3.0')
+# gi.require_version('GdkX11', '3.0')
+# gi.require_version('GstVideo', '1.0')
+# from gi.repository import Gst
 import audio_book_tables
 if TYPE_CHECKING:
     from pathlib import Path
+    import book
 
 
 class PlayerDBI:
@@ -46,24 +58,49 @@ class PlayerDBI:
             self.pl_track.init_table(con)
             self.track.init_table(con)
 
-    def get_saved_position(self, playlist_id: int) -> PositionData | None:
+    def get_saved_position(self, playlist_id: int) -> PositionData:
         """Get the playlist's saved position."""
-        print('get_saved_position() ,jadsfbda')
         with audio_book_tables.DB_CONNECTION.query() as con:
-            pos = self.player_position_joined.get_path_position_by_playlist_id(con=con, playlist_id=playlist_id)
-        return PositionData(path=pos['path'], position=pos['position']) if pos is not None else None
+            row = self.player_position_joined.get_row_by_playlist_id(con=con, playlist_id=playlist_id)
+        position = PositionData()
+        if row is not None:
+            position.path = row['track_file.path']
+            position.time = row['player_position.time']
+            position.pl_track_id = row['player_position.pl_track_id']
+            position.playlist_id = row['player_position.playlist_id']
+            position.track_number = row['pl_track.track_number']
+        return position
 
-    def save_position(self, pl_track_id: int, playlist_id: int, position: int):
+    def get_new_position(self, playlist_id: int, track_number: int, time: int) -> PositionData:
+        """
+        Create a PositionData object set to the beginning of the track_number of the playlist.
+        """
+        track_id, pl_track_id = self.get_track_id_pl_track_id_by_number(
+            playlist_id=playlist_id,
+            track_number=track_number
+        )
+        path = self.get_path_by_id(track_id=track_id)
+
+        position = PositionData(
+            pl_track_id=pl_track_id,
+            track_number=track_number,
+            playlist_id=playlist_id,
+            path=path,
+            time=time
+        )
+        return position
+
+    def save_position(self, pl_track_id: int, playlist_id: int, time: int):
         """Save player position to the database."""
         with audio_book_tables.DB_CONNECTION.query() as con:
             self.player_position.upsert_row(
                 con=con,
                 pl_track_id=pl_track_id,
                 playlist_id=playlist_id,
-                position=position
+                time=time
             )
 
-    def get_track_id_pl_track_id_by_number(self, playlist_id: int, track_number: int) -> tuple[int, int] | None:
+    def get_track_id_pl_track_id_by_number(self, playlist_id: int, track_number: int) -> tuple[int | None, int | None]:
         """get the track_id and pl_track_id given a track_number and playlist_id as arguments."""
         with audio_book_tables.DB_CONNECTION.query() as con:
             rows = self.pl_track.get_rows_by_playlist_id(con=con, playlist_id=playlist_id)
@@ -71,24 +108,70 @@ class PlayerDBI:
             for row in rows:
                 if row['track_number'] == track_number:
                     return row['track_id'], row['id']
-        return None
+        return None, None
 
-    def get_path_by_id(self, pl_track_id: int) -> str | pathlib.Path:
+    def get_path_by_id(self, track_id: int) -> str | pathlib.Path:
         """Get a track's path based on track_id"""
         with audio_book_tables.DB_CONNECTION.query() as con:
-            row = self.track.get_row_by_id(con=con, id_=pl_track_id)
+            row = self.track.get_row_by_id(con=con, id_=track_id)
             return row['path'] if row is not None else None
 
 
-class PositionData(NamedTuple):
-    """
-    Container for position data— to be consumed by GstPlayer.
+@dataclass
+class PositionData:
+    """Container for position data."""
+    path: str | None = None
+    time: int | None = None
+    track_number: int | None = None
+    playlist_id: int | None = None
+    pl_track_id: int | None = None
 
-    attributes:
-        PositionData.path
-        PositionData.position
-    ex:
-        pd = PositionData(path='/some/path/to/playlist', position=69)
-    """
-    path: str | pathlib.Path
-    position: int
+    def is_fully_set(self):
+        """Check that all attributes have been set"""
+        for item in self.__dict__.items():
+            if item[1] is None:
+                return False
+        return True
+
+
+class Player:  # pylint: disable=too-few-public-methods
+    """The model class for the media player backend"""
+
+    def __init__(self):
+        self.player_dbi = PlayerDBI()
+        self.gst_player = GstPlayer()
+        self.position = None
+
+    def load_playlist(self, playlist_data: book.PlaylistData):
+        """
+        Load self.position with a PositionData from the database if it exists, or set it to a newly created one that
+        starts at the beginning of the first track in the playlist.
+        """
+        playlist_id = playlist_data.get_id()
+        position = self.player_dbi.get_saved_position(playlist_id=playlist_id)
+        if not position.is_fully_set():
+            position = self.player_dbi.get_new_position(playlist_id=playlist_id, track_number=0, time=0)
+
+        if position.is_fully_set():
+            self.gst_player.load_position(position=position)
+        else:
+            raise RuntimeError('Failed to load playlist position ', position)
+
+
+class GstPlayer:
+    """The wrapper for the gstreamer backend"""
+
+    def __init__(self):
+        self.position = None
+
+    def load_position(self, position: PositionData):
+        """Set the player position."""
+        self.position = position
+
+    def pop_position(self):
+        """remove and return player position."""
+        if self.position is not None:
+            pos = self.position
+            self.position = None
+            return pos
+        raise TypeError('GstPlayer.position is None')

@@ -491,22 +491,22 @@ class PlayerPosition:
             CREATE TABLE IF NOT EXISTS player_position (
                playlist_id INTEGER REFERENCES playlist(id) UNIQUE NOT NULL ON CONFLICT ROLLBACK,
                pl_track_id INTEGER REFERENCES pl_track(id) NOT NULL ON CONFLICT ROLLBACK,
-               position  INTEGER NOT NULL ON CONFLICT ROLLBACK
+               time  INTEGER NOT NULL ON CONFLICT ROLLBACK
             )
             """
         con.execute(sql)
 
     @staticmethod
-    def upsert_row(con: sqlite3.Connection, pl_track_id: int, playlist_id: int, position: int):
+    def upsert_row(con: sqlite3.Connection, pl_track_id: int, playlist_id: int, time: int):
         """Update or insert a row into table player_position."""
         sql = """
-            INSERT INTO player_position (pl_track_id, playlist_id, position)
+            INSERT INTO player_position (pl_track_id, playlist_id, time)
             VALUES (?, ?, ?)
             ON CONFLICT(playlist_id)
             DO UPDATE
-            SET position = (?), pl_track_id = (?)
+            SET time = (?), pl_track_id = (?)
             """
-        cur = con.execute(sql, (pl_track_id, playlist_id, position, position, pl_track_id))
+        cur = con.execute(sql, (pl_track_id, playlist_id, time, time, pl_track_id))
         return cur.lastrowid
 
     @staticmethod
@@ -524,10 +524,10 @@ class JoinTrackFilePlTrackPlayerPosition:
     """database accessor that joins tables track_file, player_position, and pl_track to perform queries"""
 
     @staticmethod
-    def get_path_position_by_playlist_id(con, playlist_id):
+    def get_row_by_playlist_id(con: sqlite3.Connection, playlist_id: int) -> sqlite3.Row | None:
         """Get path and position by playlist_id"""
         sql = """
-            SELECT track_file.path, player_position.position from track_file
+            SELECT * from track_file
             INNER JOIN pl_track
                 on pl_track.track_id = track_file.id
             INNER JOIN player_position

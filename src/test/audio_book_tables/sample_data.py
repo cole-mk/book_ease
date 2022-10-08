@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  audio_book_tables_test_data.py
+#  sample_data.py
 #
 #  This file is part of book_ease.
 #
@@ -65,7 +65,7 @@ class SampleDatabaseCreator:  # pylint: disable=too-few-public-methods
             {
                 'pl_track_id': self.pl_track_list[0]['id'],
                 'playlist_id': self.playlist_list[0]['id'],
-                'position': 2001
+                'time': 2001
              },
         )
 
