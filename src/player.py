@@ -71,7 +71,7 @@ class PlayerDBI:
             position.track_number = row['pl_track.track_number']
         return position
 
-    def get_new_position(self, playlist_id: int, track_number: int, time: int) -> PositionData:
+    def get_new_position(self, playlist_id: int, track_number: int, time_: int) -> PositionData:
         """
         Create a PositionData object set to the beginning of the track_number of the playlist.
         """
@@ -86,18 +86,18 @@ class PlayerDBI:
             track_number=track_number,
             playlist_id=playlist_id,
             path=path,
-            time=time
+            time=time_
         )
         return position
 
-    def save_position(self, pl_track_id: int, playlist_id: int, time: int):
+    def save_position(self, pl_track_id: int, playlist_id: int, time_: int):
         """Save player position to the database."""
         with audio_book_tables.DB_CONNECTION.query() as con:
             self.player_position.upsert_row(
                 con=con,
                 pl_track_id=pl_track_id,
                 playlist_id=playlist_id,
-                time=time
+                time=time_
             )
 
     def get_track_id_pl_track_id_by_number(self, playlist_id: int, track_number: int) -> tuple[int | None, int | None]:
@@ -150,10 +150,10 @@ class Player:  # pylint: disable=too-few-public-methods
         playlist_id = playlist_data.get_id()
         position = self.player_dbi.get_saved_position(playlist_id=playlist_id)
         if not position.is_fully_set():
-            position = self.player_dbi.get_new_position(playlist_id=playlist_id, track_number=0, time=0)
+            position = self.player_dbi.get_new_position(playlist_id=playlist_id, track_number=0, time_=0)
 
         if position.is_fully_set():
-            self.gst_player.load_position(position=position)
+            self.gst_player.load_position_data(position=position)
         else:
             raise RuntimeError('Failed to load playlist position ', position)
 
