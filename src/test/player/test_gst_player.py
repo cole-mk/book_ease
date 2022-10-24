@@ -893,8 +893,10 @@ class Test_UpdateTime:
 
     def test_updates_position_if_queries_pipeline_successfully(self):
         """
-        Assert that _update_time() updates self.position.time when it can successfully query the current
+        Assert that _update_time() updates self.position.time correctly when it can successfully query the current
         position from the pipeline.
+
+        self.position.time units must be seconds and not the native GStreamer time-stamp.
 
         This test assumes:
         self.playback_state == 'stopped'
@@ -902,7 +904,7 @@ class Test_UpdateTime:
         """
         gst_player, cur_time = self.init_mocks()
         gst_player._update_time()
-        assert gst_player.position.time == 12345678
+        assert gst_player.position.time == cur_time
 
     def test_not_updates_position_if_not_queries_pipeline_successfully(self):
         """
