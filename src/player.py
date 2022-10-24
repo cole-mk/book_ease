@@ -40,6 +40,7 @@ gi.require_version('Gst', '1.0')
 # gi.require_version('GstVideo', '1.0')
 from gi.repository import Gst, GLib
 import audio_book_tables
+import signal_
 if TYPE_CHECKING:
     from pathlib import Path
     import book
@@ -172,6 +173,8 @@ class GstPlayer:
         self.position = None
         self.pipeline = None
         self.duration = Gst.CLOCK_TIME_NONE
+        self.transmitter = signal_.Signal()
+        self.transmitter.add_signal('time_updated', 'duration_ready')
 
     def load_position_data(self, position: PositionData):
         """Set the player position."""
@@ -240,6 +243,7 @@ class GstPlayer:
         if query_success:
             cur_time_seconds = int(cur_time / Gst.SECOND)
             self.position.time = cur_time_seconds
+            self.transmitter.send('time_updated', self.position.time)
         return True
 
     def _close_pipeline(self):
@@ -343,6 +347,9 @@ class GstPlayer:
         query_success, self.duration = self.pipeline.query_duration(Gst.Format.TIME)
         if not query_success:
             raise RuntimeError('failed to query duration')
+        # duration needs to be an integer value representing seconds
+        duration = int(self.duration / Gst.SECOND)
+        self.transmitter.send('duration_ready', duration)
 
     def _init_attributes_that_can_only_be_set_after_playback_started(self, bus: Gst.Bus, msg: Gst.Message):
         """

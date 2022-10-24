@@ -351,6 +351,19 @@ class Test_InitDuration:
         gst_player._init_duration()
         assert gst_player.duration == target_duration
 
+    def test_emits_duration_ready(self):
+        """
+        Assert that GstPlayer emits the 'duration_ready' signal as soon as GStreamer is able to
+        successfully acquire the duration from the stream.
+        """
+        gst_player = player.GstPlayer()
+        gst_player.pipeline = mock.Mock()
+        gst_player.transmitter.send = mock.Mock()
+        target_duration = 100
+        gst_player.pipeline.query_duration = mock.Mock(return_value=(True, target_duration * Gst.SECOND))
+        gst_player._init_duration()
+        gst_player.transmitter.send.assert_called_with('duration_ready', target_duration)
+
 
 # noinspection PyPep8Naming
 class Test_InitStartPosition:
@@ -856,6 +869,7 @@ class Test_UpdateTime:
         gst_player.position.time = None
         cur_time = 12345678
         gst_player.pipeline.query_position = mock.Mock(return_value=(True, cur_time * Gst.SECOND))
+        gst_player.transmitter.send = mock.Mock()
         return gst_player, cur_time
 
     def test_returns_false_when_pipeline_None(self):
@@ -892,6 +906,19 @@ class Test_UpdateTime:
         gst_player, cur_time = self.init_mocks()
         gst_player._update_time()
         assert gst_player.position.time == cur_time
+
+    def test_signals_update_time_if_queries_pipeline_successfully(self):
+        """
+        Assert that _update_time() updates self.position.time when it can successfully query the current
+        position from the pipeline.
+
+        This test assumes:
+        self.playback_state != 'stopped'
+        self.pipeline != None
+        """
+        gst_player, cur_time = self.init_mocks()
+        gst_player._update_time()
+        gst_player.transmitter.send.assert_called_with('time_updated', cur_time)
 
     def test_not_updates_position_if_not_queries_pipeline_successfully(self):
         """
