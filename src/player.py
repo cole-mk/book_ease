@@ -238,7 +238,8 @@ class GstPlayer:
 
         query_success, cur_time = self.pipeline.query_position(Gst.Format.TIME)
         if query_success:
-            self.position.time = cur_time
+            cur_time_seconds = int(cur_time / Gst.SECOND)
+            self.position.time = cur_time_seconds
         return True
 
     def _close_pipeline(self):
