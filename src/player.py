@@ -171,7 +171,7 @@ class GstPlayer:
         self.pipeline = None
         self.duration = Gst.CLOCK_TIME_NONE
         self.transmitter = signal_.Signal()
-        self.transmitter.add_signal('time_updated', 'duration_ready')
+        self.transmitter.add_signal('time_updated', 'duration_ready', 'eos')
 
     def load_position_data(self, position: PositionData):
         """Set the player position."""
@@ -287,6 +287,7 @@ class GstPlayer:
         """
         self.stop()
         self._close_pipeline()
+        self.transmitter.send('eos')
 
     def set_position_relative(self, delta_t_seconds: int) -> bool:
         """
