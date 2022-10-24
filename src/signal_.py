@@ -50,12 +50,14 @@ class Signal():
         self._sig_handlers = {}
         self._muted_signals = []
 
-    def add_signal(self, handle):
+    def add_signal(self, handle: str, *more_handles: str):
         """
         create/add signal to the sig handlers list
         note: called by server
         """
         self._sig_handlers[handle] = []
+        for additional_handle in more_handles:
+            self._sig_handlers[additional_handle] = []
 
     def remove_signal(self, handle):
         """
