@@ -165,9 +165,6 @@ class GstPlayer:
     # disabled because GStreamer callbacks automatically supply args that are unused.
 
     def __init__(self):
-        # delete this
-        self.once = False
-
         Gst.init(None)
         self.playback_state = None
         self.position = None
