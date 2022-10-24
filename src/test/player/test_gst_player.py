@@ -708,6 +708,7 @@ class Test_OnEos:
         gst_player = player.GstPlayer()
         gst_player.stop = mock.Mock()
         gst_player._close_pipeline = mock.Mock()
+        gst_player.transmitter.send = mock.Mock()
         return gst_player
 
     def test_calls_gst_player_stop(self):
@@ -726,6 +727,15 @@ class Test_OnEos:
         gst_player = self.init_mocks()
         gst_player._on_eos('bus', 'msg')
         gst_player._close_pipeline.assert_called()
+
+    def test_emits_eos(self):
+        """
+        Assert that _on_eos emits the eos signal on self.transmitter.
+        """
+        gst_player = self.init_mocks()
+        gst_player._on_eos('bus', 'msg')
+        gst_player.transmitter.send.assert_called_with('eos')
+
 
 
 # noinspection PyPep8Naming
