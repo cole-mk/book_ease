@@ -40,6 +40,7 @@ gi.require_version('Gst', '1.0')
 # gi.require_version('GstVideo', '1.0')
 from gi.repository import Gst, GLib
 import audio_book_tables
+import signal_
 if TYPE_CHECKING:
     from pathlib import Path
     import book
@@ -172,6 +173,8 @@ class GstPlayer:
         self.position = None
         self.pipeline = None
         self.duration = Gst.CLOCK_TIME_NONE
+        self.transmitter = signal_.Signal()
+        self.transmitter.add_signal('time_updated', 'duration_ready')
 
     def load_position_data(self, position: PositionData):
         """Set the player position."""
