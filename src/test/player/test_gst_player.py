@@ -867,15 +867,16 @@ class Test_UpdateTime:
         gst_player.pipeline = mock.Mock()
         gst_player.position = mock.Mock()
         gst_player.position.time = None
-        gst_player.pipeline.query_position = mock.Mock(return_value=(True, 12345678))
-        return gst_player
+        cur_time = 12345678
+        gst_player.pipeline.query_position = mock.Mock(return_value=(True, cur_time * Gst.SECOND))
+        return gst_player, cur_time
 
     def test_returns_false_when_pipeline_None(self):
         """
         Assert that _update_time() stops itself from being called when the pipeline has been closed.
         returning False tells the Gst.MessageBus to stop periodically calling _update_time().
         """
-        gst_player = self.init_mocks()
+        gst_player, _ = self.init_mocks()
         gst_player.pipeline = None
         ret_val = gst_player._update_time()
         assert ret_val is False
@@ -885,7 +886,7 @@ class Test_UpdateTime:
         Assert that _update_time() returns True if playback state is 'stopped' in order to avoid
         updating an unchanging field. Furthermore, the position is set immediately when entering the stopped state.
         """
-        gst_player = self.init_mocks()
+        gst_player, _ = self.init_mocks()
         gst_player.playback_state = 'stopped'
         ret_val = gst_player._update_time()
         assert ret_val is True
@@ -899,7 +900,7 @@ class Test_UpdateTime:
         self.playback_state == 'stopped'
         self.pipeline != None
         """
-        gst_player = self.init_mocks()
+        gst_player, cur_time = self.init_mocks()
         gst_player._update_time()
         assert gst_player.position.time == 12345678
 
@@ -912,7 +913,7 @@ class Test_UpdateTime:
         self.playback_state == 'stopped'
         self.pipeline != None
         """
-        gst_player = self.init_mocks()
+        gst_player, _ = self.init_mocks()
         gst_player.pipeline.query_position.return_value = (False, 12345678)
         gst_player._update_time()
         assert gst_player.position.time is None
@@ -924,7 +925,7 @@ class Test_UpdateTime:
         is a timestamp and not a frame count or something else.
         gst_player = self.init_mocks()
         """
-        gst_player = self.init_mocks()
+        gst_player, _ = self.init_mocks()
         gst_player._update_time()
         gst_player.pipeline.query_position.assert_called()
         gst_player.pipeline.query_position.assert_called_with(Gst.Format.TIME)
@@ -933,5 +934,5 @@ class Test_UpdateTime:
         """
         _update_time() must return True if it wants to continue being called periodically.
         """
-        gst_player = self.init_mocks()
+        gst_player, _ = self.init_mocks()
         assert gst_player._update_time() is True
