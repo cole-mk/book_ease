@@ -240,7 +240,6 @@ class GstPlayer:
         if query_success:
             cur_time_seconds = int(cur_time / Gst.SECOND)
             self.position.time = cur_time_seconds
-            self.transmitter.send('time_updated', self.position.time)
         return True
 
     def _close_pipeline(self):
