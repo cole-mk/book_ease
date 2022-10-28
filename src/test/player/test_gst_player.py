@@ -480,21 +480,30 @@ class Test_InitAttributesThatCanOnlyBeSetAfterPlaybackStarted:
         m_message.src = gst_player.pipeline = mock.Mock()
         m_bus = mock.Mock()
         m_bus.disconnect_by_func = mock.Mock()
-        return gst_player, m_message, m_bus
+        glib_idle_add = GLib.timeout_add = mock.Mock()
+        return gst_player, m_message, m_bus, glib_idle_add
 
     def test_calls_init_duration_if_msg_src_is_pipeline_and_pipeline_is_entering_playing_state(self):
         """
-        Assert that _init_duration() is called when the passed in msg.src is self.pipeline
+        Assert that _init_duration() is called via 'GLib.timeout_add' when the passed in msg.src is self.pipeline
         and 'self.pipeline' is about to enter the playing state.
+
+        Note:
+        It does not matter what the interval parameter of glib_idle_add is, but it does need to be proven
+        that the parameter is used.
+        However, the function parameter does matter.
+
+        'GLib.timeout_add' is used to allow retries until the method succeeds.
 
          _init_duration() must not be called before this time or Gst can't query the duration from the pipeline.
 
         Only do this if the message source is 'self.pipeline'.
         """
-        gst_player, m_message, m_bus = self.init_mocks()
+        gst_player, m_message, m_bus, glib_idle_add = self.init_mocks()
 
         gst_player._init_attributes_that_can_only_be_set_after_playback_started(m_bus, m_message)
-        assert gst_player._init_duration.called
+        assert 'interval' in glib_idle_add.call_args.kwargs
+        assert glib_idle_add.call_args.kwargs['function'] == gst_player._init_duration
 
     def test_calls_init_start_position_if_msg_src_is_pipeline_and_pipeline_is_entering_playing_state(self):
         """
@@ -506,7 +515,7 @@ class Test_InitAttributesThatCanOnlyBeSetAfterPlaybackStarted:
 
         Only do this if the message source is 'self.pipeline'.
         """
-        gst_player, m_message, m_bus = self.init_mocks()
+        gst_player, m_message, m_bus, _ = self.init_mocks()
 
         gst_player._init_attributes_that_can_only_be_set_after_playback_started(m_bus, m_message)
         assert gst_player._init_start_position.called
@@ -518,13 +527,13 @@ class Test_InitAttributesThatCanOnlyBeSetAfterPlaybackStarted:
         """
 
         # 'self.pipeline' is not about to enter the playing state
-        gst_player, m_message, m_bus = self.init_mocks()
+        gst_player, m_message, m_bus, _ = self.init_mocks()
         m_message.parse_state_changed.return_value = (None, None, None)
         gst_player._init_attributes_that_can_only_be_set_after_playback_started(m_bus, m_message)
         assert not gst_player._init_start_position.called
 
         #  msg.src is not self.pipeline
-        gst_player, m_message, m_bus = self.init_mocks()
+        gst_player, m_message, m_bus, _ = self.init_mocks()
         m_message.src = None
         gst_player._init_attributes_that_can_only_be_set_after_playback_started(m_bus, m_message)
         assert not gst_player._init_start_position.called
@@ -535,7 +544,7 @@ class Test_InitAttributesThatCanOnlyBeSetAfterPlaybackStarted:
         Make sure that the callback is disconnected  when the passed in msg.src is self.pipeline
         and 'self.pipeline' is about to enter the playing state.
         """
-        gst_player, m_message, m_bus = self.init_mocks()
+        gst_player, m_message, m_bus, _ = self.init_mocks()
         gst_player._init_attributes_that_can_only_be_set_after_playback_started(m_bus, m_message)
         assert m_bus.disconnect_by_func.called
 
@@ -547,13 +556,13 @@ class Test_InitAttributesThatCanOnlyBeSetAfterPlaybackStarted:
         """
 
         # 'self.pipeline' is not about to enter the playing state
-        gst_player, m_message, m_bus = self.init_mocks()
+        gst_player, m_message, m_bus, _ = self.init_mocks()
         m_message.parse_state_changed.return_value = (None, None, None)
         gst_player._init_attributes_that_can_only_be_set_after_playback_started(m_bus, m_message)
         assert not m_bus.disconnect_by_func.called
 
         #  msg.src is not self.pipeline
-        gst_player, m_message, m_bus = self.init_mocks()
+        gst_player, m_message, m_bus, _ = self.init_mocks()
         m_message.src = None
         gst_player._init_attributes_that_can_only_be_set_after_playback_started(m_bus, m_message)
         assert not m_bus.disconnect_by_func.called

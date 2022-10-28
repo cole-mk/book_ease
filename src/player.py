@@ -359,7 +359,8 @@ class GstPlayer:
         if msg.src == self.pipeline:
             old, new, pen = msg.parse_state_changed()
             if old == Gst.State.READY and new == Gst.State.PAUSED and pen == Gst.State.PLAYING:
-                self._init_duration()
+                # docstring for timeout_add is wrong. Parameters are not 'mseconds, func'.
+                GLib.timeout_add(interval=250, function=self._init_duration)
                 self._init_start_position()
                 # This only needs to be done once per stream. Disconnect this callback.
                 bus.disconnect_by_func(self._init_attributes_that_can_only_be_set_after_playback_started)
