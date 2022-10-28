@@ -341,12 +341,15 @@ class GstPlayer:
         self.set_position(t_seconds=0)
 
     def _init_duration(self):
-        query_success, self.duration = self.pipeline.query_duration(Gst.Format.TIME)
-        if not query_success:
-            raise RuntimeError('failed to query duration')
-        # duration needs to be an integer value representing seconds
-        duration = int(self.duration / Gst.SECOND)
-        self.transmitter.send('duration_ready', duration)
+        continue_periodically_calling_this_method = True
+        query_success, duration = self.pipeline.query_duration(Gst.Format.TIME)
+        if query_success:
+            continue_periodically_calling_this_method = False
+            self.duration = duration
+            # duration needs to be an integer value representing seconds
+            duration_s = int(self.duration / Gst.SECOND)
+            self.transmitter.send('duration_ready', duration_s)
+        return continue_periodically_calling_this_method
 
     def _init_attributes_that_can_only_be_set_after_playback_started(self, bus: Gst.Bus, msg: Gst.Message):
         """

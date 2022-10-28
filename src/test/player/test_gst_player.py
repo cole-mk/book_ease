@@ -332,13 +332,21 @@ class TestSetPositionRelative:
 class Test_InitDuration:
     """Unit tests for _init_duration()"""
 
-    def test_raises_runtime_error_if_gst_pipeline_fails_to_query_position(self):
+    def test_returns_true_if_gst_pipeline_fails_to_query_position(self):
         """Assert that _init_duration() raises RuntimeError when Gstreamer.Pipeline.query_position() fails."""
         gst_player = player.GstPlayer()
         gst_player.pipeline = mock.Mock()
         gst_player.pipeline.__class__.query_duration = mock.Mock(return_value=(False, 100 * Gst.SECOND))
-        with pytest.raises(RuntimeError):
-            gst_player._init_duration()
+        ret_val = gst_player._init_duration()
+        assert ret_val is True
+
+    def test_returns_false_if_gst_pipeline_successfully_queries_position(self):
+        """Assert that _init_duration() raises RuntimeError when Gstreamer.Pipeline.query_position() fails."""
+        gst_player = player.GstPlayer()
+        gst_player.pipeline = mock.Mock()
+        gst_player.pipeline.__class__.query_duration = mock.Mock(return_value=(True, 100 * Gst.SECOND))
+        ret_val = gst_player._init_duration()
+        assert ret_val is False
 
     def test_sets_self_dot_duration_to_correct_value(self):
         """
