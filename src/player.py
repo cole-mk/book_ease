@@ -65,11 +65,11 @@ class PlayerDBI:
             row = self.player_position_joined.get_row_by_playlist_id(con=con, playlist_id=playlist_id)
         position = PositionData()
         if row is not None:
-            position.path = row['track_file.path']
-            position.time = row['player_position.time']
-            position.pl_track_id = row['player_position.pl_track_id']
-            position.playlist_id = row['player_position.playlist_id']
-            position.track_number = row['pl_track.track_number']
+            position.path = row['path']
+            position.time = row['time']
+            position.pl_track_id = row['pl_track_id']
+            position.playlist_id = row['playlist_id']
+            position.track_number = row['track_number']
         return position
 
     def get_new_position(self, playlist_id: int, track_number: int, time_: int) -> PositionData:

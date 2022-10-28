@@ -60,11 +60,11 @@ class TestGetSavedPosition:
         """
         # sqlite3.row objects are accessed in the same way as dicts, which is sufficient similarity for this test.
         magic_mock.return_value = {
-            'track_file.path': 'some/path',
-            'player_position.time': 69,
-            'player_position.pl_track_id': 1,
-            'player_position.playlist_id': 2,
-            'pl_track.track_number': 3
+            'path': 'some/path',
+            'time': 69,
+            'pl_track_id': 1,
+            'playlist_id': 2,
+            'track_number': 3
         }
         player_dbi = player.PlayerDBI()
         val = player_dbi.get_saved_position(1)
