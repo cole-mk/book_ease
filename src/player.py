@@ -338,7 +338,8 @@ class GstPlayer:
         Set playback position to the time saved in self.position or the start of the stream.
         This is a state-changed callback.
         """
-        self.set_position(t_seconds=0)
+        if not self.set_position(t_seconds=self.position.time):
+            print('Failed to set start position of stream')
 
     def _init_duration(self):
         continue_periodically_calling_this_method = True

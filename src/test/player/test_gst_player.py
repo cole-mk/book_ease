@@ -377,13 +377,18 @@ class Test_InitDuration:
 class Test_InitStartPosition:
     """Unit tests for _init_start_position()"""
 
-    def test_calls_set_position_with_t_seconds_equals_zero(self):
-        """_init_start_position() should simply call set_position(t_seconds=0)"""
+    def test_calls_set_position_with_t_seconds_equals_position_dot_time(self):
+        """
+        _init_start_position() should simply call set_position(t_seconds=self.position.time)
+        """
         gst_player = player.GstPlayer()
+        gst_player.position = mock.Mock()
+        gst_player.position.time = mock.Mock()
         gst_player.set_position = mock.Mock()
+
         gst_player._init_start_position()
         assert gst_player.set_position.called
-        assert gst_player.set_position.call_args.kwargs['t_seconds'] == 0
+        assert gst_player.set_position.call_args.kwargs['t_seconds'] == gst_player.position.time
 
 
 # noinspection PyPep8Naming
