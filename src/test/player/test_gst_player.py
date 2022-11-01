@@ -40,6 +40,9 @@
 # pylint: disable=comparison-with-callable
 # disabled because this needs to be done regularly during tests.
 #
+# pylint: disable=too-many-lines
+# disabled because this needs to be long.
+#
 
 """
 Unit test for class player.GstPlayer
@@ -1083,4 +1086,3 @@ class TestSetPosition:
         gst_player.pipeline.seek_simple.return_value = False
         with pytest.raises(RuntimeError):
             gst_player.set_position(t_seconds=30)
-
