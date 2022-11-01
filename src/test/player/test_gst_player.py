@@ -1009,5 +1009,53 @@ class Test_QueryPosition:
             gst_player._query_position()
 
 
+# noinspection PyPep8Naming
+class Test_QueryDuration:
+    """Unit tests for method _query_duration()"""
+    duration = 12345678
+
+    def init_mocks(self):
+        """
+        Create and return all the mocks that are used for this test class.
+        They should be in a state that is conducive to passing the tests.
+        """
+        gst_player = player.GstPlayer()
+        gst_player.pipeline = mock.Mock()
+        gst_player.pipeline.query_duration = mock.Mock(return_value=(True, self.duration))
+        return gst_player
+
+    def test_calls_pipeline_dot_query_duration_correctly(self):
+        """
+        Assert that _query_duration() calls gst_player.pipeline.query_duration() to retrieve
+        the current duration of the playback stream.
+
+        Assert that gst_player.pipeline.query_duration() is called with Gst.Format.TIME as the parameter.
+        This necessary because _query_duration() returns the current duration, and not frames or something else.
+        """
+        gst_player = self.init_mocks()
+        gst_player._query_duration()
+        gst_player.pipeline.query_duration.assert_called()
+        gst_player.pipeline.query_duration.assert_called_with(Gst.Format.TIME)
+
+    def test_returns_current_duration_if_pipeline_query_was_a_success(self):
+        """
+        Assert that _query_duration() returns the current duration if gst_player.pipeline.query_duration()
+        successfully executes the query.
+        """
+        gst_player = self.init_mocks()
+        duration = gst_player._query_duration()
+        assert duration == self.duration
+
+    def test_raises_runtime_error_if_pipeline_fails_to_query_duration(self):
+        """
+        Assert that _query_duration() raises runtimeError if gst_player.pipeline.query_duration()
+        fails to execute the query.
+        """
+        gst_player = self.init_mocks()
+        gst_player.pipeline.query_duration.return_value = (False, self.duration)
+        with pytest.raises(RuntimeError):
+            gst_player._query_duration()
+
+
 
 
