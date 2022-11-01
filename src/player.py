@@ -378,3 +378,16 @@ class GstPlayer:
         if query_success:
             return cur_position
         raise RuntimeError('Failed to query current position.')
+
+    def _query_duration(self) -> int:
+        """
+        Attempt to query the stream's duration from the pipeline.
+
+        Returns: current duration in Gst time format
+
+        Raises: RuntimeError if _query_duration() fails to retrieve the duration of the current stream.
+        """
+        query_success, cur_duration = self.pipeline.query_duration(Gst.Format.TIME)
+        if query_success:
+            return cur_duration
+        raise RuntimeError('Failed to query the current duration.')
