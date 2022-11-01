@@ -1038,5 +1038,45 @@ class Test_QueryDuration:
             gst_player._query_duration()
 
 
+class TestSetPosition:
+    """Unit test for method play()"""
 
+    @staticmethod
+    def init_mocks():
+        """
+        Create and return all the mocks that are used for this test class.
+        They should be in a state that is conducive to passing the tests.
+        """
+        gst_player = player.GstPlayer()
+        gst_player.pipeline = mock.Mock()
+        gst_player.pipeline.seek_simple = mock.Mock(return_value=True)
+        return gst_player
+
+    def test_cals_self_dot_pipeline_dot_seek_simple(self):
+        """
+        Assert that set_position() calls self.pipeline.seek_simple() with the correct args.
+        """
+        gst_player = self.init_mocks()
+        time = 30
+        gst_time = time * Gst.SECOND
+        gst_player.set_position(t_seconds=time)
+        call_kwargs = {
+            'format': Gst.Format.TIME,
+            'seek_flags': Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
+            'seek_pos': gst_time
+        }
+        assert gst_player.pipeline.seek_simple.call_args.kwargs == call_kwargs
+
+    def test_raises_runtime_error_if_self_dot_pipeline_dot_seek_simple_fails(self):
+        """
+        Asert that set_position() raises RuntimeError if self.pipeline.seek_simple()
+        returns False.
+
+        self.pipeline.seek_simple() returns False when the pipeline fails
+        to set the position.
+        """
+        gst_player = self.init_mocks()
+        gst_player.pipeline.seek_simple.return_value = False
+        with pytest.raises(RuntimeError):
+            gst_player.set_position(t_seconds=30)
 
