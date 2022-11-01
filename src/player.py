@@ -288,20 +288,17 @@ class GstPlayer:
         self._close_pipeline()
         self.transmitter.send('eos')
 
-    def set_position_relative(self, delta_t_seconds: int) -> bool:
+    def set_position_relative(self, delta_t_seconds: int):
         """
-        Attempt to set stream position to current position + delta_t_seconds.
+        Set stream position to current position + delta_t_seconds.
 
         Normalize the new position to values acceptable to self.set_position()
         """
-        set_position_success = False
-        query_success, cur_position = self.pipeline.query_position(Gst.Format.TIME)
-        if query_success:
-            new_position = (cur_position / Gst.SECOND) + delta_t_seconds
-            # ensure new_position in valid range
-            new_position = max(new_position, 0)
-            set_position_success = self.set_position(t_seconds=new_position)
-        return set_position_success
+        cur_position = self._query_position()
+        new_position = (cur_position / Gst.SECOND) + delta_t_seconds
+        # ensure new_position in valid range
+        new_position = max(new_position, 0)
+        self.set_position(t_seconds=new_position)
 
     def set_position(self, t_seconds: int) -> bool:
         """
