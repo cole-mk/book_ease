@@ -268,6 +268,10 @@ class TestSetPositionRelative:
     duration = 100
 
     def init_mocks(self):
+        """
+        Create and return all the mocks that are used for this test class.
+        They should be in a state that is conducive to passing the tests.
+        """
         gst_player = player.GstPlayer()
         gst_player._query_position = mock.Mock()
         gst_player._query_position.return_value = self.duration * Gst.SECOND
