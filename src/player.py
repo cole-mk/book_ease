@@ -304,24 +304,22 @@ class GstPlayer:
         new_position = max(new_position, 0)
         self.set_position(t_seconds=new_position)
 
-    def set_position(self, t_seconds: int) -> bool:
+    def set_position(self, t_seconds: int | float):
         """
         Attempt to set stream position to t_seconds.
 
-        returns True if position is successfully set.
-
-        set_position() returns False when the position parameter passed to method
+        Raises RuntimeError when the position parameter passed to method
         is not within the range:
         (0, infinity]
 
         With anything past the end of the stream, Gst.Pipeline.seek_simple() returns True
         and triggers EOS. Hence, there is no upper bound on the range.
         """
-        return self.pipeline.seek_simple(
-            format=Gst.Format.TIME,
-            seek_flags=Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
-            seek_pos=t_seconds * Gst.SECOND
-        )
+        seek_success = self.pipeline.seek_simple(format=Gst.Format.TIME,
+                                                 seek_flags=Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
+                                                 seek_pos=int(t_seconds * Gst.SECOND))
+        if not seek_success:
+            raise RuntimeError('Failed to set stream playback position.')
 
     def _start_update_time(self, bus: Gst.Bus, msg: Gst.Message):
         """
