@@ -365,3 +365,16 @@ class GstPlayer:
                 self._init_start_position()
                 # This only needs to be done once per stream. Disconnect this callback.
                 bus.disconnect_by_func(self._init_attributes_that_can_only_be_set_after_playback_started)
+
+    def _query_position(self) -> int:
+        """
+        Attempt to query the pipeline's position in the stream.
+
+        Returns: current position in Gst time format
+
+        Raises: RuntimeError if query_position() fails to retrieve the current position.
+        """
+        query_success, cur_position = self.pipeline.query_position(Gst.Format.TIME)
+        if query_success:
+            return cur_position
+        raise RuntimeError('Failed to query current position.')

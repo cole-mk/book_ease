@@ -970,3 +970,55 @@ class Test_UpdateTime:
         """
         gst_player, _ = self.init_mocks()
         assert gst_player._update_time() is True
+
+
+# noinspection PyPep8Naming
+class Test_QueryPosition:
+    """Unit tests for method query_position()"""
+    cur_time = 12345678
+
+    def init_mocks(self):
+        """
+        Create and return all the mocks that are used for this test class.
+        They should be in a state that is conducive to passing the tests.
+        """
+        gst_player = player.GstPlayer()
+        gst_player.pipeline = mock.Mock()
+        gst_player.pipeline.query_position = mock.Mock(return_value=(True, self.cur_time))
+        return gst_player
+
+    def test_calls_pipeline_dot_query_position_correctly(self):
+        """
+        Assert that _query_position() calls gst_player.pipeline.query_position() to retrieve
+        the current position in the playback stream.
+
+        Assert that gst_player.pipeline.query_position() is called with Gst.Format.TIME as the parameter.
+        This necessary because _query_position() returns the current time, and not frames or something else.
+        """
+        gst_player = self.init_mocks()
+        gst_player._query_position()
+        gst_player.pipeline.query_position.assert_called()
+        gst_player.pipeline.query_position.assert_called_with(Gst.Format.TIME)
+
+    def test_returns_current_position_if_pipeline_query_was_a_success(self):
+        """
+        Assert that _query_position() returns the current time if gst_player.pipeline.query_position()
+        successfully executes the query.
+        """
+        gst_player = self.init_mocks()
+        cur_time = gst_player._query_position()
+        assert cur_time == self.cur_time
+
+    def test_raises_runtime_error_if_pipeline_fails_to_query_position(self):
+        """
+        Assert that _query_position() raises runtimeError if gst_player.pipeline.query_position()
+        fails to execute the query.
+        """
+        gst_player = self.init_mocks()
+        gst_player.pipeline.query_position.return_value = (False, self.cur_time)
+        with pytest.raises(RuntimeError):
+            gst_player._query_position()
+
+
+
+
