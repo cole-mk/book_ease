@@ -315,46 +315,47 @@ class TestSetPositionRelative:
 # noinspection PyPep8Naming
 class Test_InitDuration:
     """Unit tests for _init_duration()"""
+    duration = 100 * Gst.SECOND
 
-    def test_returns_true_if_gst_pipeline_fails_to_query_position(self):
-        """Assert that _init_duration() raises RuntimeError when Gstreamer.Pipeline.query_position() fails."""
+    def init_mocks(self):
+        """
+        Create and return all the mocks that are used for this test class.
+        They should be in a state that is conducive to passing the tests.
+        """
         gst_player = player.GstPlayer()
-        gst_player.pipeline = mock.Mock()
-        gst_player.pipeline.__class__.query_duration = mock.Mock(return_value=(False, 100 * Gst.SECOND))
-        ret_val = gst_player._init_duration()
-        assert ret_val is True
-
-    def test_returns_false_if_gst_pipeline_successfully_queries_position(self):
-        """Assert that _init_duration() raises RuntimeError when Gstreamer.Pipeline.query_position() fails."""
-        gst_player = player.GstPlayer()
-        gst_player.pipeline = mock.Mock()
-        gst_player.pipeline.__class__.query_duration = mock.Mock(return_value=(True, 100 * Gst.SECOND))
-        ret_val = gst_player._init_duration()
-        assert ret_val is False
+        gst_player._query_duration = mock.Mock(return_value=self.duration)
+        gst_player.transmitter = mock.Mock()
+        gst_player.transmitter.send = mock.Mock()
+        m_bus = mock.Mock()
+        m_bus.disconnect_by_func = mock.Mock()
+        m_msg = mock.Mock()
+        return gst_player, m_bus, m_msg
 
     def test_sets_self_dot_duration_to_correct_value(self):
         """
         Assert that _init_duration() sets self.duration to the correct value retrieved from gstreamer.
         """
-        gst_player = player.GstPlayer()
-        gst_player.pipeline = mock.Mock()
-        target_duration = 100 * Gst.SECOND
-        gst_player.pipeline.__class__.query_duration = mock.Mock(return_value=(True, target_duration))
-        gst_player._init_duration()
-        assert gst_player.duration == target_duration
+        gst_player, m_bus, m_msg = self.init_mocks()
+        gst_player._init_duration(m_bus, m_msg)
+        assert gst_player.duration == self.duration
 
     def test_emits_duration_ready(self):
         """
         Assert that GstPlayer emits the 'duration_ready' signal as soon as GStreamer is able to
         successfully acquire the duration from the stream.
         """
-        gst_player = player.GstPlayer()
-        gst_player.pipeline = mock.Mock()
-        gst_player.transmitter.send = mock.Mock()
-        target_duration = 100
-        gst_player.pipeline.query_duration = mock.Mock(return_value=(True, target_duration * Gst.SECOND))
-        gst_player._init_duration()
-        gst_player.transmitter.send.assert_called_with('duration_ready', target_duration)
+        gst_player, m_bus, m_msg = self.init_mocks()
+        gst_player._init_duration(m_bus, m_msg)
+        gst_player.transmitter.send.assert_called()
+
+    def test_disconnects_callback(self):
+        """
+        Assert that _init_duration() disconnects itself from the message bus
+        by calling bus.disconnect_by_func
+        """
+        gst_player, m_bus, m_msg = self.init_mocks()
+        gst_player._init_duration(m_bus, m_msg)
+        m_bus.disconnect_by_func.assert_called_with(gst_player._init_duration)
 
 
 # noinspection PyPep8Naming
@@ -472,28 +473,6 @@ class Test_InitAttributesThatCanOnlyBeSetAfterPlaybackStarted:
         glib_idle_add = GLib.timeout_add = mock.Mock()
         return gst_player, m_message, m_bus, glib_idle_add
 
-    def test_calls_init_duration_if_msg_src_is_pipeline_and_pipeline_is_entering_playing_state(self):
-        """
-        Assert that _init_duration() is called via 'GLib.timeout_add' when the passed in msg.src is self.pipeline
-        and 'self.pipeline' is about to enter the playing state.
-
-        Note:
-        It does not matter what the interval parameter of glib_idle_add is, but it does need to be proven
-        that the parameter is used.
-        However, the function parameter does matter.
-
-        'GLib.timeout_add' is used to allow retries until the method succeeds.
-
-         _init_duration() must not be called before this time or Gst can't query the duration from the pipeline.
-
-        Only do this if the message source is 'self.pipeline'.
-        """
-        gst_player, m_message, m_bus, glib_idle_add = self.init_mocks()
-
-        gst_player._init_attributes_that_can_only_be_set_after_playback_started(m_bus, m_message)
-        assert 'interval' in glib_idle_add.call_args.kwargs
-        assert glib_idle_add.call_args.kwargs['function'] == gst_player._init_duration
-
     def test_calls_init_start_position_if_msg_src_is_pipeline_and_pipeline_is_entering_playing_state(self):
         """
         Assert that _init_start_position() is called when the passed in msg.src is self.pipeline
@@ -594,7 +573,9 @@ class Test_InitMessageBus:
             mock.call("message::state-changed", gst_player._start_update_time),
             mock.call("message::error", gst_player._on_error),
             mock.call("message::eos", gst_player._on_eos),
-            mock.call("message::state-changed", gst_player._init_attributes_that_can_only_be_set_after_playback_started)
+            mock.call("message::state-changed",
+                      gst_player._init_attributes_that_can_only_be_set_after_playback_started),
+            mock.call("message::duration-changed", gst_player._init_duration)
         ]
         bus_mock.connect.assert_has_calls(calls, any_order=True)
         assert bus_mock.connect.call_count == len(calls),\

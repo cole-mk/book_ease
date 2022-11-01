@@ -260,6 +260,7 @@ class GstPlayer:
         bus.connect("message::eos", self._on_eos)
         bus.connect("message::state-changed", self._init_attributes_that_can_only_be_set_after_playback_started)
         bus.connect("message::state-changed", self._start_update_time)
+        bus.connect("message::duration-changed", self._init_duration)
         # bus.connect("message::application", self.on_application_message)
 
     def _init_pipeline(self):
@@ -341,16 +342,10 @@ class GstPlayer:
         if not self.set_position(t_seconds=self.position.time):
             print('Failed to set start position of stream')
 
-    def _init_duration(self):
-        continue_periodically_calling_this_method = True
-        query_success, duration = self.pipeline.query_duration(Gst.Format.TIME)
-        if query_success:
-            continue_periodically_calling_this_method = False
-            self.duration = duration
-            # duration needs to be an integer value representing seconds
-            duration_s = int(self.duration / Gst.SECOND)
-            self.transmitter.send('duration_ready', duration_s)
-        return continue_periodically_calling_this_method
+    def _init_duration(self, bus: Gst.Bus, _: Gst.Message):
+        bus.disconnect_by_func(self._init_duration)
+        self.duration = self._query_duration()
+        self.transmitter.send('duration_ready')
 
     def _init_attributes_that_can_only_be_set_after_playback_started(self, bus: Gst.Bus, msg: Gst.Message):
         """
@@ -360,8 +355,6 @@ class GstPlayer:
         if msg.src == self.pipeline:
             old, new, pen = msg.parse_state_changed()
             if old == Gst.State.READY and new == Gst.State.PAUSED and pen == Gst.State.PLAYING:
-                # docstring for timeout_add is wrong. Parameters are not 'mseconds, func'.
-                GLib.timeout_add(interval=250, function=self._init_duration)
                 self._init_start_position()
                 # This only needs to be done once per stream. Disconnect this callback.
                 bus.disconnect_by_func(self._init_attributes_that_can_only_be_set_after_playback_started)
