@@ -40,6 +40,9 @@
 # pylint: disable=comparison-with-callable
 # disabled because this needs to be done regularly during tests.
 #
+# pylint: disable=too-many-lines
+# disabled because this needs to be long.
+#
 
 """
 Unit test for class player.GstPlayer
@@ -265,30 +268,27 @@ class TestPopPositionData:
 
 class TestSetPositionRelative:
     """Unit tests for method set_position_relative()"""
+    duration = 100
 
-    def test_returns_false_if_gst_pipeline_fails_to_query_position(self):
+    def init_mocks(self):
         """
-        Assert that set_position_relative() returns False when Gstreamer.Pipeline.query_position() fails.
+        Create and return all the mocks that are used for this test class.
+        They should be in a state that is conducive to passing the tests.
         """
         gst_player = player.GstPlayer()
-        gst_player.pipeline = mock.Mock()
-        gst_player.pipeline.__class__.query_position = mock.Mock(return_value=(False, 100 * Gst.SECOND))
-        ret_val = gst_player.set_position_relative(delta_t_seconds=1)
-        assert ret_val is False
+        gst_player._query_position = mock.Mock()
+        gst_player._query_position.return_value = self.duration * Gst.SECOND
+        gst_player.set_position = mock.Mock()
 
-    def test_returns_true_if_method_succeds(self):
-        """
-        Assert that the set_position_relative() returns True when the set_position_relative() works as expected.
-        """
-        duration = 100
-        gst_player = player.GstPlayer()
-        gst_player.pipeline = mock.Mock()
-        gst_player.pipeline.__class__.query_position = mock.Mock(return_value=(True, 0*Gst.SECOND))
-        gst_player.set_position = mock.Mock(return_value=True)
-        gst_player.duration = duration * Gst.SECOND
+        return gst_player
 
-        ret_val = gst_player.set_position_relative(delta_t_seconds=1)
-        assert ret_val is True
+    def test_calls_self_dot_query_position(self):
+        """
+        Assert that set_position_relative() call self._query_position() to get the current position.
+        """
+        gst_player = self.init_mocks()
+        gst_player.set_position_relative(delta_t_seconds=1)
+        gst_player._query_position.assert_called()
 
     def test_calls_set_position_with_t_seconds_normalized_to_valid_range(self):
         """
@@ -296,86 +296,91 @@ class TestSetPositionRelative:
         position range, when (current position + delta_t_seconds) is outside the valid range of positions for this
         stream.
         """
-        duration = 100
-        gst_player = player.GstPlayer()
-        gst_player.pipeline = mock.Mock()
-        gst_player.pipeline.__class__.query_position = mock.Mock()
-        gst_player.set_position = mock.Mock()
-        gst_player.duration = duration * Gst.SECOND
+        gst_player = self.init_mocks()
 
         # New position is far less than zero.
-        gst_player.pipeline.query_position.return_value = (True, 0 * Gst.SECOND)
-        gst_player.set_position_relative(delta_t_seconds=-69)
+        gst_player.set_position_relative(delta_t_seconds=self.duration * -2)
         assert gst_player.set_position.called
         assert gst_player.set_position.call_args.kwargs['t_seconds'] == 0
 
         # New position is exactly zero.
-        gst_player.pipeline.query_position.return_value = (True, duration * Gst.SECOND)
-        gst_player.set_position_relative(delta_t_seconds=duration * -1)
+        gst_player.set_position_relative(delta_t_seconds=self.duration * -1)
         assert gst_player.set_position.called
         assert gst_player.set_position.call_args.kwargs['t_seconds'] == 0
 
         # New position is exactly zero-1.
-        gst_player.pipeline.query_position.return_value = (True, 0 * Gst.SECOND)
-        gst_player.set_position_relative(delta_t_seconds=-1)
+        gst_player.set_position_relative(delta_t_seconds=(self.duration * -1) - 1)
         assert gst_player.set_position.called
         assert gst_player.set_position.call_args.kwargs['t_seconds'] == 0
 
         # New position is exactly in the middle of the duration.
-        gst_player.pipeline.query_position.return_value = (True, 0 * Gst.SECOND)
-        gst_player.set_position_relative(delta_t_seconds=int(duration/2))
+        gst_player.set_position_relative(delta_t_seconds=int(self.duration / -2))
         assert gst_player.set_position.called
-        assert gst_player.set_position.call_args.kwargs['t_seconds'] == int(duration/2)
+        assert gst_player.set_position.call_args.kwargs['t_seconds'] == int(self.duration/2)
 
 
 # noinspection PyPep8Naming
 class Test_InitDuration:
     """Unit tests for _init_duration()"""
+    duration = 100 * Gst.SECOND
 
-    def test_raises_runtime_error_if_gst_pipeline_fails_to_query_position(self):
-        """Assert that _init_duration() raises RuntimeError when Gstreamer.Pipeline.query_position() fails."""
+    def init_mocks(self):
+        """
+        Create and return all the mocks that are used for this test class.
+        They should be in a state that is conducive to passing the tests.
+        """
         gst_player = player.GstPlayer()
-        gst_player.pipeline = mock.Mock()
-        gst_player.pipeline.__class__.query_duration = mock.Mock(return_value=(False, 100 * Gst.SECOND))
-        with pytest.raises(RuntimeError):
-            gst_player._init_duration()
+        gst_player._query_duration = mock.Mock(return_value=self.duration)
+        gst_player.transmitter = mock.Mock()
+        gst_player.transmitter.send = mock.Mock()
+        m_bus = mock.Mock()
+        m_bus.disconnect_by_func = mock.Mock()
+        m_msg = mock.Mock()
+        return gst_player, m_bus, m_msg
 
     def test_sets_self_dot_duration_to_correct_value(self):
         """
         Assert that _init_duration() sets self.duration to the correct value retrieved from gstreamer.
         """
-        gst_player = player.GstPlayer()
-        gst_player.pipeline = mock.Mock()
-        target_duration = 100 * Gst.SECOND
-        gst_player.pipeline.__class__.query_duration = mock.Mock(return_value=(True, target_duration))
-        gst_player._init_duration()
-        assert gst_player.duration == target_duration
+        gst_player, m_bus, m_msg = self.init_mocks()
+        gst_player._init_duration(m_bus, m_msg)
+        assert gst_player.duration == self.duration
 
     def test_emits_duration_ready(self):
         """
         Assert that GstPlayer emits the 'duration_ready' signal as soon as GStreamer is able to
         successfully acquire the duration from the stream.
         """
-        gst_player = player.GstPlayer()
-        gst_player.pipeline = mock.Mock()
-        gst_player.transmitter.send = mock.Mock()
-        target_duration = 100
-        gst_player.pipeline.query_duration = mock.Mock(return_value=(True, target_duration * Gst.SECOND))
-        gst_player._init_duration()
-        gst_player.transmitter.send.assert_called_with('duration_ready', target_duration)
+        gst_player, m_bus, m_msg = self.init_mocks()
+        gst_player._init_duration(m_bus, m_msg)
+        gst_player.transmitter.send.assert_called()
+
+    def test_disconnects_callback(self):
+        """
+        Assert that _init_duration() disconnects itself from the message bus
+        by calling bus.disconnect_by_func
+        """
+        gst_player, m_bus, m_msg = self.init_mocks()
+        gst_player._init_duration(m_bus, m_msg)
+        m_bus.disconnect_by_func.assert_called_with(gst_player._init_duration)
 
 
 # noinspection PyPep8Naming
 class Test_InitStartPosition:
     """Unit tests for _init_start_position()"""
 
-    def test_calls_set_position_with_t_seconds_equals_zero(self):
-        """_init_start_position() should simply call set_position(t_seconds=0)"""
+    def test_calls_set_position_with_t_seconds_equals_position_dot_time(self):
+        """
+        _init_start_position() should simply call set_position(t_seconds=self.position.time)
+        """
         gst_player = player.GstPlayer()
+        gst_player.position = mock.Mock()
+        gst_player.position.time = mock.Mock()
         gst_player.set_position = mock.Mock()
+
         gst_player._init_start_position()
         assert gst_player.set_position.called
-        assert gst_player.set_position.call_args.kwargs['t_seconds'] == 0
+        assert gst_player.set_position.call_args.kwargs['t_seconds'] == gst_player.position.time
 
 
 # noinspection PyPep8Naming
@@ -472,21 +477,8 @@ class Test_InitAttributesThatCanOnlyBeSetAfterPlaybackStarted:
         m_message.src = gst_player.pipeline = mock.Mock()
         m_bus = mock.Mock()
         m_bus.disconnect_by_func = mock.Mock()
-        return gst_player, m_message, m_bus
-
-    def test_calls_init_duration_if_msg_src_is_pipeline_and_pipeline_is_entering_playing_state(self):
-        """
-        Assert that _init_duration() is called when the passed in msg.src is self.pipeline
-        and 'self.pipeline' is about to enter the playing state.
-
-         _init_duration() must not be called before this time or Gst can't query the duration from the pipeline.
-
-        Only do this if the message source is 'self.pipeline'.
-        """
-        gst_player, m_message, m_bus = self.init_mocks()
-
-        gst_player._init_attributes_that_can_only_be_set_after_playback_started(m_bus, m_message)
-        assert gst_player._init_duration.called
+        glib_idle_add = GLib.timeout_add = mock.Mock()
+        return gst_player, m_message, m_bus, glib_idle_add
 
     def test_calls_init_start_position_if_msg_src_is_pipeline_and_pipeline_is_entering_playing_state(self):
         """
@@ -498,7 +490,7 @@ class Test_InitAttributesThatCanOnlyBeSetAfterPlaybackStarted:
 
         Only do this if the message source is 'self.pipeline'.
         """
-        gst_player, m_message, m_bus = self.init_mocks()
+        gst_player, m_message, m_bus, _ = self.init_mocks()
 
         gst_player._init_attributes_that_can_only_be_set_after_playback_started(m_bus, m_message)
         assert gst_player._init_start_position.called
@@ -510,13 +502,13 @@ class Test_InitAttributesThatCanOnlyBeSetAfterPlaybackStarted:
         """
 
         # 'self.pipeline' is not about to enter the playing state
-        gst_player, m_message, m_bus = self.init_mocks()
+        gst_player, m_message, m_bus, _ = self.init_mocks()
         m_message.parse_state_changed.return_value = (None, None, None)
         gst_player._init_attributes_that_can_only_be_set_after_playback_started(m_bus, m_message)
         assert not gst_player._init_start_position.called
 
         #  msg.src is not self.pipeline
-        gst_player, m_message, m_bus = self.init_mocks()
+        gst_player, m_message, m_bus, _ = self.init_mocks()
         m_message.src = None
         gst_player._init_attributes_that_can_only_be_set_after_playback_started(m_bus, m_message)
         assert not gst_player._init_start_position.called
@@ -527,7 +519,7 @@ class Test_InitAttributesThatCanOnlyBeSetAfterPlaybackStarted:
         Make sure that the callback is disconnected  when the passed in msg.src is self.pipeline
         and 'self.pipeline' is about to enter the playing state.
         """
-        gst_player, m_message, m_bus = self.init_mocks()
+        gst_player, m_message, m_bus, _ = self.init_mocks()
         gst_player._init_attributes_that_can_only_be_set_after_playback_started(m_bus, m_message)
         assert m_bus.disconnect_by_func.called
 
@@ -539,13 +531,13 @@ class Test_InitAttributesThatCanOnlyBeSetAfterPlaybackStarted:
         """
 
         # 'self.pipeline' is not about to enter the playing state
-        gst_player, m_message, m_bus = self.init_mocks()
+        gst_player, m_message, m_bus, _ = self.init_mocks()
         m_message.parse_state_changed.return_value = (None, None, None)
         gst_player._init_attributes_that_can_only_be_set_after_playback_started(m_bus, m_message)
         assert not m_bus.disconnect_by_func.called
 
         #  msg.src is not self.pipeline
-        gst_player, m_message, m_bus = self.init_mocks()
+        gst_player, m_message, m_bus, _ = self.init_mocks()
         m_message.src = None
         gst_player._init_attributes_that_can_only_be_set_after_playback_started(m_bus, m_message)
         assert not m_bus.disconnect_by_func.called
@@ -588,7 +580,9 @@ class Test_InitMessageBus:
             mock.call("message::state-changed", gst_player._start_update_time),
             mock.call("message::error", gst_player._on_error),
             mock.call("message::eos", gst_player._on_eos),
-            mock.call("message::state-changed", gst_player._init_attributes_that_can_only_be_set_after_playback_started)
+            mock.call("message::state-changed",
+                      gst_player._init_attributes_that_can_only_be_set_after_playback_started),
+            mock.call("message::duration-changed", gst_player._init_duration)
         ]
         bus_mock.connect.assert_has_calls(calls, any_order=True)
         assert bus_mock.connect.call_count == len(calls),\
@@ -878,7 +872,7 @@ class Test_UpdateTime:
         gst_player.position = mock.Mock()
         gst_player.position.time = None
         cur_time = 12345678
-        gst_player.pipeline.query_position = mock.Mock(return_value=(True, cur_time * Gst.SECOND))
+        gst_player._query_position = mock.Mock(return_value=cur_time * Gst.SECOND)
         return gst_player, cur_time
 
     def test_returns_false_when_pipeline_None(self):
@@ -926,21 +920,18 @@ class Test_UpdateTime:
         self.pipeline != None
         """
         gst_player, _ = self.init_mocks()
-        gst_player.pipeline.query_position.return_value = (False, 12345678)
+        gst_player._query_position = mock.Mock(side_effect=RuntimeError)
         gst_player._update_time()
         assert gst_player.position.time is None
 
-    def test_calls_query_position_with_correct_args(self):
+    def test_calls_self_dot_query_position(self):
 
         """
-        _update_time() must call pipeline.query_position() with Gst.Format.TIME as the arg, so that the output
-        is a timestamp and not a frame count or something else.
-        gst_player = self.init_mocks()
+        _update_time() must call self._query_position() in order to update the time
         """
         gst_player, _ = self.init_mocks()
         gst_player._update_time()
-        gst_player.pipeline.query_position.assert_called()
-        gst_player.pipeline.query_position.assert_called_with(Gst.Format.TIME)
+        gst_player._query_position.assert_called()
 
     def test_returns_true_when_time_is_updated_sccessfully(self):
         """
@@ -948,3 +939,150 @@ class Test_UpdateTime:
         """
         gst_player, _ = self.init_mocks()
         assert gst_player._update_time() is True
+
+    def test_returns_true_when_time_is_not_updated_successfully(self):
+        """
+        _update_time() must return True if it wants to continue being called periodically.
+        """
+        gst_player, _ = self.init_mocks()
+        gst_player._query_position = mock.Mock(side_effect=RuntimeError)
+        assert gst_player._update_time() is True
+
+
+# noinspection PyPep8Naming
+class Test_QueryPosition:
+    """Unit tests for method query_position()"""
+    cur_time = 12345678
+
+    def init_mocks(self):
+        """
+        Create and return all the mocks that are used for this test class.
+        They should be in a state that is conducive to passing the tests.
+        """
+        gst_player = player.GstPlayer()
+        gst_player.pipeline = mock.Mock()
+        gst_player.pipeline.query_position = mock.Mock(return_value=(True, self.cur_time))
+        return gst_player
+
+    def test_calls_pipeline_dot_query_position_correctly(self):
+        """
+        Assert that _query_position() calls gst_player.pipeline.query_position() to retrieve
+        the current position in the playback stream.
+
+        Assert that gst_player.pipeline.query_position() is called with Gst.Format.TIME as the parameter.
+        This necessary because _query_position() returns the current time, and not frames or something else.
+        """
+        gst_player = self.init_mocks()
+        gst_player._query_position()
+        gst_player.pipeline.query_position.assert_called()
+        gst_player.pipeline.query_position.assert_called_with(Gst.Format.TIME)
+
+    def test_returns_current_position_if_pipeline_query_was_a_success(self):
+        """
+        Assert that _query_position() returns the current time if gst_player.pipeline.query_position()
+        successfully executes the query.
+        """
+        gst_player = self.init_mocks()
+        cur_time = gst_player._query_position()
+        assert cur_time == self.cur_time
+
+    def test_raises_runtime_error_if_pipeline_fails_to_query_position(self):
+        """
+        Assert that _query_position() raises runtimeError if gst_player.pipeline.query_position()
+        fails to execute the query.
+        """
+        gst_player = self.init_mocks()
+        gst_player.pipeline.query_position.return_value = (False, self.cur_time)
+        with pytest.raises(RuntimeError):
+            gst_player._query_position()
+
+
+# noinspection PyPep8Naming
+class Test_QueryDuration:
+    """Unit tests for method _query_duration()"""
+    duration = 12345678
+
+    def init_mocks(self):
+        """
+        Create and return all the mocks that are used for this test class.
+        They should be in a state that is conducive to passing the tests.
+        """
+        gst_player = player.GstPlayer()
+        gst_player.pipeline = mock.Mock()
+        gst_player.pipeline.query_duration = mock.Mock(return_value=(True, self.duration))
+        return gst_player
+
+    def test_calls_pipeline_dot_query_duration_correctly(self):
+        """
+        Assert that _query_duration() calls gst_player.pipeline.query_duration() to retrieve
+        the current duration of the playback stream.
+
+        Assert that gst_player.pipeline.query_duration() is called with Gst.Format.TIME as the parameter.
+        This necessary because _query_duration() returns the current duration, and not frames or something else.
+        """
+        gst_player = self.init_mocks()
+        gst_player._query_duration()
+        gst_player.pipeline.query_duration.assert_called()
+        gst_player.pipeline.query_duration.assert_called_with(Gst.Format.TIME)
+
+    def test_returns_current_duration_if_pipeline_query_was_a_success(self):
+        """
+        Assert that _query_duration() returns the current duration if gst_player.pipeline.query_duration()
+        successfully executes the query.
+        """
+        gst_player = self.init_mocks()
+        duration = gst_player._query_duration()
+        assert duration == self.duration
+
+    def test_raises_runtime_error_if_pipeline_fails_to_query_duration(self):
+        """
+        Assert that _query_duration() raises runtimeError if gst_player.pipeline.query_duration()
+        fails to execute the query.
+        """
+        gst_player = self.init_mocks()
+        gst_player.pipeline.query_duration.return_value = (False, self.duration)
+        with pytest.raises(RuntimeError):
+            gst_player._query_duration()
+
+
+class TestSetPosition:
+    """Unit test for method play()"""
+
+    @staticmethod
+    def init_mocks():
+        """
+        Create and return all the mocks that are used for this test class.
+        They should be in a state that is conducive to passing the tests.
+        """
+        gst_player = player.GstPlayer()
+        gst_player.pipeline = mock.Mock()
+        gst_player.pipeline.seek_simple = mock.Mock(return_value=True)
+        return gst_player
+
+    def test_cals_self_dot_pipeline_dot_seek_simple(self):
+        """
+        Assert that set_position() calls self.pipeline.seek_simple() with the correct args.
+        """
+        gst_player = self.init_mocks()
+        time = 30
+        gst_time = time * Gst.SECOND
+        gst_player.set_position(t_seconds=time)
+        call_kwargs = {
+            'format': Gst.Format.TIME,
+            'seek_flags': Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
+            'seek_pos': gst_time
+        }
+        assert gst_player.pipeline.seek_simple.call_args.kwargs == call_kwargs
+
+    def test_raises_runtime_error_if_self_dot_pipeline_dot_seek_simple_fails(self):
+        """
+        Asert that set_position() raises RuntimeError if self.pipeline.seek_simple()
+        returns False.
+
+        self.pipeline.seek_simple() returns False when the pipeline fails
+        to set the position.
+        """
+        gst_player = self.init_mocks()
+        gst_player.pipeline.seek_simple.return_value = False
+        with pytest.raises(RuntimeError):
+            gst_player.set_position(t_seconds=30)

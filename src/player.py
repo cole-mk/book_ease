@@ -65,11 +65,11 @@ class PlayerDBI:
             row = self.player_position_joined.get_row_by_playlist_id(con=con, playlist_id=playlist_id)
         position = PositionData()
         if row is not None:
-            position.path = row['track_file.path']
-            position.time = row['player_position.time']
-            position.pl_track_id = row['player_position.pl_track_id']
-            position.playlist_id = row['player_position.playlist_id']
-            position.track_number = row['pl_track.track_number']
+            position.path = row['path']
+            position.time = row['time']
+            position.pl_track_id = row['pl_track_id']
+            position.playlist_id = row['playlist_id']
+            position.track_number = row['track_number']
         return position
 
     def get_new_position(self, playlist_id: int, track_number: int, time_: int) -> PositionData:
@@ -230,17 +230,20 @@ class GstPlayer:
         """
         Set self.position.time to the stream's current position.
         """
+        # pylint: disable=lost-exception
+        # Disabled because swallowing the exception is exactly the behavior needed.
+        # It should output an error message, and then return True so that the callback
+        # gets called again later.
         if self.pipeline is None:
             # returning False stops this from being called again
             return False
         if self.playback_state == 'stopped':
             return True
-
-        query_success, cur_time = self.pipeline.query_position(Gst.Format.TIME)
-        if query_success:
-            cur_time_seconds = int(cur_time / Gst.SECOND)
-            self.position.time = cur_time_seconds
-        return True
+        try:
+            cur_time = self._query_position()
+            self.position.time = int(cur_time / Gst.SECOND)
+        finally:
+            return True
 
     def _close_pipeline(self):
         """Cleanup the pipeline"""
@@ -257,6 +260,7 @@ class GstPlayer:
         bus.connect("message::eos", self._on_eos)
         bus.connect("message::state-changed", self._init_attributes_that_can_only_be_set_after_playback_started)
         bus.connect("message::state-changed", self._start_update_time)
+        bus.connect("message::duration-changed", self._init_duration)
         # bus.connect("message::application", self.on_application_message)
 
     def _init_pipeline(self):
@@ -288,39 +292,34 @@ class GstPlayer:
         self._close_pipeline()
         self.transmitter.send('eos')
 
-    def set_position_relative(self, delta_t_seconds: int) -> bool:
+    def set_position_relative(self, delta_t_seconds: int):
         """
-        Attempt to set stream position to current position + delta_t_seconds.
+        Set stream position to current position + delta_t_seconds.
 
         Normalize the new position to values acceptable to self.set_position()
         """
-        set_position_success = False
-        query_success, cur_position = self.pipeline.query_position(Gst.Format.TIME)
-        if query_success:
-            new_position = (cur_position / Gst.SECOND) + delta_t_seconds
-            # ensure new_position in valid range
-            new_position = max(new_position, 0)
-            set_position_success = self.set_position(t_seconds=new_position)
-        return set_position_success
+        cur_position = self._query_position()
+        new_position = (cur_position / Gst.SECOND) + delta_t_seconds
+        # ensure new_position in valid range
+        new_position = max(new_position, 0)
+        self.set_position(t_seconds=new_position)
 
-    def set_position(self, t_seconds: int) -> bool:
+    def set_position(self, t_seconds: int | float):
         """
         Attempt to set stream position to t_seconds.
 
-        returns True if position is successfully set.
-
-        set_position() returns False when the position parameter passed to method
+        Raises RuntimeError when the position parameter passed to method
         is not within the range:
         (0, infinity]
 
         With anything past the end of the stream, Gst.Pipeline.seek_simple() returns True
         and triggers EOS. Hence, there is no upper bound on the range.
         """
-        return self.pipeline.seek_simple(
-            format=Gst.Format.TIME,
-            seek_flags=Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
-            seek_pos=t_seconds * Gst.SECOND
-        )
+        seek_success = self.pipeline.seek_simple(format=Gst.Format.TIME,
+                                                 seek_flags=Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
+                                                 seek_pos=int(t_seconds * Gst.SECOND))
+        if not seek_success:
+            raise RuntimeError('Failed to set stream playback position.')
 
     def _start_update_time(self, bus: Gst.Bus, msg: Gst.Message):
         """
@@ -338,15 +337,13 @@ class GstPlayer:
         Set playback position to the time saved in self.position or the start of the stream.
         This is a state-changed callback.
         """
-        self.set_position(t_seconds=0)
+        if not self.set_position(t_seconds=self.position.time):
+            print('Failed to set start position of stream')
 
-    def _init_duration(self):
-        query_success, self.duration = self.pipeline.query_duration(Gst.Format.TIME)
-        if not query_success:
-            raise RuntimeError('failed to query duration')
-        # duration needs to be an integer value representing seconds
-        duration = int(self.duration / Gst.SECOND)
-        self.transmitter.send('duration_ready', duration)
+    def _init_duration(self, bus: Gst.Bus, _: Gst.Message):
+        bus.disconnect_by_func(self._init_duration)
+        self.duration = self._query_duration()
+        self.transmitter.send('duration_ready')
 
     def _init_attributes_that_can_only_be_set_after_playback_started(self, bus: Gst.Bus, msg: Gst.Message):
         """
@@ -356,7 +353,32 @@ class GstPlayer:
         if msg.src == self.pipeline:
             old, new, pen = msg.parse_state_changed()
             if old == Gst.State.READY and new == Gst.State.PAUSED and pen == Gst.State.PLAYING:
-                self._init_duration()
                 self._init_start_position()
                 # This only needs to be done once per stream. Disconnect this callback.
                 bus.disconnect_by_func(self._init_attributes_that_can_only_be_set_after_playback_started)
+
+    def _query_position(self) -> int:
+        """
+        Attempt to query the pipeline's position in the stream.
+
+        Returns: current position in Gst time format
+
+        Raises: RuntimeError if query_position() fails to retrieve the current position.
+        """
+        query_success, cur_position = self.pipeline.query_position(Gst.Format.TIME)
+        if query_success:
+            return cur_position
+        raise RuntimeError('Failed to query current position.')
+
+    def _query_duration(self) -> int:
+        """
+        Attempt to query the stream's duration from the pipeline.
+
+        Returns: current duration in Gst time format
+
+        Raises: RuntimeError if _query_duration() fails to retrieve the duration of the current stream.
+        """
+        query_success, cur_duration = self.pipeline.query_duration(Gst.Format.TIME)
+        if query_success:
+            return cur_duration
+        raise RuntimeError('Failed to query the current duration.')
