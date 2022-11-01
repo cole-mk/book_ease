@@ -884,7 +884,7 @@ class Test_UpdateTime:
         gst_player.position = mock.Mock()
         gst_player.position.time = None
         cur_time = 12345678
-        gst_player.pipeline.query_position = mock.Mock(return_value=(True, cur_time * Gst.SECOND))
+        gst_player._query_position = mock.Mock(return_value=cur_time * Gst.SECOND)
         return gst_player, cur_time
 
     def test_returns_false_when_pipeline_None(self):
@@ -932,27 +932,32 @@ class Test_UpdateTime:
         self.pipeline != None
         """
         gst_player, _ = self.init_mocks()
-        gst_player.pipeline.query_position.return_value = (False, 12345678)
+        gst_player._query_position = mock.Mock(side_effect=RuntimeError)
         gst_player._update_time()
         assert gst_player.position.time is None
 
-    def test_calls_query_position_with_correct_args(self):
+    def test_calls_self_dot_query_position(self):
 
         """
-        _update_time() must call pipeline.query_position() with Gst.Format.TIME as the arg, so that the output
-        is a timestamp and not a frame count or something else.
-        gst_player = self.init_mocks()
+        _update_time() must call self._query_position() in order to update the time
         """
         gst_player, _ = self.init_mocks()
         gst_player._update_time()
-        gst_player.pipeline.query_position.assert_called()
-        gst_player.pipeline.query_position.assert_called_with(Gst.Format.TIME)
+        gst_player._query_position.assert_called()
 
     def test_returns_true_when_time_is_updated_sccessfully(self):
         """
         _update_time() must return True if it wants to continue being called periodically.
         """
         gst_player, _ = self.init_mocks()
+        assert gst_player._update_time() is True
+
+    def test_returns_true_when_time_is_not_updated_successfully(self):
+        """
+        _update_time() must return True if it wants to continue being called periodically.
+        """
+        gst_player, _ = self.init_mocks()
+        gst_player._query_position = mock.Mock(side_effect=RuntimeError)
         assert gst_player._update_time() is True
 
 

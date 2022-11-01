@@ -230,17 +230,20 @@ class GstPlayer:
         """
         Set self.position.time to the stream's current position.
         """
+        # pylint: disable=lost-exception
+        # Disabled because swallowing the exception is exactly the behavior needed.
+        # It should output an error message, and then return True so that the callback
+        # gets called again later.
         if self.pipeline is None:
             # returning False stops this from being called again
             return False
         if self.playback_state == 'stopped':
             return True
-
-        query_success, cur_time = self.pipeline.query_position(Gst.Format.TIME)
-        if query_success:
-            cur_time_seconds = int(cur_time / Gst.SECOND)
-            self.position.time = cur_time_seconds
-        return True
+        try:
+            cur_time = self._query_position()
+            self.position.time = int(cur_time / Gst.SECOND)
+        finally:
+            return True
 
     def _close_pipeline(self):
         """Cleanup the pipeline"""
