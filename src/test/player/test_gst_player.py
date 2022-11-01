@@ -265,30 +265,23 @@ class TestPopPositionData:
 
 class TestSetPositionRelative:
     """Unit tests for method set_position_relative()"""
+    duration = 100
 
-    def test_returns_false_if_gst_pipeline_fails_to_query_position(self):
-        """
-        Assert that set_position_relative() returns False when Gstreamer.Pipeline.query_position() fails.
-        """
+    def init_mocks(self):
         gst_player = player.GstPlayer()
-        gst_player.pipeline = mock.Mock()
-        gst_player.pipeline.__class__.query_position = mock.Mock(return_value=(False, 100 * Gst.SECOND))
-        ret_val = gst_player.set_position_relative(delta_t_seconds=1)
-        assert ret_val is False
+        gst_player._query_position = mock.Mock()
+        gst_player._query_position.return_value = self.duration * Gst.SECOND
+        gst_player.set_position = mock.Mock()
 
-    def test_returns_true_if_method_succeds(self):
-        """
-        Assert that the set_position_relative() returns True when the set_position_relative() works as expected.
-        """
-        duration = 100
-        gst_player = player.GstPlayer()
-        gst_player.pipeline = mock.Mock()
-        gst_player.pipeline.__class__.query_position = mock.Mock(return_value=(True, 0*Gst.SECOND))
-        gst_player.set_position = mock.Mock(return_value=True)
-        gst_player.duration = duration * Gst.SECOND
+        return gst_player
 
-        ret_val = gst_player.set_position_relative(delta_t_seconds=1)
-        assert ret_val is True
+    def test_calls_self_dot_query_position(self):
+        """
+        Assert that set_position_relative() call self._query_position() to get the current position.
+        """
+        gst_player = self.init_mocks()
+        gst_player.set_position_relative(delta_t_seconds=1)
+        gst_player._query_position.assert_called()
 
     def test_calls_set_position_with_t_seconds_normalized_to_valid_range(self):
         """
@@ -296,36 +289,27 @@ class TestSetPositionRelative:
         position range, when (current position + delta_t_seconds) is outside the valid range of positions for this
         stream.
         """
-        duration = 100
-        gst_player = player.GstPlayer()
-        gst_player.pipeline = mock.Mock()
-        gst_player.pipeline.__class__.query_position = mock.Mock()
-        gst_player.set_position = mock.Mock()
-        gst_player.duration = duration * Gst.SECOND
+        gst_player = self.init_mocks()
 
         # New position is far less than zero.
-        gst_player.pipeline.query_position.return_value = (True, 0 * Gst.SECOND)
-        gst_player.set_position_relative(delta_t_seconds=-69)
+        gst_player.set_position_relative(delta_t_seconds=self.duration * -2)
         assert gst_player.set_position.called
         assert gst_player.set_position.call_args.kwargs['t_seconds'] == 0
 
         # New position is exactly zero.
-        gst_player.pipeline.query_position.return_value = (True, duration * Gst.SECOND)
-        gst_player.set_position_relative(delta_t_seconds=duration * -1)
+        gst_player.set_position_relative(delta_t_seconds=self.duration * -1)
         assert gst_player.set_position.called
         assert gst_player.set_position.call_args.kwargs['t_seconds'] == 0
 
         # New position is exactly zero-1.
-        gst_player.pipeline.query_position.return_value = (True, 0 * Gst.SECOND)
-        gst_player.set_position_relative(delta_t_seconds=-1)
+        gst_player.set_position_relative(delta_t_seconds=(self.duration * -1) - 1)
         assert gst_player.set_position.called
         assert gst_player.set_position.call_args.kwargs['t_seconds'] == 0
 
         # New position is exactly in the middle of the duration.
-        gst_player.pipeline.query_position.return_value = (True, 0 * Gst.SECOND)
-        gst_player.set_position_relative(delta_t_seconds=int(duration/2))
+        gst_player.set_position_relative(delta_t_seconds=int(self.duration / -2))
         assert gst_player.set_position.called
-        assert gst_player.set_position.call_args.kwargs['t_seconds'] == int(duration/2)
+        assert gst_player.set_position.call_args.kwargs['t_seconds'] == int(self.duration/2)
 
 
 # noinspection PyPep8Naming
