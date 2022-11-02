@@ -142,6 +142,8 @@ class Player:  # pylint: disable=too-few-public-methods
         self.player_dbi = PlayerDBI()
         self.gst_player = GstPlayer()
         self.position = None
+        self.skip_duration_short = 3
+        self.skip_duration_long = 30
 
     def load_playlist(self, playlist_data: book.PlaylistData):
         """
@@ -159,6 +161,66 @@ class Player:  # pylint: disable=too-few-public-methods
             self.gst_player.load_position_data(position=position)
         else:
             raise RuntimeError('Failed to load playlist position ', position)
+
+    def play(self):
+        """
+        Transport control method 'play'
+        Calls on the media-player backend to play a stream.
+        """
+        self.gst_player.play()
+
+    def pause(self):
+        """
+        Transport control method 'pause'
+        Calls on the media-player backend to pause a playing stream.
+        """
+        self.gst_player.pause()
+
+    def stop(self):
+        """
+        Transport control method 'stop'
+        Calls on the media-player backend to stop a playing stream.
+        """
+        self.gst_player.stop()
+
+    def go_to_position(self, t_seconds: int):
+        """
+        Transport control method to set the position of a stream to t_seconds.
+        Calls on the media-player backend to set the position of a playing stream.
+        """
+        self.gst_player.set_position(t_seconds=t_seconds)
+
+    def skip_forward_short(self):
+        """
+        Transport control method 'short skip forward'
+        Calls on the media-player backend to skip ahead in a playing stream,
+        by an amount equal to self.skip_duration_short.
+        """
+        self.gst_player.set_position_relative(delta_t_seconds=self.skip_duration_short)
+
+    def skip_reverse_short(self):
+        """
+        Transport control method 'short skip reverse'
+        Calls on the media-player backend to skip back in a playing stream,
+        by an amount equal to self.skip_duration_short.
+        """
+        self.gst_player.set_position_relative(delta_t_seconds=self.skip_duration_short * -1)
+
+    def skip_forward_long(self):
+        """
+        Transport control method 'long skip forward'
+        Calls on the media-player backend to skip ahead in a playing stream,
+        by an amount equal to self.skip_duration_long.
+        """
+        self.gst_player.set_position_relative(delta_t_seconds=self.skip_duration_long)
+
+    def skip_reverse_long(self):
+        """
+        Transport control method 'long skip backward'
+        Calls on the media-player backend to skip back in a playing stream,
+        by an amount equal to self.skip_duration_long.
+        """
+        self.gst_player.set_position_relative(delta_t_seconds=self.skip_duration_long * -1)
 
 
 class GstPlayer:
