@@ -147,6 +147,8 @@ class Player:  # pylint: disable=too-few-public-methods
         """
         Load self.position with a PositionData from the database if it exists, or set it to a newly created one that
         starts at the beginning of the first track in the playlist.
+
+        Raises: RuntimeError if load_playlist() fails to generate a completely instantiated PositionData object.
         """
         playlist_id = playlist_data.get_id()
         position = self.player_dbi.get_saved_position(playlist_id=playlist_id)
