@@ -54,7 +54,7 @@ class TestGetSavedPosition:
     @mock.patch.object(audio_book_tables.JoinTrackFilePlTrackPlayerPosition, 'get_row_by_playlist_id')
     def test_returns_position_data_object_when_get_path_position_by_playlist_id_returns_sqlite3_row(self, magic_mock):
         """
-        Show that get_saved_position returns a PositionData object when
+        Show that get_saved_position returns a StreamData object when
         audio_book_tables.JoinTrackFilePlTrackPlayerPosition.get_path_position_by_playlist_id
         returns an sqlite3.row object.
         """
@@ -68,7 +68,7 @@ class TestGetSavedPosition:
         }
         player_dbi = player.PlayerDBI()
         val = player_dbi.get_saved_position(1)
-        assert isinstance(val, player.PositionData)
+        assert isinstance(val, player.StreamData)
 
     @mock.patch.object(audio_book_tables, 'DB_CONNECTION', sqlite_tools.DBConnectionManager(":memory:"))
     @mock.patch.object(audio_book_tables.JoinTrackFilePlTrackPlayerPosition, 'get_row_by_playlist_id')
@@ -255,13 +255,13 @@ class TestGetNewPosition:
     player.PlayerDBI.get_new_position(self,
                                       playlist_id: int,
                                       track_number: int,
-                                      time: int) -> PositionData:
+                                      time: int) -> StreamData:
     """
 
     @mock.patch.object(player.PlayerDBI, 'get_track_id_pl_track_id_by_number')
     @mock.patch.object(player.PlayerDBI, 'get_path_by_id')
     def test_returns_fully_set_position_data(self, mock_get_path_by_id, mock_get_track_id_pl_track_id_by_number):
-        """Assert that get_new_position returns a PositionData object fully set with the expected values"""
+        """Assert that get_new_position returns a StreamData object fully set with the expected values"""
         time = 0
         playlist_id = 1
         track_number = 2

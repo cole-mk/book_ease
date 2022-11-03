@@ -76,7 +76,7 @@ class TestGetURIFromPath:
 
 
 class TestLoadPositionData:
-    """Unit tests for method load_position_data()"""
+    """Unit tests for method load_stream()"""
 
     @staticmethod
     def init_mocks():
@@ -90,33 +90,33 @@ class TestLoadPositionData:
         return gst_player, m_init_message_bus, m_init_pipeline
 
     def test_raises_runtime_error_if_already_set(self):
-        """Asset that load_position_data() raises a RuntimeError if position is already set."""
+        """Asset that load_stream() raises a RuntimeError if position is already set."""
         gst_player, m_init_message_bus, m_init_pipeline = self.init_mocks()
-        gst_player.position = player.PositionData()
+        gst_player.position = player.StreamData()
         with pytest.raises(RuntimeError):
-            gst_player.load_position_data(player.PositionData())
+            gst_player.load_stream(player.StreamData())
 
     def test_not_raise_runtime_error_if_not_already_set(self):
         """
-        Assert that load_position_data() does not raise a RuntimeError if 'self.position' has not already been set.
+        Assert that load_stream() does not raise a RuntimeError if 'self.position' has not already been set.
         """
         gst_player, m_init_message_bus, m_init_pipeline = self.init_mocks()
         try:
-            gst_player.load_position_data(player.PositionData())
+            gst_player.load_stream(player.StreamData())
             assert True
         except RuntimeError:
             assert False, 'Raised RuntimeError even though self.position was not already set.'
 
     def test_method_calls_init_pipeline(self):
-        """Assert that load_position_data() calls _init_pipeline()"""
+        """Assert that load_stream() calls _init_pipeline()"""
         gst_player, m_init_message_bus, m_init_pipeline = self.init_mocks()
-        gst_player.load_position_data(player.PositionData())
+        gst_player.load_stream(player.StreamData())
         assert m_init_pipeline.called, 'Failed to call method GstPlayer._init_pipeline'
 
     def test_method_calls_init_message_bus(self):
-        """Assert that load_position_data() calls _init_message_bus()"""
+        """Assert that load_stream() calls _init_message_bus()"""
         gst_player, m_init_message_bus, m_init_pipeline = self.init_mocks()
-        gst_player.load_position_data(player.PositionData())
+        gst_player.load_stream(player.StreamData())
         assert m_init_message_bus.called, 'Failed to call method GstPlayer._init_pipeline'
 
 
@@ -233,7 +233,7 @@ class TestPopPositionData:
         """
         gst_player = player.GstPlayer()
         gst_player._close_pipeline = m_close_pipeline = mock.Mock()
-        gst_player.position = player.PositionData()
+        gst_player.position = player.StreamData()
         return gst_player, m_close_pipeline
 
     def test_raises_runtime_error_if_position_is_not_already_set(self):

@@ -59,11 +59,11 @@ class PlayerDBI:
             self.pl_track.init_table(con)
             self.track.init_table(con)
 
-    def get_saved_position(self, playlist_id: int) -> PositionData:
+    def get_saved_position(self, playlist_id: int) -> StreamData:
         """Get the playlist's saved position."""
         with audio_book_tables.DB_CONNECTION.query() as con:
             row = self.player_position_joined.get_row_by_playlist_id(con=con, playlist_id=playlist_id)
-        position = PositionData()
+        position = StreamData()
         if row is not None:
             position.path = row['path']
             position.time = row['time']
@@ -72,9 +72,9 @@ class PlayerDBI:
             position.track_number = row['track_number']
         return position
 
-    def get_new_position(self, playlist_id: int, track_number: int, time_: int) -> PositionData:
+    def get_new_position(self, playlist_id: int, track_number: int, time_: int) -> StreamData:
         """
-        Create a PositionData object set to the beginning of the track_number of the playlist.
+        Create a StreamData object set to the beginning of the track_number of the playlist.
         """
         track_id, pl_track_id = self.get_track_id_pl_track_id_by_number(
             playlist_id=playlist_id,
@@ -82,7 +82,7 @@ class PlayerDBI:
         )
         path = self.get_path_by_id(track_id=track_id)
 
-        position = PositionData(
+        position = StreamData(
             pl_track_id=pl_track_id,
             track_number=track_number,
             playlist_id=playlist_id,
@@ -119,7 +119,7 @@ class PlayerDBI:
 
 
 @dataclass
-class PositionData:
+class StreamData:
     """Container for position data."""
     path: str | None = None
     time: int | None = None
@@ -147,10 +147,10 @@ class Player:  # pylint: disable=too-few-public-methods
 
     def load_playlist(self, playlist_data: book.PlaylistData):
         """
-        Load self.position with a PositionData from the database if it exists, or set it to a newly created one that
+        Load self.position with a StreamData from the database if it exists, or set it to a newly created one that
         starts at the beginning of the first track in the playlist.
 
-        Raises: RuntimeError if load_playlist() fails to generate a completely instantiated PositionData object.
+        Raises: RuntimeError if load_playlist() fails to generate a completely instantiated StreamData object.
         """
         playlist_id = playlist_data.get_id()
         position = self.player_dbi.get_saved_position(playlist_id=playlist_id)
@@ -158,7 +158,7 @@ class Player:  # pylint: disable=too-few-public-methods
             position = self.player_dbi.get_new_position(playlist_id=playlist_id, track_number=0, time_=0)
 
         if position.is_fully_set():
-            self.gst_player.load_position_data(position=position)
+            self.gst_player.load_stream(position=position)
         else:
             raise RuntimeError('Failed to load playlist position ', position)
 
@@ -237,7 +237,7 @@ class GstPlayer:
         self.transmitter = signal_.Signal()
         self.transmitter.add_signal('time_updated', 'duration_ready', 'eos')
 
-    def load_position_data(self, position: PositionData):
+    def load_stream(self, position: StreamData):
         """Set the player position."""
         if self.position is not None:
             raise RuntimeError('GstPlayer.position is not None')
