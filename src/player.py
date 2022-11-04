@@ -170,7 +170,7 @@ class StreamData:
         return True
 
 
-class Player:  # pylint: disable=too-few-public-methods
+class Player:
     """The model class for the media player backend"""
 
     def __init__(self):
