@@ -67,13 +67,13 @@ class PlayerDBI:
         position = StreamData()
         if row is not None:
             position.path = row['path']
-            position.time = row['time']
+            position.time = StreamTime(row['time'])
             position.pl_track_id = row['pl_track_id']
             position.playlist_id = row['playlist_id']
             position.track_number = row['track_number']
         return position
 
-    def get_new_position(self, playlist_id: int, track_number: int, time_: int) -> StreamData:
+    def get_new_position(self, playlist_id: int, track_number: int, time_: StreamTime) -> StreamData:
         """
         Create a StreamData object set to the beginning of the track_number of the playlist.
         """
@@ -151,17 +151,21 @@ class StreamTime:
 
 @dataclass
 class StreamData:
-    """Container for position data."""
+    """Container for stream data."""
+    _required_attributes: ClassVar[tuple] = ('path', 'time', 'track_number', 'playlist_id', 'pl_track_id')
+
+    # instance attributes
     path: str | None = None
-    time: int | None = None
+    time: StreamTime | None = None
+    duration: StreamTime | None = None
     track_number: int | None = None
     playlist_id: int | None = None
     pl_track_id: int | None = None
 
     def is_fully_set(self):
-        """Check that all attributes have been set"""
+        """Check that all required attributes have been set."""
         for item in self.__dict__.items():
-            if item[1] is None:
+            if item[1] is None and item[0] in self._required_attributes:
                 return False
         return True
 
@@ -178,7 +182,7 @@ class Player:  # pylint: disable=too-few-public-methods
 
     def load_playlist(self, playlist_data: book.PlaylistData):
         """
-        Load self.position with a StreamData from the database if it exists, or set it to a newly created one that
+        Load self.stream_data with a StreamData from the database if it exists, or set it to a newly created one that
         starts at the beginning of the first track in the playlist.
 
         Raises: RuntimeError if load_playlist() fails to generate a completely instantiated StreamData object.
@@ -186,12 +190,12 @@ class Player:  # pylint: disable=too-few-public-methods
         playlist_id = playlist_data.get_id()
         position = self.player_dbi.get_saved_position(playlist_id=playlist_id)
         if not position.is_fully_set():
-            position = self.player_dbi.get_new_position(playlist_id=playlist_id, track_number=0, time_=0)
+            position = self.player_dbi.get_new_position(playlist_id=playlist_id, track_number=0, time_=StreamTime(0))
 
         if position.is_fully_set():
-            self.gst_player.load_stream(position=position)
+            self.gst_player.load_stream(stream_data=position)
         else:
-            raise RuntimeError('Failed to load playlist position ', position)
+            raise RuntimeError('Failed to load playlist stream_data ', position)
 
     def play(self):
         """

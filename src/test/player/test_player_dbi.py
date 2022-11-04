@@ -37,6 +37,16 @@ import sqlite_tools
 class TestGetSavedPosition:
     """Unit test for player.PlayerDBI.get_saved_position(playlist_id: int)"""
 
+    def test_requirements_exist(self):
+        """
+        Assert that all methods and classes used in this method actually exist.
+        """
+        assert player.PlayerDBI
+        assert player.PlayerDBI.get_saved_position
+        assert audio_book_tables.DB_CONNECTION.query
+        assert audio_book_tables.PlayerPosition.get_row_by_playlist_id
+        assert player.StreamData
+
     @mock.patch.object(audio_book_tables, 'DB_CONNECTION', sqlite_tools.DBConnectionManager(":memory:"))
     @mock.patch.object(audio_book_tables.JoinTrackFilePlTrackPlayerPosition, 'get_row_by_playlist_id')
     def test_calls_get_row_by_playlist_id_with_correct_args(self, magic_mock):
@@ -86,7 +96,7 @@ class TestGetSavedPosition:
 
 
 class TestSavePosition:
-    """Unit test for player.PlayerDBI.save_position(pl_track_id: int, playlist_id: int, position: int)"""
+    """Unit test for player.PlayerDBI.save_position(pl_track_id: int, playlist_id: int, stream_data: int)"""
 
     @mock.patch.object(audio_book_tables, 'DB_CONNECTION', sqlite_tools.DBConnectionManager(":memory:"))
     @mock.patch.object(audio_book_tables.PlayerPosition, 'upsert_row')
@@ -258,11 +268,20 @@ class TestGetNewPosition:
                                       time: int) -> StreamData:
     """
 
+    def test_requirements_exist(self):
+        """
+        Assert that all methods and classes used in this method actually exist.
+        """
+        assert player.PlayerDBI.get_track_id_pl_track_id_by_number
+        assert player.PlayerDBI.get_track_id_pl_track_id_by_number
+        assert player.PlayerDBI.get_path_by_id
+        assert player.StreamData
+
     @mock.patch.object(player.PlayerDBI, 'get_track_id_pl_track_id_by_number')
     @mock.patch.object(player.PlayerDBI, 'get_path_by_id')
     def test_returns_fully_set_position_data(self, mock_get_path_by_id, mock_get_track_id_pl_track_id_by_number):
         """Assert that get_new_position returns a StreamData object fully set with the expected values"""
-        time = 0
+        time = player.StreamTime(0)
         playlist_id = 1
         track_number = 2
         track_id = 3
@@ -271,9 +290,11 @@ class TestGetNewPosition:
         mock_get_track_id_pl_track_id_by_number.return_value = track_id, pl_track_id
         mock_get_path_by_id.return_value = path
         player_dbi = player.PlayerDBI()
-        position = player_dbi.get_new_position(playlist_id=playlist_id, track_number=track_number, time_=time)
+        position = player_dbi.get_new_position(
+            playlist_id=playlist_id, track_number=track_number, time_=time
+        )
         assert position.path == path
         assert position.track_number == track_number
         assert position.playlist_id == playlist_id
         assert position.pl_track_id == pl_track_id
-        assert position.time == time
+        assert isinstance(position.time, player.StreamTime)
