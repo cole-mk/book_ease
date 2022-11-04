@@ -177,8 +177,8 @@ class Player:
         self.player_dbi = PlayerDBI()
         self.player_backend = GstPlayer()
         self.position = None
-        self.skip_duration_short = 3
-        self.skip_duration_long = 30
+        self.skip_duration_short = StreamTime(3, 's')
+        self.skip_duration_long = StreamTime(30, 's')
 
     def load_playlist(self, playlist_data: book.PlaylistData):
         """
@@ -218,12 +218,12 @@ class Player:
         """
         self.player_backend.stop()
 
-    def go_to_position(self, t_seconds: int):
+    def go_to_position(self, time_: StreamTime):
         """
-        Transport control method to set the position of a stream to t_seconds.
+        Transport control method to set the position of a stream to time_.
         Calls on the media-player backend to set the position of a playing stream.
         """
-        self.player_backend.set_position(t_seconds=t_seconds)
+        self.player_backend.set_position(time_=time_)
 
     def skip_forward_short(self):
         """
@@ -231,7 +231,7 @@ class Player:
         Calls on the media-player backend to skip ahead in a playing stream,
         by an amount equal to self.skip_duration_short.
         """
-        self.player_backend.set_position_relative(delta_t_seconds=self.skip_duration_short)
+        self.player_backend.set_position_relative(delta_t=self.skip_duration_short)
 
     def skip_reverse_short(self):
         """
@@ -239,7 +239,8 @@ class Player:
         Calls on the media-player backend to skip back in a playing stream,
         by an amount equal to self.skip_duration_short.
         """
-        self.player_backend.set_position_relative(delta_t_seconds=self.skip_duration_short * -1)
+        rev_skip_time = self.skip_duration_short.get_time() * -1
+        self.player_backend.set_position_relative(delta_t=StreamTime(rev_skip_time))
 
     def skip_forward_long(self):
         """
@@ -247,7 +248,7 @@ class Player:
         Calls on the media-player backend to skip ahead in a playing stream,
         by an amount equal to self.skip_duration_long.
         """
-        self.player_backend.set_position_relative(delta_t_seconds=self.skip_duration_long)
+        self.player_backend.set_position_relative(delta_t=self.skip_duration_long)
 
     def skip_reverse_long(self):
         """
@@ -255,7 +256,8 @@ class Player:
         Calls on the media-player backend to skip back in a playing stream,
         by an amount equal to self.skip_duration_long.
         """
-        self.player_backend.set_position_relative(delta_t_seconds=self.skip_duration_long * -1)
+        rev_skip_time = self.skip_duration_long.get_time() * -1
+        self.player_backend.set_position_relative(delta_t=StreamTime(rev_skip_time))
 
 
 class GstPlayer:
