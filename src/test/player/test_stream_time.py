@@ -45,4 +45,187 @@
 Unit test for class player.StreamTime
 """
 
+from unittest import mock
+
+import player
 from player import StreamTime
+
+
+class TestSetTime:
+    """Unit test for method set_time()"""
+
+    def test_requirements_exist(self):
+        """
+        Assert that all methods, classes, attributes,
+        or any other resource needed by this method exist.
+        """
+        assert player.StreamTime
+        assert player.StreamTime._time_conversions
+        assert player.StreamTime.set_time
+
+        st = StreamTime()
+        assert st._time is None or st._time == 0
+
+    def test_stores_time_in_ns_when_unit_not_given(self):
+        """
+        Assert that set_time() does not convert units when units not given
+        """
+        stream_time = StreamTime()
+        stream_time.set_time(125)
+        assert stream_time._time == 125
+
+    def test_truncates_time_to_whole_number_when_unit_not_given(self):
+        """
+        Assert that set_time() strips any decimals from time_ when the units don't need to be converted.
+        """
+        stream_time = StreamTime()
+        stream_time.set_time(125.69)
+        assert stream_time._time == 125
+
+    def test_stores_time_in_ns_when_unit_is_ms(self):
+        """
+        Assert that set_time() converts time_ from the passed in unit to nanoseconds correctly.
+        """
+        stream_time = StreamTime()
+        stream_time.set_time(125, 'ms')
+        assert stream_time._time == 125 * pow(10, 6)
+
+    def test_stores_time_in_ns_when_unit_is_second(self):
+        """
+        Assert that set_time() converts time_ from the passed in unit to nanoseconds correctly.
+        """
+        stream_time = StreamTime()
+        stream_time.set_time(125, 's')
+        assert stream_time._time == 125 * pow(10, 9)
+
+    def test_truncates_time_to_whole_number_ns_when_unit_given(self):
+        """
+        Assert that set_time() strips any decimals from time_ when the units are converted.
+        """
+        crazy_number_in_ms = 125.69696969696969
+        truncated_crazy_number_in_ns = int(crazy_number_in_ms * pow(10, 6))
+
+        stream_time = StreamTime()
+        stream_time.set_time(crazy_number_in_ms, 'ms')
+        assert stream_time._time == truncated_crazy_number_in_ns
+
+
+class TestGetTime:
+    """Unit test for method get_time()"""
+
+    def test_requirements_exist(self):
+        """
+        Assert that all methods, classes, attributes,
+        or any other resource needed by this method exist.
+        """
+        assert player.StreamTime
+        assert player.StreamTime._time_conversions
+        assert player.StreamTime.get_time
+
+        st = StreamTime()
+        assert st._time is None or st._time == 0
+
+    def test_truncates_decimals_to_whole_numbers_when_converting_units(self):
+        """
+        Assert that when get_time() returns time_ in the requested unit,
+        that number has the remainder truncated from the number.
+        """
+        stream_time = StreamTime(time_=123456789)
+        time_ms = stream_time.get_time('ms')
+        assert time_ms == 123
+
+    def test_returns_time_in_ns_when_units_not_given(self):
+        """
+        Assert that  get_time() returns time_ unchanged when units not given.
+        """
+        stream_time = StreamTime(time_=123)
+        time_ms = stream_time.get_time()
+        assert time_ms == 123
+
+    def test_returns_time_in_ms_when_unit_is_ms(self):
+        """
+        Assert that get_time() returns time_ in milliseconds when unit is 'ms'.
+        """
+        time_ms = 123
+        time_ns = 123 * pow(10, 6)
+        stream_time = StreamTime(time_=time_ns)
+        test_time_ms = stream_time.get_time('ms')
+        assert test_time_ms == time_ms
+
+    def test_returns_time_in_seconds_when_unit_is_seconds(self):
+        """
+        Assert that get_time() returns time_ in milliseconds when unit is 's'.
+        """
+        time_s = 123
+        time_ns = 123 * pow(10, 9)
+        stream_time = StreamTime(time_=time_ns)
+        test_time_ms = stream_time.get_time('s')
+        assert test_time_ms == time_s
+
+
+class TestInit:
+    """Unit test for method __init__()"""
+
+    def test_requirements_exist(self):
+        """
+        Assert that all methods, classes, attributes,
+        or any other resource needed by this method exist.
+        """
+        assert player.StreamTime
+        assert player.StreamTime._time_conversions
+        assert player.StreamTime.set_time
+
+        st = StreamTime()
+        assert st._time is None or st._time == 0
+
+    @mock.patch('player.StreamTime.set_time')
+    def test_calls_set_time_with_zero_and_ns_when_no_args_given(self, m_set_time):
+        """
+        Assert that __init__() calls self.set_time() with the following parameters,
+        when __init__() is called with no args:
+        time_=0, unit='ns'
+        """
+        StreamTime()
+        m_set_time.assert_called_with(time_=0, unit='ns')
+
+    @mock.patch('player.StreamTime.set_time')
+    def test_calls_set_time_with_zero_and_unit_when_only_unit_given(self, m_set_time):
+        """
+        Assert that __init__() calls self.set_time() with the following parameters,
+        when __init__() is called with only the units given as arg:
+        time_=0, unit=unit
+        """
+        StreamTime(unit='s')
+        m_set_time.assert_called_with(time_=0, unit='s')
+
+        StreamTime(unit='ms')
+        m_set_time.assert_called_with(time_=0, unit='ms')
+
+        StreamTime(unit='ns')
+        m_set_time.assert_called_with(time_=0, unit='ns')
+
+    @mock.patch('player.StreamTime.set_time')
+    def test_calls_set_time_with_time_and_ns_when_only_time_given(self, m_set_time):
+        """
+        Assert that __init__() calls self.set_time() with the following parameters,
+        when __init__() is called with only the time given as arg:
+        time_=time, unit='ns'
+        """
+        StreamTime(time_=123)
+        m_set_time.assert_called_with(time_=123, unit='ns')
+
+    @mock.patch('player.StreamTime.set_time')
+    def test_calls_set_time_with_time_and_unit_when_time_and_unit_given(self, m_set_time):
+        """
+        Assert that __init__() calls self.set_time() with the following parameters,
+        when __init__() is called with only time and units given as arg:
+        time_=time, unit=unit
+        """
+        StreamTime(time_=123, unit='s')
+        m_set_time.assert_called_with(time_=123, unit='s')
+
+        StreamTime(time_=123, unit='ms')
+        m_set_time.assert_called_with(time_=123, unit='ms')
+
+        StreamTime(time_=123, unit='ns')
+        m_set_time.assert_called_with(time_=123, unit='ns')

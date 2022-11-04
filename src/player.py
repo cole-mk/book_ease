@@ -33,6 +33,7 @@ from __future__ import annotations
 import pathlib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+from typing import ClassVar
 import gi
 gi.require_version('Gst', '1.0')
 # gi.require_version('Gtk', '3.0')
@@ -116,6 +117,36 @@ class PlayerDBI:
         with audio_book_tables.DB_CONNECTION.query() as con:
             row = self.track.get_row_by_id(con=con, id_=track_id)
             return row['path'] if row is not None else None
+
+
+class StreamTime:
+    """
+    Wrapper for storing time values in StreamData.
+    Provides unit conversion functionality.
+    """
+
+    # Base unit for time storage is nanoseconds.
+    _time_conversions: ClassVar[dict] = {
+        'ns': 1,
+        'ms': pow(10, 6),
+        's': pow(10, 9)
+    }
+
+    def __init__(self, time_: int | float = 0, unit: str = 'ns'):
+        self._time = None
+        self.set_time(time_=time_, unit=unit)
+
+    def get_time(self, unit: str = 'ns'):
+        """
+        Get the stored time in the desired units, truncated to a whole number.
+        """
+        return int(self._time / self._time_conversions[unit])
+
+    def set_time(self, time_: int | float, unit: str = 'ns'):
+        """
+        Set the stored time in units, truncated to a whole number.
+        """
+        self._time = int(time_ * self._time_conversions[unit])
 
 
 @dataclass
