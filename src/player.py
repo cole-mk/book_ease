@@ -262,8 +262,6 @@ class Player:
 
 class GstPlayer:
     """The wrapper for the gstreamer backend"""
-    # pylint: disable=unused-argument
-    # disabled because GStreamer callbacks automatically supply args that are unused.
 
     def __init__(self):
         Gst.init(None)
@@ -378,13 +376,13 @@ class GstPlayer:
             raise RuntimeError('failed to set playbin state to Ready')
 
     @staticmethod
-    def _on_error(bus, msg):
+    def _on_error(_, msg):
         err, dbg = msg.parse_error()
         print("ERROR:", msg.src.get_name(), ":", err.message)
         if dbg:
             print("Debug info:", dbg)
 
-    def _on_eos(self, bus, msg):
+    def _on_eos(self, _, __):
         """
         The end of the stream has been reached.
         Start cleanup.
