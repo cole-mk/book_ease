@@ -322,7 +322,7 @@ class GstPlayer:
             # returning False stops this from being called again
             return False
         if self.playback_state != 'stopped':
-            GLib.idle_add(GLib.PRIORITY_DEFAULT, self.transmitter.send, 'time_updated')
+            GLib.idle_add(self.transmitter.send, 'time_updated', priority=GLib.PRIORITY_DEFAULT)
         # Returning True allows this method to continue being called.
         return True
 

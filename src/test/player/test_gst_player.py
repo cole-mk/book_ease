@@ -853,7 +853,7 @@ class Test_UpdateTime:
         gst_player._update_time()
         player.GLib.idle_add.assert_called()
         player.GLib.idle_add.assert_called_with(
-            player.GLib.PRIORITY_DEFAULT, gst_player.transmitter.send, 'time_updated'
+            gst_player.transmitter.send, 'time_updated', priority=player.GLib.PRIORITY_DEFAULT
         )
 
 class TestQueryPosition:
