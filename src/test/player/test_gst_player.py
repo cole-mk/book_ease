@@ -517,7 +517,7 @@ class Test_InitMessageBus:
             mock.call("message::error", gst_player._on_error),
             mock.call("message::eos", gst_player._on_eos),
             mock.call("message::state-changed",
-                      gst_player._init_start_position, time_ns=stream_data.time),
+                      gst_player._init_start_position, stream_data.time),
             mock.call("message::duration-changed", gst_player._on_duration_ready)
         ]
         bus_mock.connect.assert_has_calls(calls, any_order=True)
@@ -853,7 +853,7 @@ class Test_UpdateTime:
         gst_player._update_time()
         player.GLib.idle_add.assert_called()
         player.GLib.idle_add.assert_called_with(
-            player.GLib.PRIORITY_DEFAULT, gst_player.transmitter.send, 'time_updated'
+            gst_player.transmitter.send, 'time_updated', priority=player.GLib.PRIORITY_DEFAULT
         )
 
 class TestQueryPosition:

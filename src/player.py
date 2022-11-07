@@ -322,7 +322,7 @@ class GstPlayer:
             # returning False stops this from being called again
             return False
         if self.playback_state != 'stopped':
-            GLib.idle_add(GLib.PRIORITY_DEFAULT, self.transmitter.send, 'time_updated')
+            GLib.idle_add(self.transmitter.send, 'time_updated', priority=GLib.PRIORITY_DEFAULT)
         # Returning True allows this method to continue being called.
         return True
 
@@ -339,7 +339,7 @@ class GstPlayer:
         bus.add_signal_watch()
         bus.connect("message::error", self._on_error)
         bus.connect("message::eos", self._on_eos)
-        bus.connect("message::state-changed", self._init_start_position, time_ns=stream_data.time)
+        bus.connect("message::state-changed", self._init_start_position, stream_data.time)
         bus.connect("message::state-changed", self._start_update_time)
         bus.connect("message::duration-changed", self._on_duration_ready)
         # bus.connect("message::application", self.on_application_message)
