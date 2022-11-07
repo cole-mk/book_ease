@@ -76,7 +76,7 @@ class TestGetURIFromPath:
 
 
 class TestLoadPositionData:
-    """Unit tests for method load_position_data()"""
+    """Unit tests for method load_stream()"""
 
     @staticmethod
     def init_mocks():
@@ -89,35 +89,32 @@ class TestLoadPositionData:
         gst_player._init_pipeline = m_init_pipeline = mock.Mock()
         return gst_player, m_init_message_bus, m_init_pipeline
 
-    def test_raises_runtime_error_if_already_set(self):
-        """Asset that load_position_data() raises a RuntimeError if position is already set."""
-        gst_player, m_init_message_bus, m_init_pipeline = self.init_mocks()
-        gst_player.position = player.PositionData()
-        with pytest.raises(RuntimeError):
-            gst_player.load_position_data(player.PositionData())
-
     def test_not_raise_runtime_error_if_not_already_set(self):
         """
-        Assert that load_position_data() does not raise a RuntimeError if 'self.position' has not already been set.
+        Assert that load_stream() does not raise a RuntimeError if 'self.position' has not already been set.
         """
         gst_player, m_init_message_bus, m_init_pipeline = self.init_mocks()
         try:
-            gst_player.load_position_data(player.PositionData())
+            gst_player.load_stream(player.StreamData())
             assert True
         except RuntimeError:
             assert False, 'Raised RuntimeError even though self.position was not already set.'
 
     def test_method_calls_init_pipeline(self):
-        """Assert that load_position_data() calls _init_pipeline()"""
+        """Assert that load_stream() calls _init_pipeline()"""
         gst_player, m_init_message_bus, m_init_pipeline = self.init_mocks()
-        gst_player.load_position_data(player.PositionData())
+        stream_data = player.StreamData(0)
+        gst_player.load_stream(stream_data)
         assert m_init_pipeline.called, 'Failed to call method GstPlayer._init_pipeline'
+        m_init_pipeline.assert_called_with(stream_data)
 
     def test_method_calls_init_message_bus(self):
-        """Assert that load_position_data() calls _init_message_bus()"""
+        """Assert that load_stream() calls _init_message_bus()"""
         gst_player, m_init_message_bus, m_init_pipeline = self.init_mocks()
-        gst_player.load_position_data(player.PositionData())
+        stream_data = player.StreamData()
+        gst_player.load_stream(stream_data)
         assert m_init_message_bus.called, 'Failed to call method GstPlayer._init_pipeline'
+        m_init_message_bus.assert_called_with(stream_data)
 
 
 class TestPause:
@@ -172,20 +169,14 @@ class TestStop:
 
     def test_calls_set_position_to_t_equals_zero(self):
         """
-        Assert that stop calls self.set_position with parameter t_seconds=0
+        Assert that stop calls self.set_position with parameter time_=0
         This shows that playback will be set to the beginning of the stream.
         """
         gst_player = self.init_mocks()
         gst_player.stop()
         assert gst_player.set_position.called, 'gst_player.set_position was not called'
-        assert gst_player.set_position.call_args.kwargs['t_seconds'] == 0,\
-            'gst_player.set_position was not called with parameter t_seconds=0'
-
-    def test_sets_position_dot_time_to_zero(self):
-        """Assert that stop updates the time in the position object."""
-        gst_player = self.init_mocks()
-        gst_player.stop()
-        assert gst_player.position.time == 0, 'stop failed to set self.position.time to zero.'
+        assert gst_player.set_position.call_args.kwargs['time_'].get_time() == 0,\
+            'gst_player.set_position was not called with parameter time_=0'
 
 
 class TestPlay:
@@ -222,8 +213,8 @@ class TestPlay:
         assert gst_player.playback_state == 'playing'
 
 
-class TestPopPositionData:
-    """Unit test for the method pop_position_data()"""
+class TestUnLoadStream:
+    """Unit test for the method unload_stream()"""
 
     @staticmethod
     def init_mocks():
@@ -232,38 +223,14 @@ class TestPopPositionData:
         They should be in a state that is conducive to passing the tests.
         """
         gst_player = player.GstPlayer()
-        gst_player._close_pipeline = m_close_pipeline = mock.Mock()
-        gst_player.position = player.PositionData()
-        return gst_player, m_close_pipeline
-
-    def test_raises_runtime_error_if_position_is_not_already_set(self):
-        """
-        Assert that a RuntimeError is raised if pop_position_data() is called
-        when 'self.position' has not been set.
-        """
-        gst_player, m_close_pipeline = self.init_mocks()
-        gst_player.position = None
-        with pytest.raises(RuntimeError):
-            gst_player.pop_position_data()
-
-    def test_returns_position(self):
-        """Assert that pop_position_data() returns self.position"""
-        gst_player, m_close_pipeline = self.init_mocks()
-        input_test_position = gst_player.position
-        output_test_position = gst_player.pop_position_data()
-        assert output_test_position is input_test_position
+        gst_player._close_pipeline = mock.Mock()
+        return gst_player
 
     def test_calls_close_pipeline(self):
         """Assert that the gstreamer pipeline is closed because we must be finished with it."""
-        gst_player, m_close_pipeline = self.init_mocks()
-        gst_player.pop_position_data()
-        assert m_close_pipeline.called
-
-    def test_sets_position_to_none(self):
-        """Assert that 'self.position' is set to None."""
-        gst_player, m_close_pipeline = self.init_mocks()
-        gst_player.pop_position_data()
-        assert gst_player.position is None
+        gst_player = self.init_mocks()
+        gst_player.unload_stream()
+        assert gst_player._close_pipeline.called
 
 
 class TestSetPositionRelative:
@@ -276,52 +243,57 @@ class TestSetPositionRelative:
         They should be in a state that is conducive to passing the tests.
         """
         gst_player = player.GstPlayer()
-        gst_player._query_position = mock.Mock()
-        gst_player._query_position.return_value = self.duration * Gst.SECOND
+        gst_player.query_position = mock.Mock()
+        gst_player.query_position.return_value = player.StreamTime(self.duration)
         gst_player.set_position = mock.Mock()
 
         return gst_player
 
     def test_calls_self_dot_query_position(self):
         """
-        Assert that set_position_relative() call self._query_position() to get the current position.
+        Assert that set_position_relative() call self.query_position() to get the current stream_data.
         """
         gst_player = self.init_mocks()
-        gst_player.set_position_relative(delta_t_seconds=1)
-        gst_player._query_position.assert_called()
+        gst_player.set_position_relative(delta_t=player.StreamTime(1))
+        gst_player.query_position.assert_called()
 
     def test_calls_set_position_with_t_seconds_normalized_to_valid_range(self):
         """
-        Assert that set_position_relative() normalizes the new position time to the nearest endpoint of the valid
-        position range, when (current position + delta_t_seconds) is outside the valid range of positions for this
+        Assert that set_position_relative() normalizes the new stream_data time to the nearest endpoint of the valid
+        stream_data range, when (current stream_data + delta_t) is outside the valid range of positions for this
         stream.
         """
         gst_player = self.init_mocks()
 
-        # New position is far less than zero.
-        gst_player.set_position_relative(delta_t_seconds=self.duration * -2)
+        # New stream_data is far less than zero.
+        delta_t = player.StreamTime(self.duration * -2)
+        gst_player.set_position_relative(delta_t=delta_t)
         assert gst_player.set_position.called
-        assert gst_player.set_position.call_args.kwargs['t_seconds'] == 0
+        assert gst_player.set_position.call_args.kwargs['time_'].get_time() == 0
 
         # New position is exactly zero.
-        gst_player.set_position_relative(delta_t_seconds=self.duration * -1)
+        delta_t = player.StreamTime(self.duration * -1)
+        gst_player.set_position_relative(delta_t=delta_t)
         assert gst_player.set_position.called
-        assert gst_player.set_position.call_args.kwargs['t_seconds'] == 0
+        assert gst_player.set_position.call_args.kwargs['time_'].get_time() == 0
 
         # New position is exactly zero-1.
-        gst_player.set_position_relative(delta_t_seconds=(self.duration * -1) - 1)
+        delta_t = player.StreamTime((self.duration * -1) - 1)
+        gst_player.set_position_relative(delta_t=delta_t)
         assert gst_player.set_position.called
-        assert gst_player.set_position.call_args.kwargs['t_seconds'] == 0
+        assert gst_player.set_position.call_args.kwargs['time_'].get_time() == 0
 
         # New position is exactly in the middle of the duration.
-        gst_player.set_position_relative(delta_t_seconds=int(self.duration / -2))
+        delta_t = player.StreamTime(self.duration / -2)
+
+        gst_player.set_position_relative(delta_t=delta_t)
         assert gst_player.set_position.called
-        assert gst_player.set_position.call_args.kwargs['t_seconds'] == int(self.duration/2)
+        assert gst_player.set_position.call_args.kwargs['time_'].get_time() == int(self.duration/2)
 
 
 # noinspection PyPep8Naming
-class Test_InitDuration:
-    """Unit tests for _init_duration()"""
+class Test_OnDurationReady:
+    """Unit tests for _on_duration_ready()"""
     duration = 100 * Gst.SECOND
 
     def init_mocks(self):
@@ -330,7 +302,7 @@ class Test_InitDuration:
         They should be in a state that is conducive to passing the tests.
         """
         gst_player = player.GstPlayer()
-        gst_player._query_duration = mock.Mock(return_value=self.duration)
+        gst_player.query_duration = mock.Mock(return_value=self.duration)
         gst_player.transmitter = mock.Mock()
         gst_player.transmitter.send = mock.Mock()
         m_bus = mock.Mock()
@@ -338,130 +310,29 @@ class Test_InitDuration:
         m_msg = mock.Mock()
         return gst_player, m_bus, m_msg
 
-    def test_sets_self_dot_duration_to_correct_value(self):
-        """
-        Assert that _init_duration() sets self.duration to the correct value retrieved from gstreamer.
-        """
-        gst_player, m_bus, m_msg = self.init_mocks()
-        gst_player._init_duration(m_bus, m_msg)
-        assert gst_player.duration == self.duration
-
     def test_emits_duration_ready(self):
         """
         Assert that GstPlayer emits the 'duration_ready' signal as soon as GStreamer is able to
         successfully acquire the duration from the stream.
         """
         gst_player, m_bus, m_msg = self.init_mocks()
-        gst_player._init_duration(m_bus, m_msg)
+        gst_player._on_duration_ready(m_bus, m_msg)
         gst_player.transmitter.send.assert_called()
+        gst_player.transmitter.send.assert_called_with('duration_ready')
 
     def test_disconnects_callback(self):
         """
-        Assert that _init_duration() disconnects itself from the message bus
+        Assert that _on_duration_ready() disconnects itself from the message bus
         by calling bus.disconnect_by_func
         """
         gst_player, m_bus, m_msg = self.init_mocks()
-        gst_player._init_duration(m_bus, m_msg)
-        m_bus.disconnect_by_func.assert_called_with(gst_player._init_duration)
+        gst_player._on_duration_ready(m_bus, m_msg)
+        m_bus.disconnect_by_func.assert_called_with(gst_player._on_duration_ready)
 
 
 # noinspection PyPep8Naming
 class Test_InitStartPosition:
     """Unit tests for _init_start_position()"""
-
-    def test_calls_set_position_with_t_seconds_equals_position_dot_time(self):
-        """
-        _init_start_position() should simply call set_position(t_seconds=self.position.time)
-        """
-        gst_player = player.GstPlayer()
-        gst_player.position = mock.Mock()
-        gst_player.position.time = mock.Mock()
-        gst_player.set_position = mock.Mock()
-
-        gst_player._init_start_position()
-        assert gst_player.set_position.called
-        assert gst_player.set_position.call_args.kwargs['t_seconds'] == gst_player.position.time
-
-
-# noinspection PyPep8Naming
-class Test_ClosePipeline:
-    """Unit tests for _close_pipeline()"""
-
-    def test_raises_runtime_error_if_pipeline_is_already_none(self):
-        """Assert that _close_pipeline() raises RuntimeError if 'self.pipeline' is already None"""
-        gst_player = player.GstPlayer()
-        with pytest.raises(RuntimeError):
-            gst_player.pipeline = None
-            gst_player._close_pipeline()
-
-    def test_calls_pipeline_dot_set_state_if_pipeline_exists(self):
-        """Assert that self.pipeline.set_state() gets called when it exists."""
-        gst_player = player.GstPlayer()
-
-        gst_player.pipeline = mock.Mock()
-        gst_player.pipeline.set_state = m_set_state = mock.Mock()
-
-        gst_player._close_pipeline()
-
-        assert m_set_state.called, 'Gst.Pipeline.set_state was not called during player.GstPlayer._close_pipeline().'
-
-        # Assert that set_state was called with the 'state' kwarg.
-        if 'state' in m_set_state.call_args.kwargs.keys():
-            assert True
-        else:
-            err_msg = """
-            Gst.Pipeline.set_state was called with a missing \'state\' kwarg
-            during player.GstPlayer._close_pipeline().
-            """
-            assert False, err_msg
-
-        assert m_set_state.call_args.kwargs['state'] == Gst.State.NULL
-
-    def test_sets_pipeline_to_none_if_pipeline_exists(self):
-        """Assert that 'self.pipeline' gets set to None when it exists."""
-        gst_player = player.GstPlayer()
-
-        gst_player.pipeline = mock.Mock()
-        gst_player.pipeline.set_state = m_set_state = mock.Mock()
-
-        gst_player._close_pipeline()
-        err_msg = """
-        player.GstPlayer._close_pipeline did not reset self.pipeline to None.
-        """
-        assert gst_player.pipeline is None, err_msg
-
-    def test_sets_pipeline_to_none_after_calling_set_state_if_pipeline_exists(self):
-        """
-        Assert that self.pipeline.set_state() gets called before discarding the reference to self.pipeline.
-        That is: self.pipeline.set_state() must be called before setting 'self.pipeline' to None.
-        """
-        gst_player = player.GstPlayer()
-
-        gst_player.pipeline = mock.Mock()
-        gst_player.pipeline.set_state = m_set_state = mock.Mock()
-
-        try:
-            gst_player._close_pipeline()
-            if gst_player.pipeline is not None:
-                pytest.skip(reason="player.GstPlayer.pipeline must not be None"
-                                   "after _close_pipeline() finishes to perform this test.")
-            if not m_set_state.called:
-                pytest.skip(reason="player.GstPlayer.pipeline.set_state must have been called"
-                                   "during _close_pipeline()  to perform this test.")
-        # Doing them in the wrong order triggers the exception.
-        except AttributeError:
-            err_msg = """
-            During player.GstPlayer._close_pipeline(),
-            player.GstPlayer.pipeline.set_state() was called after setting 
-            player.GstPlayer.pipeline to None. This results in an AttributeError
-            during the execution of _close_pipeline().
-            """
-            assert False, err_msg
-
-
-# noinspection PyPep8Naming
-class Test_InitAttributesThatCanOnlyBeSetAfterPlaybackStarted:
-    """Unit tests for _init_attributes_that_can_only_be_set_after_playback_started(self, bus, msg)"""
 
     @staticmethod
     def init_mocks():
@@ -470,48 +341,27 @@ class Test_InitAttributesThatCanOnlyBeSetAfterPlaybackStarted:
         They should be in a state that is conducive to passing the tests.
         """
         gst_player = player.GstPlayer()
-        gst_player._init_duration = mock.Mock()
-        gst_player._init_start_position = mock.Mock()
+        gst_player.set_position = mock.Mock()
         m_message = mock.Mock()
         m_message.parse_state_changed = mock.Mock(return_value=(Gst.State.READY, Gst.State.PAUSED, Gst.State.PLAYING))
         m_message.src = gst_player.pipeline = mock.Mock()
         m_bus = mock.Mock()
         m_bus.disconnect_by_func = mock.Mock()
-        glib_idle_add = GLib.timeout_add = mock.Mock()
-        return gst_player, m_message, m_bus, glib_idle_add
+        return gst_player, m_message, m_bus
 
-    def test_calls_init_start_position_if_msg_src_is_pipeline_and_pipeline_is_entering_playing_state(self):
+    def test_calls_set_position_if_msg_src_is_pipeline_and_pipeline_is_entering_playing_state(self):
         """
-        Assert that _init_start_position() is called when the passed in msg.src is self.pipeline
-        and 'self.pipeline' is about to enter the playing state.
-
-         _init_start_position() must not be called before this time or Gst can't set the
-         playback position of the pipeline.
-
-        Only do this if the message source is 'self.pipeline'.
+        _init_start_position() should simply call set_position(time_=time_: StreamTime)
+        Show that the value in the StreamData object is equal to value in the
+        instance that was passed as a parameter.
         """
-        gst_player, m_message, m_bus, _ = self.init_mocks()
-
-        gst_player._init_attributes_that_can_only_be_set_after_playback_started(m_bus, m_message)
-        assert gst_player._init_start_position.called
-
-    def test_no_call_init_start_position_if_msg_src_is_not_pipeline_or_pipeline_is_not_entering_playing_state(self):
-        """
-        Assert that _init_start_position() is not called when the passed in msg.src is not self.pipeline
-        or 'self.pipeline' is not about to enter the playing state.
-        """
-
-        # 'self.pipeline' is not about to enter the playing state
-        gst_player, m_message, m_bus, _ = self.init_mocks()
-        m_message.parse_state_changed.return_value = (None, None, None)
-        gst_player._init_attributes_that_can_only_be_set_after_playback_started(m_bus, m_message)
-        assert not gst_player._init_start_position.called
-
-        #  msg.src is not self.pipeline
-        gst_player, m_message, m_bus, _ = self.init_mocks()
-        m_message.src = None
-        gst_player._init_attributes_that_can_only_be_set_after_playback_started(m_bus, m_message)
-        assert not gst_player._init_start_position.called
+        gst_player, m_message, m_bus = self.init_mocks()
+        gst_player.set_position = mock.Mock()
+        test_time = 30
+        time_ = player.StreamTime(test_time)
+        gst_player._init_start_position(m_bus, m_message, time_)
+        assert gst_player.set_position.called
+        assert gst_player.set_position.call_args.kwargs['time_'].get_time() == test_time
 
     def test_disconnects_after_success(self):
         """
@@ -519,28 +369,112 @@ class Test_InitAttributesThatCanOnlyBeSetAfterPlaybackStarted:
         Make sure that the callback is disconnected  when the passed in msg.src is self.pipeline
         and 'self.pipeline' is about to enter the playing state.
         """
-        gst_player, m_message, m_bus, _ = self.init_mocks()
-        gst_player._init_attributes_that_can_only_be_set_after_playback_started(m_bus, m_message)
+        gst_player, m_message, m_bus = self.init_mocks()
+        gst_player.set_position = mock.Mock()
+        test_time = 30
+        time_ = player.StreamTime(test_time)
+        gst_player._init_start_position(m_bus, m_message, time_)
         assert m_bus.disconnect_by_func.called
 
-    def test_not_disconnected_if_msg_src_is_not_pipeline_or_pipeline_is_not_entering_playing_state(self):
+    def test_no_call_set_position_if_msg_src_is_not_pipeline(self):
         """
-        The method only needs to be called once per stream.
-        Make sure that the callback is disconnected  when the passed in msg.src is self.pipeline
-        and 'self.pipeline' is about to enter the playing state.
+        Assert that gst_player.set_position() is not called when the passed in msg.src is not self.pipeline.
+        """
+
+        #  msg.src is not self.pipeline
+        gst_player, m_message, m_bus = self.init_mocks()
+        m_message.src = None
+        test_time = 30
+        time_ = player.StreamTime(test_time)
+        gst_player._init_start_position(m_bus, m_message, time_)
+        assert not gst_player.set_position.called
+
+    def test_no_call_set_position_if_pipeline_is_not_entering_playing_state(self):
+        """
+        Assert that _init_start_position() is not called when
+        'self.pipeline' is not about to enter the playing state.
         """
 
         # 'self.pipeline' is not about to enter the playing state
-        gst_player, m_message, m_bus, _ = self.init_mocks()
+        gst_player, m_message, m_bus = self.init_mocks()
         m_message.parse_state_changed.return_value = (None, None, None)
-        gst_player._init_attributes_that_can_only_be_set_after_playback_started(m_bus, m_message)
-        assert not m_bus.disconnect_by_func.called
+        test_time = 30
+        time_ = player.StreamTime(test_time)
+        gst_player._init_start_position(m_bus, m_message, time_)
+        assert not gst_player.set_position.called
+
+    def test_not_disconnected_if_msg_src_is_not_pipeline(self):
+        """
+        The method must not disconnect itself if it doesn't complete its task.
+        The message source must be the bus retrieved from self.pipeline.
+        """
 
         #  msg.src is not self.pipeline
-        gst_player, m_message, m_bus, _ = self.init_mocks()
+        gst_player, m_message, m_bus= self.init_mocks()
         m_message.src = None
-        gst_player._init_attributes_that_can_only_be_set_after_playback_started(m_bus, m_message)
+        test_time = 30
+        time_ = player.StreamTime(test_time)
+        gst_player._init_start_position(m_bus, m_message, time_)
         assert not m_bus.disconnect_by_func.called
+
+    def test_not_disconnected_if_msg_src_is_not_pipeline_or_pipeline_is_not_entering_playing_state(self):
+        """
+        The method must not disconnect itself if it doesn't complete its task.
+        This happens when 'self.pipeline' is not about to enter the playing state.
+        """
+
+        # 'self.pipeline' is not about to enter the playing state
+        gst_player, m_message, m_bus = self.init_mocks()
+        m_message.parse_state_changed.return_value = (None, None, None)
+        test_time = 30
+        time_ = player.StreamTime(test_time)
+        gst_player._init_start_position(m_bus, m_message, time_)
+        assert not m_bus.disconnect_by_func.called
+
+
+# noinspection PyPep8Naming
+class Test_ClosePipeline:
+    """Unit tests for _close_pipeline()"""
+
+    @staticmethod
+    def init_mocks():
+        """
+        Create and return all the mocks that are used for this test class.
+        They should be in a state that is conducive to passing the tests.
+        """
+        gst_player = player.GstPlayer()
+        assert hasattr(gst_player, 'pipeline'), "'GstPlayer' object has no attribute 'pipeline'"
+        gst_player.pipeline = mock.Mock()
+        gst_player.pipeline.set_state = mock.Mock()
+        return gst_player
+
+    def test_raises_runtime_error_if_pipeline_is_already_none(self):
+        """Assert that _close_pipeline() raises RuntimeError if 'self.pipeline' is already None"""
+        gst_player = self.init_mocks()
+        with pytest.raises(RuntimeError):
+            gst_player.pipeline = None
+            gst_player._close_pipeline()
+
+    def test_calls_pipeline_dot_set_state_if_pipeline_exists(self):
+        """Assert that self.pipeline.set_state() gets called when it exists."""
+        gst_player = self.init_mocks()
+        m_pipeline = gst_player.pipeline
+        gst_player._close_pipeline()
+
+        assert m_pipeline.set_state.called,\
+            'Gst.Pipeline.set_state was not called during player.GstPlayer._close_pipeline().'
+
+        assert m_pipeline.set_state.call_args.kwargs['state'] == Gst.State.NULL
+
+    def test_sets_pipeline_to_none_if_pipeline_exists(self):
+        """Assert that 'self.pipeline' gets set to None when it exists."""
+        gst_player = self.init_mocks()
+
+        gst_player._close_pipeline()
+        err_msg = """
+        player.GstPlayer._close_pipeline did not reset self.pipeline to None.
+        """
+        assert gst_player.pipeline is None, err_msg
 
 
 # noinspection PyPep8Naming
@@ -554,6 +488,7 @@ class Test_InitMessageBus:
         They should be in a state that is conducive to passing the tests.
         """
         gst_player = player.GstPlayer()
+        assert hasattr(gst_player, 'pipeline'), "'GstPlayer' object has no attribute 'pipeline'"
         gst_player.pipeline = mock.Mock()
 
         bus_mock = mock.Mock()
@@ -561,12 +496,13 @@ class Test_InitMessageBus:
         bus_mock.connect = mock.Mock()
         gst_player.pipeline.get_bus = get_bus_mock = mock.Mock()
         gst_player.pipeline.get_bus.return_value = bus_mock
-        return gst_player, get_bus_mock, bus_mock
+        stream_data = player.StreamData(time=player.StreamTime(30, 's'))
+        return gst_player, get_bus_mock, bus_mock, stream_data
 
     def test_adds_signal_watch(self):
         """A signal watch must be added to self.pipeline's message bus for callbacks to work."""
-        gst_player, get_bus_mock, bus_mock = self.init_mocks()
-        gst_player._init_message_bus()
+        gst_player, get_bus_mock, bus_mock, stream_data = self.init_mocks()
+        gst_player._init_message_bus(stream_data)
         assert bus_mock.add_signal_watch.called
 
     def test_connects_the_correct_messages(self):
@@ -574,15 +510,15 @@ class Test_InitMessageBus:
         Assert that the correct Gst.Bus events are connected to the correct callbacks.
         Assert that those are the only callbacks connected in _init_message_bus().
         """
-        gst_player, get_bus_mock, bus_mock = self.init_mocks()
-        gst_player._init_message_bus()
+        gst_player, get_bus_mock, bus_mock, stream_data = self.init_mocks()
+        gst_player._init_message_bus(stream_data)
         calls = [
             mock.call("message::state-changed", gst_player._start_update_time),
             mock.call("message::error", gst_player._on_error),
             mock.call("message::eos", gst_player._on_eos),
             mock.call("message::state-changed",
-                      gst_player._init_attributes_that_can_only_be_set_after_playback_started),
-            mock.call("message::duration-changed", gst_player._init_duration)
+                      gst_player._init_start_position, time_ns=stream_data.time),
+            mock.call("message::duration-changed", gst_player._on_duration_ready)
         ]
         bus_mock.connect.assert_has_calls(calls, any_order=True)
         assert bus_mock.connect.call_count == len(calls),\
@@ -600,13 +536,13 @@ class Test_InitPipeline:
         """
         # pylint: disable=attribute-defined-outside-init
         gst_player = player.GstPlayer()
+
         self.mocked_pipeline = mock.Mock()
         self.mocked_fake_video_sink = "fakevideosink"
         m_element_factory_make = Gst.ElementFactory.make = mock.Mock(side_effect=self.mocked_gst_element_factory_make)
-        gst_player.position = mock.Mock()
-        gst_player.position.path = '/some/valid/file/path.mp3'
+        stream_data = player.StreamData(path='/some/valid/file/path.mp3')
 
-        return gst_player, m_element_factory_make
+        return gst_player, m_element_factory_make, stream_data
 
     def mocked_gst_element_factory_make(self, *args):
         """
@@ -625,11 +561,11 @@ class Test_InitPipeline:
         Raising the RuntimeError should be the first thing that the method does, so catch and re-raise that error
         while ignoring all other exceptions caused by not completely mocking out the method.
         """
-        gst_player, m_element_factory_make = self.init_mocks()
+        gst_player, m_element_factory_make, stream_data = self.init_mocks()
         gst_player.pipeline = True
         with pytest.raises(RuntimeError):
             try:
-                gst_player._init_pipeline()
+                gst_player._init_pipeline(stream_data)
             except RuntimeError:
                 raise
             except Exception:  # pylint: disable=broad-except
@@ -637,8 +573,8 @@ class Test_InitPipeline:
 
     def test_creates_playbin(self):
         """Show that _init_pipeline() sets 'self.pipeline' to object of type Gst.Playbin"""
-        gst_player, m_element_factory_make = self.init_mocks()
-        gst_player._init_pipeline()
+        gst_player, m_element_factory_make, stream_data = self.init_mocks()
+        gst_player._init_pipeline(stream_data)
         assert m_element_factory_make.has_calls([mock.call("playbin", "playbin")], any_order=True)
         assert gst_player.pipeline == self.mocked_pipeline
 
@@ -647,8 +583,8 @@ class Test_InitPipeline:
         Some streams contain a video portion that can't be ignored.
         Assert that the pipeline is given a Gst fakevideosink that discards the video stream.
         """
-        gst_player, m_element_factory_make = self.init_mocks()
-        gst_player._init_pipeline()
+        gst_player, m_element_factory_make, stream_data = self.init_mocks()
+        gst_player._init_pipeline(stream_data)
         calls = [mock.call("video-sink", self.mocked_fake_video_sink)]
         self.mocked_pipeline.set_property.assert_has_calls(calls, any_order=True)
 
@@ -657,16 +593,16 @@ class Test_InitPipeline:
         _init_pipeline() must set the pipeline's uri property to the path of the file being played.
         The path may or may not already be a correctly formatted uri.
         """
-        # When gst_player.position.path is a file path
-        gst_player, m_element_factory_make = self.init_mocks()
-        gst_player._init_pipeline()
+        # When gst_player.stream_data.path is a file path
+        gst_player, m_element_factory_make, stream_data = self.init_mocks()
+        gst_player._init_pipeline(stream_data)
         gst_player.pipeline.set_property.assert_called_with('uri', 'file:///some/valid/file/path.mp3')
 
-        # When gst_player.position.path is a web link
-        gst_player, m_element_factory_make = self.init_mocks()
-        gst_player.position.path = \
+        # When gst_player.stream_data.path is a web link
+        gst_player, m_element_factory_make, stream_data = self.init_mocks()
+        stream_data.path = \
             'https://www.freedesktop.org/software/gstreamer-sdk/data/media/sintel_trailer-480p.webm'
-        gst_player._init_pipeline()
+        gst_player._init_pipeline(stream_data)
         gst_player.pipeline.set_property.assert_called_with(
             'uri', 'https://www.freedesktop.org/software/gstreamer-sdk/data/media/sintel_trailer-480p.webm'
         )
@@ -676,18 +612,18 @@ class Test_InitPipeline:
         Assert that _init_pipeline() sets the pipeline to the ready state.
         This must be done, so that we can fail now if the pipeline has a problem.
         """
-        gst_player, m_element_factory_make = self.init_mocks()
-        gst_player._init_pipeline()
+        gst_player, m_element_factory_make, stream_data = self.init_mocks()
+        gst_player._init_pipeline(stream_data)
         gst_player.pipeline.set_state.assert_called_with(Gst.State.READY)
 
     def test_raises_runtime_error_if_set_pipeline_to_ready_state_fails(self):
         """
         Assert that _init_pipeline() raises a RuntimeError when it fails to set the pipeline to the ready state.
         """
-        gst_player, m_element_factory_make = self.init_mocks()
+        gst_player, m_element_factory_make, stream_data = self.init_mocks()
         self.mocked_pipeline.set_state = mock.Mock(return_value=Gst.StateChangeReturn.FAILURE)
         with pytest.raises(RuntimeError):
-            gst_player._init_pipeline()
+            gst_player._init_pipeline(stream_data)
 
 
 # noinspection PyPep8Naming
@@ -708,7 +644,7 @@ class Test_OnEos:
     def test_calls_gst_player_stop(self):
         """
         _on_eos() must call stop() to reset the GstPlayer's internal state to 'stopped'
-        and reset the position to the beginning of the file.
+        and reset the stream_data to the beginning of the file.
         """
         gst_player = self.init_mocks()
         gst_player._on_eos('bus', 'msg')
@@ -867,20 +803,24 @@ class Test_UpdateTime:
         They should be in a state that is conducive to passing the tests.
         """
         gst_player = player.GstPlayer()
+        assert hasattr(gst_player, 'pipeline'), "'GstPlayer' object has no attribute 'pipeline'"
+        assert hasattr(gst_player, 'playback_state'), "'GstPlayer' object has no attribute 'playback_state'"
+        assert hasattr(gst_player, 'transmitter'), "'GstPlayer' object has no attribute 'transmitter'"
+
         gst_player.playback_state = 'playing'
         gst_player.pipeline = mock.Mock()
-        gst_player.position = mock.Mock()
-        gst_player.position.time = None
-        cur_time = 12345678
-        gst_player._query_position = mock.Mock(return_value=cur_time * Gst.SECOND)
-        return gst_player, cur_time
+        gst_player.transmitter = mock.Mock()
+        gst_player.transmitter.send = mock.Mock()
+        player.GLib = mock.Mock()
+        player.GLib.idle_add = mock.Mock()
+        return gst_player
 
     def test_returns_false_when_pipeline_None(self):
         """
         Assert that _update_time() stops itself from being called when the pipeline has been closed.
         returning False tells the Gst.MessageBus to stop periodically calling _update_time().
         """
-        gst_player, _ = self.init_mocks()
+        gst_player = self.init_mocks()
         gst_player.pipeline = None
         ret_val = gst_player._update_time()
         assert ret_val is False
@@ -888,69 +828,35 @@ class Test_UpdateTime:
     def test_returns_true_when_playback_state_is_stopped(self):
         """
         Assert that _update_time() returns True if playback state is 'stopped' in order to avoid
-        updating an unchanging field. Furthermore, the position is set immediately when entering the stopped state.
+        updating an unchanging field. Furthermore, the stream_data is set immediately when entering the stopped state.
         """
-        gst_player, _ = self.init_mocks()
+        gst_player = self.init_mocks()
         gst_player.playback_state = 'stopped'
         ret_val = gst_player._update_time()
         assert ret_val is True
 
-    def test_updates_position_if_queries_pipeline_successfully(self):
+    def test_returns_true_when_playback_state_is_not_stopped(self):
         """
-        Assert that _update_time() updates self.position.time correctly when it can successfully query the current
-        position from the pipeline.
-
-        self.position.time units must be seconds and not the native GStreamer time-stamp.
-
-        This test assumes:
-        self.playback_state == 'stopped'
-        self.pipeline != None
+        Assert that _update_time() returns True if playback state is 'stopped' in order to avoid
+        updating an unchanging field.
         """
-        gst_player, cur_time = self.init_mocks()
+        gst_player = self.init_mocks()
+        ret_val = gst_player._update_time()
+        assert ret_val is True
+
+    def test_calls_glib_idle_add_when_playback_state_is_not_stopped(self):
+        """
+        Assert that _update_time() calls Glib.idle_add if playback state is not 'stopped'.
+        the args to glib.idle_add should be to call the transmitter to signal 'time_updated'
+        """
+        gst_player = self.init_mocks()
         gst_player._update_time()
-        assert gst_player.position.time == cur_time
+        player.GLib.idle_add.assert_called()
+        player.GLib.idle_add.assert_called_with(
+            player.GLib.PRIORITY_DEFAULT, gst_player.transmitter.send, 'time_updated'
+        )
 
-    def test_not_updates_position_if_not_queries_pipeline_successfully(self):
-        """
-        Assert that _update_time() does not update self.position.time when it can not successfully query the current
-        position from the pipeline.
-
-        This test assumes:
-        self.playback_state == 'stopped'
-        self.pipeline != None
-        """
-        gst_player, _ = self.init_mocks()
-        gst_player._query_position = mock.Mock(side_effect=RuntimeError)
-        gst_player._update_time()
-        assert gst_player.position.time is None
-
-    def test_calls_self_dot_query_position(self):
-
-        """
-        _update_time() must call self._query_position() in order to update the time
-        """
-        gst_player, _ = self.init_mocks()
-        gst_player._update_time()
-        gst_player._query_position.assert_called()
-
-    def test_returns_true_when_time_is_updated_sccessfully(self):
-        """
-        _update_time() must return True if it wants to continue being called periodically.
-        """
-        gst_player, _ = self.init_mocks()
-        assert gst_player._update_time() is True
-
-    def test_returns_true_when_time_is_not_updated_successfully(self):
-        """
-        _update_time() must return True if it wants to continue being called periodically.
-        """
-        gst_player, _ = self.init_mocks()
-        gst_player._query_position = mock.Mock(side_effect=RuntimeError)
-        assert gst_player._update_time() is True
-
-
-# noinspection PyPep8Naming
-class Test_QueryPosition:
+class TestQueryPosition:
     """Unit tests for method query_position()"""
     cur_time = 12345678
 
@@ -960,46 +866,47 @@ class Test_QueryPosition:
         They should be in a state that is conducive to passing the tests.
         """
         gst_player = player.GstPlayer()
+        assert hasattr(gst_player, 'pipeline'), "'GstPlayer' object has no attribute 'pipeline'"
         gst_player.pipeline = mock.Mock()
         gst_player.pipeline.query_position = mock.Mock(return_value=(True, self.cur_time))
         return gst_player
 
     def test_calls_pipeline_dot_query_position_correctly(self):
         """
-        Assert that _query_position() calls gst_player.pipeline.query_position() to retrieve
-        the current position in the playback stream.
+        Assert that query_position() calls gst_player.pipeline.query_position() to retrieve
+        the current stream_data in the playback stream.
 
         Assert that gst_player.pipeline.query_position() is called with Gst.Format.TIME as the parameter.
-        This necessary because _query_position() returns the current time, and not frames or something else.
+        This necessary because query_position() returns the current time, and not frames or something else.
         """
         gst_player = self.init_mocks()
-        gst_player._query_position()
+        gst_player.query_position()
         gst_player.pipeline.query_position.assert_called()
         gst_player.pipeline.query_position.assert_called_with(Gst.Format.TIME)
 
     def test_returns_current_position_if_pipeline_query_was_a_success(self):
         """
-        Assert that _query_position() returns the current time if gst_player.pipeline.query_position()
+        Assert that query_position() returns the current time if gst_player.pipeline.query_position()
         successfully executes the query.
         """
         gst_player = self.init_mocks()
-        cur_time = gst_player._query_position()
-        assert cur_time == self.cur_time
+        cur_time = gst_player.query_position()
+        assert isinstance(cur_time, player.StreamTime)
+        assert cur_time.get_time() == self.cur_time
 
     def test_raises_runtime_error_if_pipeline_fails_to_query_position(self):
         """
-        Assert that _query_position() raises runtimeError if gst_player.pipeline.query_position()
+        Assert that query_position() raises runtimeError if gst_player.pipeline.query_position()
         fails to execute the query.
         """
         gst_player = self.init_mocks()
         gst_player.pipeline.query_position.return_value = (False, self.cur_time)
         with pytest.raises(RuntimeError):
-            gst_player._query_position()
+            gst_player.query_position()
 
 
-# noinspection PyPep8Naming
-class Test_QueryDuration:
-    """Unit tests for method _query_duration()"""
+class TestQueryDuration:
+    """Unit tests for method query_duration()"""
     duration = 12345678
 
     def init_mocks(self):
@@ -1008,41 +915,42 @@ class Test_QueryDuration:
         They should be in a state that is conducive to passing the tests.
         """
         gst_player = player.GstPlayer()
+        assert hasattr(gst_player, 'pipeline'), "'GstPlayer' object has no attribute 'pipeline'"
         gst_player.pipeline = mock.Mock()
         gst_player.pipeline.query_duration = mock.Mock(return_value=(True, self.duration))
         return gst_player
 
     def test_calls_pipeline_dot_query_duration_correctly(self):
         """
-        Assert that _query_duration() calls gst_player.pipeline.query_duration() to retrieve
+        Assert that query_duration() calls gst_player.pipeline.query_duration() to retrieve
         the current duration of the playback stream.
 
         Assert that gst_player.pipeline.query_duration() is called with Gst.Format.TIME as the parameter.
-        This necessary because _query_duration() returns the current duration, and not frames or something else.
+        This necessary because query_duration() returns the current duration, and not frames or something else.
         """
         gst_player = self.init_mocks()
-        gst_player._query_duration()
+        gst_player.query_duration()
         gst_player.pipeline.query_duration.assert_called()
         gst_player.pipeline.query_duration.assert_called_with(Gst.Format.TIME)
 
     def test_returns_current_duration_if_pipeline_query_was_a_success(self):
         """
-        Assert that _query_duration() returns the current duration if gst_player.pipeline.query_duration()
+        Assert that query_duration() returns the current duration if gst_player.pipeline.query_duration()
         successfully executes the query.
         """
         gst_player = self.init_mocks()
-        duration = gst_player._query_duration()
-        assert duration == self.duration
+        duration = gst_player.query_duration()
+        assert duration.get_time('ns') == self.duration
 
     def test_raises_runtime_error_if_pipeline_fails_to_query_duration(self):
         """
-        Assert that _query_duration() raises runtimeError if gst_player.pipeline.query_duration()
+        Assert that query_duration() raises runtimeError if gst_player.pipeline.query_duration()
         fails to execute the query.
         """
         gst_player = self.init_mocks()
         gst_player.pipeline.query_duration.return_value = (False, self.duration)
         with pytest.raises(RuntimeError):
-            gst_player._query_duration()
+            gst_player.query_duration()
 
 
 class TestSetPosition:
@@ -1064,13 +972,12 @@ class TestSetPosition:
         Assert that set_position() calls self.pipeline.seek_simple() with the correct args.
         """
         gst_player = self.init_mocks()
-        time = 30
-        gst_time = time * Gst.SECOND
-        gst_player.set_position(t_seconds=time)
+        time = player.StreamTime(30, 's')
+        gst_player.set_position(time_=time)
         call_kwargs = {
             'format': Gst.Format.TIME,
             'seek_flags': Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
-            'seek_pos': gst_time
+            'seek_pos': time.get_time('ns')
         }
         assert gst_player.pipeline.seek_simple.call_args.kwargs == call_kwargs
 
@@ -1080,9 +987,9 @@ class TestSetPosition:
         returns False.
 
         self.pipeline.seek_simple() returns False when the pipeline fails
-        to set the position.
+        to set the stream_data.
         """
         gst_player = self.init_mocks()
         gst_player.pipeline.seek_simple.return_value = False
         with pytest.raises(RuntimeError):
-            gst_player.set_position(t_seconds=30)
+            gst_player.set_position(time_=player.StreamTime(30, 's'))

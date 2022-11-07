@@ -55,10 +55,12 @@ class TestGoToPosition:
         with the correct args.
         """
         m_player = Player()
-        m_player.gst_player = mock.Mock()
-        m_player.gst_player.set_position = mock.Mock()
-        m_player.go_to_position(t_seconds=30)
-        m_player.gst_player.set_position.assert_called_with(t_seconds=30)
+        m_player.player_backend = mock.Mock()
+        m_player.player_backend.set_position = mock.Mock()
+        time_ = player.StreamTime(30)
+        m_player.go_to_position(time_=time_)
+        assert m_player.player_backend.set_position.call_args.kwargs['time_'].get_time()\
+               == time_.get_time()
 
 
 class TestPause:
@@ -82,7 +84,7 @@ class TestPause:
         """
         player_ = init_mocks
         player_.pause()
-        assert player_.gst_player.pause.called
+        assert player_.player_backend.pause.called
 
 
 class TestPlay:
@@ -106,7 +108,7 @@ class TestPlay:
         """
         player_ = init_mocks
         player_.play()
-        player_.gst_player.play.assert_called()
+        player_.player_backend.play.assert_called()
 
 
 class TestSkipForwardLong:
@@ -131,7 +133,8 @@ class TestSkipForwardLong:
         """
         player_ = init_mocks
         player_.skip_forward_long()
-        player_.gst_player.set_position_relative.assert_called_with(delta_t_seconds=player_.skip_duration_long)
+        assert player_.player_backend.set_position_relative.call_args.kwargs['delta_t'].get_time()\
+               == player_.skip_duration_long.get_time()
 
 
 class TestSkipForwardShort:
@@ -156,7 +159,8 @@ class TestSkipForwardShort:
         """
         player_ = init_mocks
         player_.skip_forward_short()
-        player_.gst_player.set_position_relative.assert_called_with(delta_t_seconds=player_.skip_duration_short)
+        assert player_.player_backend.set_position_relative.call_args.kwargs['delta_t'].get_time()\
+               == player_.skip_duration_short.get_time()
 
 
 class TestSkipReverseLong:
@@ -181,8 +185,9 @@ class TestSkipReverseLong:
         """
         player_ = init_mocks
         player_.skip_reverse_long()
-        delta_t_seconds = player_.skip_duration_long * -1
-        player_.gst_player.set_position_relative.assert_called_with(delta_t_seconds=delta_t_seconds)
+        delta_t = player_.skip_duration_long.get_time() * -1
+        assert player_.player_backend.set_position_relative.call_args.kwargs['delta_t'].get_time()\
+               == player.StreamTime(delta_t).get_time()
 
 
 class TestSkipReverseShort:
@@ -201,14 +206,15 @@ class TestSkipReverseShort:
         m_gst_player.set_position_relative = mock.Mock()
         return player_
 
-    def test_skip_skip_reverse_long_calls_gst_player_set_position_relative(self, init_mocks):
+    def test_skip_skip_reverse_short_calls_gst_player_set_position_relative(self, init_mocks):
         """
         Assert that skip_reverse_short() calls method GstPlayer.set_position_relative().
         """
         player_ = init_mocks
         player_.skip_reverse_short()
-        delta_t_seconds = player_.skip_duration_short * -1
-        player_.gst_player.set_position_relative.assert_called_with(delta_t_seconds=delta_t_seconds)
+        delta_t = player_.skip_duration_short.get_time() * -1
+        assert player_.player_backend.set_position_relative.call_args.kwargs['delta_t'].get_time()\
+               == player.StreamTime(delta_t).get_time()
 
 
 class TestStop:
@@ -232,4 +238,4 @@ class TestStop:
         """
         player_ = init_mocks
         player_.stop()
-        player_.gst_player.stop.assert_called()
+        player_.player_backend.stop.assert_called()
