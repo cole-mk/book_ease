@@ -517,7 +517,7 @@ class Test_InitMessageBus:
             mock.call("message::error", gst_player._on_error),
             mock.call("message::eos", gst_player._on_eos),
             mock.call("message::state-changed",
-                      gst_player._init_start_position, time_ns=stream_data.time),
+                      gst_player._init_start_position, stream_data.time),
             mock.call("message::duration-changed", gst_player._on_duration_ready)
         ]
         bus_mock.connect.assert_has_calls(calls, any_order=True)
