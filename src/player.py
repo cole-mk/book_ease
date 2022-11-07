@@ -266,28 +266,18 @@ class GstPlayer:
     def __init__(self):
         Gst.init(None)
         self.playback_state = None
-        self.position = None
         self.pipeline = None
-        self.duration = Gst.CLOCK_TIME_NONE
         self.transmitter = signal_.Signal()
         self.transmitter.add_signal('time_updated', 'duration_ready', 'eos')
 
-    def load_stream(self, position: StreamData):
+    def load_stream(self, stream_data: StreamData):
         """Set the player position."""
-        if self.position is not None:
-            raise RuntimeError('GstPlayer.position is not None')
-        self.position = position
-        self._init_pipeline()
-        self._init_message_bus()
+        self._init_pipeline(stream_data)
+        self._init_message_bus(stream_data)
 
-    def pop_position_data(self):
-        """remove and return player position."""
+    def unload_stream(self):
+        """Cleanup pipeline."""
         self._close_pipeline()
-        if self.position is not None:
-            pos = self.position
-            self.position = None
-            return pos
-        raise RuntimeError('GstPlayer.position is None')
 
     def play(self):
         """
@@ -311,8 +301,7 @@ class GstPlayer:
         """
         self.pause()
         self.playback_state = 'stopped'
-        self.set_position(t_seconds=0)
-        self.position.time = 0
+        self.set_position(time_=StreamTime(0))
 
     @staticmethod
     def get_uri_from_path(path: str) -> str:
@@ -327,22 +316,15 @@ class GstPlayer:
 
     def _update_time(self):
         """
-        Set self.position.time to the stream's current position.
+        Set self.stream_data.time to the stream's current stream_data.
         """
-        # pylint: disable=lost-exception
-        # Disabled because swallowing the exception is exactly the behavior needed.
-        # It should output an error message, and then return True so that the callback
-        # gets called again later.
         if self.pipeline is None:
             # returning False stops this from being called again
             return False
-        if self.playback_state == 'stopped':
-            return True
-        try:
-            cur_time = self._query_position()
-            self.position.time = int(cur_time / Gst.SECOND)
-        finally:
-            return True
+        if self.playback_state != 'stopped':
+            GLib.idle_add(GLib.PRIORITY_DEFAULT, self.transmitter.send, 'time_updated')
+        # Returning True allows this method to continue being called.
+        return True
 
     def _close_pipeline(self):
         """Cleanup the pipeline"""
@@ -351,18 +333,18 @@ class GstPlayer:
         self.pipeline.set_state(state=Gst.State.NULL)
         self.pipeline = None
 
-    def _init_message_bus(self):
+    def _init_message_bus(self, stream_data: StreamData):
         """Set up the Gst messages that will be handled"""
         bus = self.pipeline.get_bus()
         bus.add_signal_watch()
         bus.connect("message::error", self._on_error)
         bus.connect("message::eos", self._on_eos)
-        bus.connect("message::state-changed", self._init_attributes_that_can_only_be_set_after_playback_started)
+        bus.connect("message::state-changed", self._init_start_position, time_ns=stream_data.time)
         bus.connect("message::state-changed", self._start_update_time)
-        bus.connect("message::duration-changed", self._init_duration)
+        bus.connect("message::duration-changed", self._on_duration_ready)
         # bus.connect("message::application", self.on_application_message)
 
-    def _init_pipeline(self):
+    def _init_pipeline(self, stream_data: StreamData):
         if self.pipeline is not None:
             raise RuntimeError('self.pipeline already exists.')
         self.pipeline = Gst.ElementFactory.make("playbin", "playbin")
@@ -370,7 +352,7 @@ class GstPlayer:
         self.pipeline.set_property(
             'video-sink', Gst.ElementFactory.make("fakevideosink", "video_sink")
         )
-        uri = self.get_uri_from_path(self.position.path)
+        uri = self.get_uri_from_path(stream_data.path)
         self.pipeline.set_property('uri', uri)
         if self.pipeline.set_state(Gst.State.READY) == Gst.StateChangeReturn.FAILURE:
             raise RuntimeError('failed to set playbin state to Ready')
@@ -391,21 +373,21 @@ class GstPlayer:
         self._close_pipeline()
         self.transmitter.send('eos')
 
-    def set_position_relative(self, delta_t_seconds: int):
+    def set_position_relative(self, delta_t: StreamTime):
         """
-        Set stream position to current position + delta_t_seconds.
+        Set stream position to current position + delta_t.
 
         Normalize the new position to values acceptable to self.set_position()
         """
-        cur_position = self._query_position()
-        new_position = (cur_position / Gst.SECOND) + delta_t_seconds
+        cur_position = self.query_position()
+        new_position = cur_position.get_time() + delta_t.get_time()
         # ensure new_position in valid range
         new_position = max(new_position, 0)
-        self.set_position(t_seconds=new_position)
+        self.set_position(time_=StreamTime(new_position))
 
-    def set_position(self, t_seconds: int | float):
+    def set_position(self, time_: StreamTime):
         """
-        Attempt to set stream position to t_seconds.
+        Attempt to set stream position to time_.
 
         Raises RuntimeError when the position parameter passed to method
         is not within the range:
@@ -416,7 +398,7 @@ class GstPlayer:
         """
         seek_success = self.pipeline.seek_simple(format=Gst.Format.TIME,
                                                  seek_flags=Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
-                                                 seek_pos=int(t_seconds * Gst.SECOND))
+                                                 seek_pos=time_.get_time('ns'))
         if not seek_success:
             raise RuntimeError('Failed to set stream playback position.')
 
@@ -431,53 +413,44 @@ class GstPlayer:
                 GLib.timeout_add_seconds(1, self._update_time)
                 bus.disconnect_by_func(self._start_update_time)
 
-    def _init_start_position(self):
-        """
-        Set playback position to the time saved in self.position or the start of the stream.
-        This is a state-changed callback.
-        """
-        if not self.set_position(t_seconds=self.position.time):
-            print('Failed to set start position of stream')
-
-    def _init_duration(self, bus: Gst.Bus, _: Gst.Message):
-        bus.disconnect_by_func(self._init_duration)
-        self.duration = self._query_duration()
+    def _on_duration_ready(self, bus: Gst.Bus, _: Gst.Message):
+        bus.disconnect_by_func(self._on_duration_ready)
         self.transmitter.send('duration_ready')
 
-    def _init_attributes_that_can_only_be_set_after_playback_started(self, bus: Gst.Bus, msg: Gst.Message):
+    def _init_start_position(self, bus: Gst.Bus, msg: Gst.Message, time_: StreamTime):
         """
-        Set instance attributes that can only be set after gstreamer has entered the playing state.
+        Set playback position to the time saved in self.stream_data or the start of the stream.
         This is a state-changed callback.
         """
         if msg.src == self.pipeline:
             old, new, pen = msg.parse_state_changed()
             if old == Gst.State.READY and new == Gst.State.PAUSED and pen == Gst.State.PLAYING:
-                self._init_start_position()
+                self.set_position(time_=time_)
                 # This only needs to be done once per stream. Disconnect this callback.
-                bus.disconnect_by_func(self._init_attributes_that_can_only_be_set_after_playback_started)
+                bus.disconnect_by_func(self._init_start_position)
 
-    def _query_position(self) -> int:
+    def query_position(self) -> StreamTime:
         """
         Attempt to query the pipeline's position in the stream.
 
-        Returns: current position in Gst time format
+        Returns: current position in StreamTime format
 
         Raises: RuntimeError if query_position() fails to retrieve the current position.
         """
         query_success, cur_position = self.pipeline.query_position(Gst.Format.TIME)
         if query_success:
-            return cur_position
+            return StreamTime(cur_position, 'ns')
         raise RuntimeError('Failed to query current position.')
 
-    def _query_duration(self) -> int:
+    def query_duration(self) -> StreamTime:
         """
         Attempt to query the stream's duration from the pipeline.
 
         Returns: current duration in Gst time format
 
-        Raises: RuntimeError if _query_duration() fails to retrieve the duration of the current stream.
+        Raises: RuntimeError if query_duration() fails to retrieve the duration of the current stream.
         """
         query_success, cur_duration = self.pipeline.query_duration(Gst.Format.TIME)
         if query_success:
-            return cur_duration
+            return StreamTime(cur_duration, 'ns')
         raise RuntimeError('Failed to query the current duration.')
