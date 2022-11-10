@@ -103,7 +103,7 @@ class TestSavePosition:
     def test_calls_upsert_row_with_correct_args(self, magic_mock):
         """Assert that save_position calls audio_book_tables.PlayerPosition.upsert_row with the correct kwargs"""
         player_dbi = player.PlayerDBI()
-        player_dbi.save_position(pl_track_id=1, playlist_id=2, time_=3)
+        player_dbi.save_position(pl_track_id=1, playlist_id=2, time_=player.StreamTime(3))
         assert magic_mock.call_args.kwargs['pl_track_id'] == 1
         assert magic_mock.call_args.kwargs['playlist_id'] == 2
         assert magic_mock.call_args.kwargs['time'] == 3

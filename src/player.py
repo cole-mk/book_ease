@@ -92,14 +92,14 @@ class PlayerDBI:
         )
         return position
 
-    def save_position(self, pl_track_id: int, playlist_id: int, time_: int):
+    def save_position(self, pl_track_id: int, playlist_id: int, time_: StreamTime):
         """Save player position to the database."""
         with audio_book_tables.DB_CONNECTION.query() as con:
             self.player_position.upsert_row(
                 con=con,
                 pl_track_id=pl_track_id,
                 playlist_id=playlist_id,
-                time=time_
+                time=time_.get_time()
             )
 
     def get_track_id_pl_track_id_by_number(self, playlist_id: int, track_number: int) -> tuple[int | None, int | None]:
