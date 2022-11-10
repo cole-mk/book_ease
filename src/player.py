@@ -60,6 +60,13 @@ class PlayerDBI:
             self.pl_track.init_table(con)
             self.track.init_table(con)
 
+    def get_number_of_pl_tracks(self, playlist_id: int) -> int:
+        """
+        Get the number of tracks in the playlist.
+        """
+        with audio_book_tables.DB_CONNECTION.query() as con:
+            return self.pl_track.get_track_count_by_playlist_id(con, playlist_id)
+
     def get_saved_position(self, playlist_id: int) -> StreamData:
         """Get the playlist's saved position."""
         with audio_book_tables.DB_CONNECTION.query() as con:
