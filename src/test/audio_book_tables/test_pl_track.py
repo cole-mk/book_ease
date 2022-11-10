@@ -54,3 +54,26 @@ def init_test_data_base(con) -> sample_data.SampleDatabaseCreator:
     s_db_c.populate_pl_track(con)
     return s_db_c
 
+
+class TestGetTrackCountByPlaylistId:
+    """Unit test for method get_track_count_by_playlist_id()"""
+
+    def test_returns_correct_count_of_rows_with_matching_playlist_ids(self, in_mem_db_str):
+        """
+        Assert that get_track_count_by_playlist_id() counts the rows that match playlist_id.
+        get_track_count_by_playlist_id() should return an int.
+        """
+        db_con_man = sqlite_tools.DBConnectionManager(in_mem_db_str)
+        with db_con_man.query() as con:
+            sample_data_ = init_test_data_base(con)
+
+            playlist_id = sample_data_.playlist_list[0]['id']
+            track_count = audio_book_tables.PlTrack.get_track_count_by_playlist_id(con, playlist_id)
+            assert track_count == 2, 'Failed to count the correct number of pl_tracks.'
+
+            playlist_id = sample_data_.playlist_list[1]['id']
+            track_count = audio_book_tables.PlTrack.get_track_count_by_playlist_id(con, playlist_id)
+            assert track_count == 1, 'Failed to count the correct number of pl_tracks.'
+
+
+
