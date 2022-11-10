@@ -83,6 +83,7 @@ class PlayerDBI:
     def get_new_position(self, playlist_id: int, track_number: int, time_: StreamTime) -> StreamData:
         """
         Create a StreamData object set to the beginning of the track_number of the playlist.
+        Return an empty StreamData object if nothing was found.
         """
         track_id, pl_track_id = self.get_track_id_pl_track_id_by_number(
             playlist_id=playlist_id,
