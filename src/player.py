@@ -89,15 +89,18 @@ class PlayerDBI:
             playlist_id=playlist_id,
             track_number=track_number
         )
-        path = self.get_path_by_id(track_id=track_id)
+        if track_id is not None:
+            path = self.get_path_by_id(track_id=track_id)
 
-        position = StreamData(
-            pl_track_id=pl_track_id,
-            track_number=track_number,
-            playlist_id=playlist_id,
-            path=path,
-            time=time_
-        )
+            position = StreamData(
+                pl_track_id=pl_track_id,
+                track_number=track_number,
+                playlist_id=playlist_id,
+                path=path,
+                time=time_
+            )
+        else:
+            position = StreamData()
         return position
 
     def save_position(self, pl_track_id: int, playlist_id: int, time_: StreamTime):
