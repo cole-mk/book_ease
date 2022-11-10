@@ -191,22 +191,32 @@ class Player:
         self.skip_duration_short = StreamTime(3, 's')
         self.skip_duration_long = StreamTime(30, 's')
 
+    def set_track(self, track_number: int):
+        """
+        Set the current track to track_number.
+
+        Raises: RuntimeError if set_track() fails to generate a completely instantiated StreamData object.
+        """
+        new_stream_data = self.player_dbi.get_new_position(
+            playlist_id=self.position.playlist_id,
+            track_number=track_number,
+            time_=StreamTime(0)
+        )
+        if new_stream_data.is_fully_set():
+            self.position = new_stream_data
+        else:
+            raise RuntimeError('Failed to load track.')
+
     def load_playlist(self, playlist_data: book.PlaylistData):
         """
         Load self.stream_data with a StreamData from the database if it exists, or set it to a newly created one that
         starts at the beginning of the first track in the playlist.
-
-        Raises: RuntimeError if load_playlist() fails to generate a completely instantiated StreamData object.
         """
         playlist_id = playlist_data.get_id()
-        position = self.player_dbi.get_saved_position(playlist_id=playlist_id)
-        if not position.is_fully_set():
-            position = self.player_dbi.get_new_position(playlist_id=playlist_id, track_number=0, time_=StreamTime(0))
-
-        if position.is_fully_set():
-            self.player_backend.load_stream(stream_data=position)
-        else:
-            raise RuntimeError('Failed to load playlist stream_data ', position)
+        self.position = self.player_dbi.get_saved_position(playlist_id=playlist_id)
+        if not self.position.is_fully_set():
+            self.set_track(track_number=0)
+        self.player_backend.load_stream(stream_data=self.position)
 
     def play(self):
         """
