@@ -343,7 +343,8 @@ class GstPlayer:
             # returning False stops this from being called again
             return False
         if self.playback_state != 'stopped':
-            GLib.idle_add(self.transmitter.send, 'time_updated', priority=GLib.PRIORITY_DEFAULT)
+            time_ = self.query_position()
+            GLib.idle_add(self.transmitter.send, 'time_updated', time_, priority=GLib.PRIORITY_DEFAULT)
         # Returning True allows this method to continue being called.
         return True
 
@@ -436,7 +437,8 @@ class GstPlayer:
 
     def _on_duration_ready(self, bus: Gst.Bus, _: Gst.Message):
         bus.disconnect_by_func(self._on_duration_ready)
-        self.transmitter.send('duration_ready')
+        duration = self.query_duration()
+        self.transmitter.send('duration_ready', duration=duration)
 
     def _init_start_position(self, bus: Gst.Bus, msg: Gst.Message, time_: StreamTime):
         """
