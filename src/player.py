@@ -186,6 +186,7 @@ class Player:
 
     def __init__(self):
         self.player_dbi = PlayerDBI()
+
         self.player_backend = GstPlayer()
         self.position = None
         self.skip_duration_short = StreamTime(3, 's')
