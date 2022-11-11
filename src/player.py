@@ -147,6 +147,12 @@ class StreamTime:
         self._time = None
         self.set_time(time_=time_, unit=unit)
 
+    def __eq__(self, other):
+        if isinstance(other, StreamTime):
+            if other._time == self._time:
+                return True
+        return False
+
     def get_time(self, unit: str = 'ns'):
         """
         Get the stored time in the desired units, truncated to a whole number.

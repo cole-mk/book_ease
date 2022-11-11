@@ -40,6 +40,9 @@
 # pylint: disable=too-many-lines
 # disabled because this needs to be as long as it needs to be.
 #
+# pylint: disable=unnecessary-dunder-call
+# disabled because dunder methods are being tested.
+#
 
 """
 Unit test for class player.StreamTime
@@ -229,3 +232,31 @@ class TestInit:
 
         StreamTime(time_=123, unit='ns')
         m_set_time.assert_called_with(time_=123, unit='ns')
+
+
+class TestEQ:
+    """Unit test for the method __eq__()"""
+
+    def test_returns_true_when_same_time(self):
+        """
+        Assert that __eq__() returns True when the time values of two StreamTime objects are equal.
+        """
+        st1 = StreamTime(30)
+        st2 = StreamTime(30)
+        assert st1.__eq__(st2) is True
+
+    def test_returns_false_when_different_time(self):
+        """
+        Assert that __eq__() returns False when the time values of two StreamTime objects are different.
+        """
+        st1 = StreamTime(30)
+        st2 = StreamTime(20)
+        assert st1.__eq__(st2) is False
+
+    def test_returns_false_when_comparing_different_classes(self):
+        """
+        Assert that __eq__() returns False when the other object is not a StreamTime object.
+        """
+        st1 = StreamTime(30)
+        st2 = 30
+        assert st1.__eq__(st2) is False
