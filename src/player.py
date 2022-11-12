@@ -480,7 +480,7 @@ class GstPlayer:
 
         Raises RuntimeError when the position parameter passed to method
         is not within the range:
-        (0, infinity]
+        [0, infinity)
 
         With anything past the end of the stream, Gst.Pipeline.seek_simple() returns True
         and triggers EOS. Hence, there is no upper bound on the range.
