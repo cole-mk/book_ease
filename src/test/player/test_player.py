@@ -242,6 +242,40 @@ class TestStop:
         player_.player_backend.stop.assert_called()
 
 
+# noinspection PyPep8Naming
+class Test_OnDurationReady:
+    """Unit test for method _on_duration_ready()"""
+
+    @staticmethod
+    def init_mocks():
+        """
+        Create and return all the mocks that are used for this test class.
+        They should be in a state that is conducive to passing the tests.
+        """
+        player_ = Player()
+        player_.position = player.StreamData
+        player_.transmitter = mock.Mock()
+        return player_
+
+    def test_sets_position_dot_duration(self):
+        """
+        Assert that _on_duration_ready() sets self.position.duration to the passed in duration
+        """
+        player_ = self.init_mocks()
+        time_ = player.StreamTime(30)
+        player_._on_duration_ready(time_)
+        assert player_.position.duration.get_time() == time_.get_time()
+
+    def test_signals_duration_ready(self):
+        """
+        Assert that _on_duration_ready() sends the 'duration_ready' signal.
+        """
+        player_ = self.init_mocks()
+        time_ = player.StreamTime(30)
+        player_._on_duration_ready(time_)
+        player_.transmitter.send.assert_called_with('duration_ready', time_)
+
+
 class TestSetTrack:
     """Unit test for method set_track()"""
     sample_data = None
@@ -441,3 +475,116 @@ class Test_GetIncrementedTrackNumber:
         new_track_number = player_._get_incremented_track_number(track_delta=-1)
         assert new_track_number == 11
 
+
+# noinspection PyPep8Naming
+class Test_OnEos:
+    """Unit test for method _on_eos()"""
+    player_ = None
+    go_to_first_track = None
+
+    def m_set_track_relative(self, track_delta):
+        """
+        Mock set_track_relative() so that it wrapts the track number back to the first track,
+        based of on the flag self.go_to_first_track.
+        """
+        if self.go_to_first_track is False:
+            self.player_.position.track_number += track_delta
+        elif self.go_to_first_track is True:
+            self.player_.position.track_number = 0
+        self.player_.position.time = player.StreamTime(0)
+
+    def init_mocks(self):
+        """
+        Create and return all the mocks that are used for this test class.
+        They should be in a state that is conducive to passing the tests.
+        """
+        self.player_ = Player()
+        self.player_.position = player.StreamData(track_number=3,
+                                                  path='some/path',
+                                                  time=player.StreamTime(120),
+                                                  duration=player.StreamTime(200),
+                                                  playlist_id=1,
+                                                  pl_track_id=2)
+        self.go_to_first_track = False
+        self.player_.set_track_relative = mock.Mock()
+        self.player_.set_track_relative.side_effect = self.m_set_track_relative
+        self.player_.player_backend.load_stream = mock.Mock()
+        self.player_.play = mock.Mock()
+        self.player_.player_dbi.save_position = mock.Mock()
+        return self.player_
+
+    def test_saves_position_at_beginning_of_next_track(self):
+        """
+        Assert that _on_eos() saves the new position at the beginning of the next track.
+        """
+        player_ = self.init_mocks()
+        player_._on_eos()
+
+        self.player_.player_dbi.save_position.assert_called()
+        _, kwargs = self.player_.player_dbi.save_position.call_args
+        assert kwargs['pl_track_id'] == 2
+        assert kwargs['playlist_id'] == 1
+        assert kwargs['time_'] == player.StreamTime(0)
+
+    def test_calls_play_if_not_wrapped_back_to_first_track(self):
+        """
+        Assert that _on_eos() calls self.play if The StreamData was advanced forward to the next track_number.
+        """
+        player_ = self.init_mocks()
+        player_._on_eos()
+        player_.play.assert_called()
+
+    def test_not_calls_play_if_wrapped_back_to_first_track(self):
+        """
+        Assert that _on_eos() does not call self.play if The StreamData was set to track_number 0.
+        """
+        player_ = self.init_mocks()
+        self.go_to_first_track = True
+        player_._on_eos()
+        player_.play.assert_not_called()
+
+    def test_calls_set_track_relative(self):
+        """
+        Assert that _on_eos()calls set_track_relative() to advance to the next track.
+        """
+        player_ = self.init_mocks()
+        player_._on_eos()
+        player_.set_track_relative.assert_called_with(1)
+
+    def test_calls_backend_dot_load_stream(self):
+        """
+        Assert that the newly advanced StreamData is loaded into the media player backend.
+        """
+        player_ = self.init_mocks()
+        player_._on_eos()
+        player_.player_backend.load_stream.assert_called_with(player_.position)
+
+
+# noinspection PyPep8Naming
+class Test_OnTimeUpdated:
+    """Unit test for method _on_time_updated()"""
+
+    def test_updates_time(self):
+        """
+        Assert that _on_time_updated() updates its stream_data with the new time.
+        """
+        player_ = Player()
+        player_.position = player.StreamData()
+        new_stream_time = player.StreamTime(30)
+
+        player_._on_time_updated(new_stream_time)
+        assert player_.position.time == new_stream_time
+
+    def test_sends_time_updated_signal(self):
+        """
+        Assert that _on_time_updated() transmits the 'time_updated' signal
+        with time as an argument.
+        """
+        player_ = Player()
+        player_.position = player.StreamData()
+        player_.transmitter = mock.Mock()
+        player_.transmitter.send = mock.Mock()
+        new_stream_time = player.StreamTime(30)
+
+        player_._on_time_updated(new_stream_time)
+        player_.transmitter.send.assert_called_with('time_updated', new_stream_time)

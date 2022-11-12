@@ -34,6 +34,7 @@ import pathlib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import ClassVar
+from typing import Literal
 import gi
 gi.require_version('Gst', '1.0')
 # gi.require_version('Gtk', '3.0')
@@ -194,10 +195,32 @@ class Player:
         self.player_dbi = PlayerDBI()
 
         self.player_backend = GstPlayer()
+        self.player_backend.transmitter.connect('time_updated', self._on_time_updated)
+        self.player_backend.transmitter.connect('duration_ready', self._on_duration_ready)
+        self.player_backend.transmitter.connect('eos', self._on_eos)
+
         self.position = None
         self.skip_duration_short = StreamTime(3, 's')
         self.skip_duration_long = StreamTime(30, 's')
 
+        self.transmitter = signal_.Signal()
+        self.transmitter.add_signal('time_updated', 'duration_ready', 'eos')
+
+    def _on_eos(self):
+        """
+        The media player backend has reached the end of the stream.
+        """
+        old_track_num = self.position.track_number
+        self.set_track_relative(1)
+        self.player_backend.load_stream(self.position)
+        if old_track_num < self.position.track_number:
+            # The end of the playlist has not yet been reached. Continue playback.
+            self.play()
+        self.player_dbi.save_position(
+            pl_track_id=self.position.pl_track_id,
+            playlist_id=self.position.playlist_id,
+            time_=self.position.time
+        )
 
     def _get_incremented_track_number(self, track_delta: Literal[-1, 1]):
         """
@@ -236,6 +259,20 @@ class Player:
             self.position = new_stream_data
         else:
             raise RuntimeError('Failed to load track.')
+
+    def _on_time_updated(self, time_: StreamTime):
+        """
+        The media player backend has updated the playback position.
+        """
+        self.position.time = time_
+        self.transmitter.send('time_updated', time_)
+
+    def _on_duration_ready(self, duration: StreamTime):
+        """
+        The media player backend has found the duration of the stream.
+        """
+        self.position.duration = duration
+        self.transmitter.send('duration_ready', duration)
 
     def load_playlist(self, playlist_data: book.PlaylistData):
         """
