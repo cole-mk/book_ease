@@ -313,7 +313,7 @@ class TestGetNumberOfPlTracks:
         player_dbi = player.PlayerDBI()
         test_playlist_id = 1
         player_dbi.get_number_of_pl_tracks(test_playlist_id)
-        args, kwargs = m_get_track_count_by_playlist_id.call_args
+        args, _ = m_get_track_count_by_playlist_id.call_args
         assert isinstance(args[0], sqlite3.Connection),\
             'An sqlite3.Connection was not passed to get_track_count_by_playlist_id.'
         assert args[1] == test_playlist_id,\
