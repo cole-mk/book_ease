@@ -75,7 +75,7 @@ class TestGetURIFromPath:
         assert uri == 'https://www.freedesktop.org'
 
 
-class TestLoadPositionData:
+class TestLoadStream:
     """Unit tests for method load_stream()"""
 
     @staticmethod
@@ -88,17 +88,6 @@ class TestLoadPositionData:
         gst_player._init_message_bus = m_init_message_bus = mock.Mock()
         gst_player._init_pipeline = m_init_pipeline = mock.Mock()
         return gst_player, m_init_message_bus, m_init_pipeline
-
-    def test_not_raise_runtime_error_if_not_already_set(self):
-        """
-        Assert that load_stream() does not raise a RuntimeError if 'self.position' has not already been set.
-        """
-        gst_player, m_init_message_bus, m_init_pipeline = self.init_mocks()
-        try:
-            gst_player.load_stream(player.StreamData())
-            assert True
-        except RuntimeError:
-            assert False, 'Raised RuntimeError even though self.position was not already set.'
 
     def test_method_calls_init_pipeline(self):
         """Assert that load_stream() calls _init_pipeline()"""
