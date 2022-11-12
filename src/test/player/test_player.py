@@ -253,18 +253,18 @@ class Test_OnDurationReady:
         They should be in a state that is conducive to passing the tests.
         """
         player_ = Player()
-        player_.position = player.StreamData
+        player_.stream_data = player.StreamData
         player_.transmitter = mock.Mock()
         return player_
 
     def test_sets_position_dot_duration(self):
         """
-        Assert that _on_duration_ready() sets self.position.duration to the passed in duration
+        Assert that _on_duration_ready() sets self.stream_data.duration to the passed in duration
         """
         player_ = self.init_mocks()
         time_ = player.StreamTime(30)
         player_._on_duration_ready(time_)
-        assert player_.position.duration.get_time() == time_.get_time()
+        assert player_.stream_data.duration.get_time() == time_.get_time()
 
     def test_signals_duration_ready(self):
         """
@@ -295,7 +295,7 @@ class TestSetTrack:
             playlist_id=2,
             pl_track_id=3
         )
-        player_.position = player.StreamData(
+        player_.stream_data = player.StreamData(
             path='some/path.mp3',
             time=player.StreamTime(99),
             duration=player.StreamTime(999),
@@ -318,11 +318,11 @@ class TestSetTrack:
 
     def test_sets_self_dot_stream_data_to_new_stream_data(self):
         """
-        Assert that set_track() sets self.position to a new StreamData object.
+        Assert that set_track() sets self.stream_data to a new StreamData object.
         """
         player_ = self.init_mocks()
         player_.set_track(1)
-        assert player_.position is self.sample_data
+        assert player_.stream_data is self.sample_data
 
 
 class TestLoadPlaylist:
@@ -336,7 +336,7 @@ class TestLoadPlaylist:
         mock a side effect for player_.set_track()
         """
         _ = track_number
-        self.player_.position = self.sample_data_new
+        self.player_.stream_data = self.sample_data_new
 
     def init_mocks(self):
         """
@@ -430,8 +430,8 @@ class Test_GetIncrementedTrackNumber:
         They should be in a state that is conducive to passing the tests.
         """
         player_ = Player()
-        player_.position = player.StreamData
-        player_.position.track_number = 3
+        player_.stream_data = player.StreamData
+        player_.stream_data.track_number = 3
         player_.player_dbi = mock.Mock()
         player_.player_dbi.get_number_of_pl_tracks = mock.Mock()
         player_.player_dbi.get_number_of_pl_tracks.return_value = 12
@@ -457,7 +457,7 @@ class Test_GetIncrementedTrackNumber:
         when incrementing past the end of the playlist.
         """
         player_ = self.init_mocks()
-        player_.position.track_number = 11
+        player_.stream_data.track_number = 11
 
         # Increase track number by one.
         new_track_number = player_._get_incremented_track_number(track_delta=1)
@@ -469,7 +469,7 @@ class Test_GetIncrementedTrackNumber:
         when incrementing past the end of the playlist.
         """
         player_ = self.init_mocks()
-        player_.position.track_number = 0
+        player_.stream_data.track_number = 0
 
         # Decrease track number by one.
         new_track_number = player_._get_incremented_track_number(track_delta=-1)
@@ -488,10 +488,10 @@ class Test_OnEos:
         based of on the flag self.go_to_first_track.
         """
         if self.go_to_first_track is False:
-            self.player_.position.track_number += track_delta
+            self.player_.stream_data.track_number += track_delta
         elif self.go_to_first_track is True:
-            self.player_.position.track_number = 0
-        self.player_.position.time = player.StreamTime(0)
+            self.player_.stream_data.track_number = 0
+        self.player_.stream_data.time = player.StreamTime(0)
 
     def init_mocks(self):
         """
@@ -499,12 +499,12 @@ class Test_OnEos:
         They should be in a state that is conducive to passing the tests.
         """
         self.player_ = Player()
-        self.player_.position = player.StreamData(track_number=3,
-                                                  path='some/path',
-                                                  time=player.StreamTime(120),
-                                                  duration=player.StreamTime(200),
-                                                  playlist_id=1,
-                                                  pl_track_id=2)
+        self.player_.stream_data = player.StreamData(track_number=3,
+                                                     path='some/path',
+                                                     time=player.StreamTime(120),
+                                                     duration=player.StreamTime(200),
+                                                     playlist_id=1,
+                                                     pl_track_id=2)
         self.go_to_first_track = False
         self.player_.set_track_relative = mock.Mock()
         self.player_.set_track_relative.side_effect = self.m_set_track_relative
@@ -557,7 +557,7 @@ class Test_OnEos:
         """
         player_ = self.init_mocks()
         player_._on_eos()
-        player_.player_backend.load_stream.assert_called_with(player_.position)
+        player_.player_backend.load_stream.assert_called_with(player_.stream_data)
 
 
 # noinspection PyPep8Naming
@@ -569,11 +569,11 @@ class Test_OnTimeUpdated:
         Assert that _on_time_updated() updates its stream_data with the new time.
         """
         player_ = Player()
-        player_.position = player.StreamData()
+        player_.stream_data = player.StreamData()
         new_stream_time = player.StreamTime(30)
 
         player_._on_time_updated(new_stream_time)
-        assert player_.position.time == new_stream_time
+        assert player_.stream_data.time == new_stream_time
 
     def test_sends_time_updated_signal(self):
         """
@@ -581,7 +581,7 @@ class Test_OnTimeUpdated:
         with time as an argument.
         """
         player_ = Player()
-        player_.position = player.StreamData()
+        player_.stream_data = player.StreamData()
         player_.transmitter = mock.Mock()
         player_.transmitter.send = mock.Mock()
         new_stream_time = player.StreamTime(30)
