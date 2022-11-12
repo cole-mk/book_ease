@@ -199,7 +199,7 @@ class Player:
         self.player_backend.transmitter.connect('duration_ready', self._on_duration_ready)
         self.player_backend.transmitter.connect('eos', self._on_eos)
 
-        self.position = None
+        self.stream_data = None
         self.skip_duration_short = StreamTime(3, 's')
         self.skip_duration_long = StreamTime(30, 's')
 
@@ -210,27 +210,27 @@ class Player:
         """
         The media player backend has reached the end of the stream.
         """
-        old_track_num = self.position.track_number
+        old_track_num = self.stream_data.track_number
         self.set_track_relative(1)
-        self.player_backend.load_stream(self.position)
-        if old_track_num < self.position.track_number:
+        self.player_backend.load_stream(self.stream_data)
+        if old_track_num < self.stream_data.track_number:
             # The end of the playlist has not yet been reached. Continue playback.
             self.play()
         self.player_dbi.save_position(
-            pl_track_id=self.position.pl_track_id,
-            playlist_id=self.position.playlist_id,
-            time_=self.position.time
+            pl_track_id=self.stream_data.pl_track_id,
+            playlist_id=self.stream_data.playlist_id,
+            time_=self.stream_data.time
         )
 
     def _get_incremented_track_number(self, track_delta: Literal[-1, 1]):
         """
-        Get a new track number by incrementing the value of self.position.track_number by track_delta,
+        Get a new track number by incrementing the value of self.stream_data.track_number by track_delta,
         providing wrap-around functionality.
 
-        This does not increment self.position.track_number itself.
+        This does not increment self.stream_data.track_number itself.
         """
-        track_count = self.player_dbi.get_number_of_pl_tracks(self.position.playlist_id)
-        new_track_number = self.position.track_number + track_delta
+        track_count = self.player_dbi.get_number_of_pl_tracks(self.stream_data.playlist_id)
+        new_track_number = self.stream_data.track_number + track_delta
         if new_track_number >= track_count:
             new_track_number = 0
         elif new_track_number < 0:
@@ -251,12 +251,12 @@ class Player:
         Raises: RuntimeError if set_track() fails to generate a completely instantiated StreamData object.
         """
         new_stream_data = self.player_dbi.get_new_position(
-            playlist_id=self.position.playlist_id,
+            playlist_id=self.stream_data.playlist_id,
             track_number=track_number,
             time_=StreamTime(0)
         )
         if new_stream_data.is_fully_set():
-            self.position = new_stream_data
+            self.stream_data = new_stream_data
         else:
             raise RuntimeError('Failed to load track.')
 
@@ -264,14 +264,14 @@ class Player:
         """
         The media player backend has updated the playback position.
         """
-        self.position.time = time_
+        self.stream_data.time = time_
         self.transmitter.send('time_updated', time_)
 
     def _on_duration_ready(self, duration: StreamTime):
         """
         The media player backend has found the duration of the stream.
         """
-        self.position.duration = duration
+        self.stream_data.duration = duration
         self.transmitter.send('duration_ready', duration)
 
     def load_playlist(self, playlist_data: book.PlaylistData):
@@ -280,10 +280,10 @@ class Player:
         starts at the beginning of the first track in the playlist.
         """
         playlist_id = playlist_data.get_id()
-        self.position = self.player_dbi.get_saved_position(playlist_id=playlist_id)
-        if not self.position.is_fully_set():
+        self.stream_data = self.player_dbi.get_saved_position(playlist_id=playlist_id)
+        if not self.stream_data.is_fully_set():
             self.set_track(track_number=0)
-        self.player_backend.load_stream(stream_data=self.position)
+        self.player_backend.load_stream(stream_data=self.stream_data)
 
     def play(self):
         """
