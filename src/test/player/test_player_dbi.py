@@ -103,7 +103,7 @@ class TestSavePosition:
     def test_calls_upsert_row_with_correct_args(self, magic_mock):
         """Assert that save_position calls audio_book_tables.PlayerPosition.upsert_row with the correct kwargs"""
         player_dbi = player.PlayerDBI()
-        player_dbi.save_position(pl_track_id=1, playlist_id=2, time_=3)
+        player_dbi.save_position(pl_track_id=1, playlist_id=2, time_=player.StreamTime(3))
         assert magic_mock.call_args.kwargs['pl_track_id'] == 1
         assert magic_mock.call_args.kwargs['playlist_id'] == 2
         assert magic_mock.call_args.kwargs['time'] == 3
@@ -298,3 +298,23 @@ class TestGetNewPosition:
         assert position.playlist_id == playlist_id
         assert position.pl_track_id == pl_track_id
         assert isinstance(position.time, player.StreamTime)
+
+
+class TestGetNumberOfPlTracks:
+    """Unit test for method get_number_of_pl_tracks()"""
+
+    @mock.patch.object(audio_book_tables.PlTrack, 'get_track_count_by_playlist_id')
+    def test_calls_abt_get_track_count_by_playlist_id(self, m_get_track_count_by_playlist_id: mock.Mock):
+        """
+        Assert that get_number_of_pl_tracks() calls audio_book_tables.get_track_count_by_playlist_id()
+        with the correct args.
+        """
+        m_get_track_count_by_playlist_id.return_value = 4
+        player_dbi = player.PlayerDBI()
+        test_playlist_id = 1
+        player_dbi.get_number_of_pl_tracks(test_playlist_id)
+        args, _ = m_get_track_count_by_playlist_id.call_args
+        assert isinstance(args[0], sqlite3.Connection),\
+            'An sqlite3.Connection was not passed to get_track_count_by_playlist_id.'
+        assert args[1] == test_playlist_id,\
+            'The correct playlist id was not passed to get_track_count_by_playlist_id'

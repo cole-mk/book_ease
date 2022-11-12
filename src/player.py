@@ -34,6 +34,7 @@ import pathlib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import ClassVar
+from typing import Literal
 import gi
 gi.require_version('Gst', '1.0')
 # gi.require_version('Gtk', '3.0')
@@ -60,6 +61,13 @@ class PlayerDBI:
             self.pl_track.init_table(con)
             self.track.init_table(con)
 
+    def get_number_of_pl_tracks(self, playlist_id: int) -> int:
+        """
+        Get the number of tracks in the playlist.
+        """
+        with audio_book_tables.DB_CONNECTION.query() as con:
+            return self.pl_track.get_track_count_by_playlist_id(con, playlist_id)
+
     def get_saved_position(self, playlist_id: int) -> StreamData:
         """Get the playlist's saved position."""
         with audio_book_tables.DB_CONNECTION.query() as con:
@@ -76,30 +84,34 @@ class PlayerDBI:
     def get_new_position(self, playlist_id: int, track_number: int, time_: StreamTime) -> StreamData:
         """
         Create a StreamData object set to the beginning of the track_number of the playlist.
+        Return an empty StreamData object if nothing was found.
         """
         track_id, pl_track_id = self.get_track_id_pl_track_id_by_number(
             playlist_id=playlist_id,
             track_number=track_number
         )
-        path = self.get_path_by_id(track_id=track_id)
+        if track_id is not None:
+            path = self.get_path_by_id(track_id=track_id)
 
-        position = StreamData(
-            pl_track_id=pl_track_id,
-            track_number=track_number,
-            playlist_id=playlist_id,
-            path=path,
-            time=time_
-        )
+            position = StreamData(
+                pl_track_id=pl_track_id,
+                track_number=track_number,
+                playlist_id=playlist_id,
+                path=path,
+                time=time_
+            )
+        else:
+            position = StreamData()
         return position
 
-    def save_position(self, pl_track_id: int, playlist_id: int, time_: int):
+    def save_position(self, pl_track_id: int, playlist_id: int, time_: StreamTime):
         """Save player position to the database."""
         with audio_book_tables.DB_CONNECTION.query() as con:
             self.player_position.upsert_row(
                 con=con,
                 pl_track_id=pl_track_id,
                 playlist_id=playlist_id,
-                time=time_
+                time=time_.get_time()
             )
 
     def get_track_id_pl_track_id_by_number(self, playlist_id: int, track_number: int) -> tuple[int | None, int | None]:
@@ -135,6 +147,12 @@ class StreamTime:
     def __init__(self, time_: int | float = 0, unit: str = 'ns'):
         self._time = None
         self.set_time(time_=time_, unit=unit)
+
+    def __eq__(self, other):
+        if isinstance(other, StreamTime):
+            if other._time == self._time:
+                return True
+        return False
 
     def get_time(self, unit: str = 'ns'):
         """
@@ -175,27 +193,97 @@ class Player:
 
     def __init__(self):
         self.player_dbi = PlayerDBI()
+
         self.player_backend = GstPlayer()
+        self.player_backend.transmitter.connect('time_updated', self._on_time_updated)
+        self.player_backend.transmitter.connect('duration_ready', self._on_duration_ready)
+        self.player_backend.transmitter.connect('eos', self._on_eos)
+
         self.position = None
         self.skip_duration_short = StreamTime(3, 's')
         self.skip_duration_long = StreamTime(30, 's')
+
+        self.transmitter = signal_.Signal()
+        self.transmitter.add_signal('time_updated', 'duration_ready', 'eos')
+
+    def _on_eos(self):
+        """
+        The media player backend has reached the end of the stream.
+        """
+        old_track_num = self.position.track_number
+        self.set_track_relative(1)
+        self.player_backend.load_stream(self.position)
+        if old_track_num < self.position.track_number:
+            # The end of the playlist has not yet been reached. Continue playback.
+            self.play()
+        self.player_dbi.save_position(
+            pl_track_id=self.position.pl_track_id,
+            playlist_id=self.position.playlist_id,
+            time_=self.position.time
+        )
+
+    def _get_incremented_track_number(self, track_delta: Literal[-1, 1]):
+        """
+        Get a new track number by incrementing the value of self.position.track_number by track_delta,
+        providing wrap-around functionality.
+
+        This does not increment self.position.track_number itself.
+        """
+        track_count = self.player_dbi.get_number_of_pl_tracks(self.position.playlist_id)
+        new_track_number = self.position.track_number + track_delta
+        if new_track_number >= track_count:
+            new_track_number = 0
+        elif new_track_number < 0:
+            new_track_number = track_count - 1
+        return new_track_number
+
+    def set_track_relative(self, track_delta: Literal[-1, 1]):
+        """
+        Skip a number of tracks based on the value of track_delta.
+        """
+        new_track_number = self._get_incremented_track_number(track_delta)
+        self.set_track(track_number=new_track_number)
+
+    def set_track(self, track_number: int):
+        """
+        Set the current track to track_number.
+
+        Raises: RuntimeError if set_track() fails to generate a completely instantiated StreamData object.
+        """
+        new_stream_data = self.player_dbi.get_new_position(
+            playlist_id=self.position.playlist_id,
+            track_number=track_number,
+            time_=StreamTime(0)
+        )
+        if new_stream_data.is_fully_set():
+            self.position = new_stream_data
+        else:
+            raise RuntimeError('Failed to load track.')
+
+    def _on_time_updated(self, time_: StreamTime):
+        """
+        The media player backend has updated the playback position.
+        """
+        self.position.time = time_
+        self.transmitter.send('time_updated', time_)
+
+    def _on_duration_ready(self, duration: StreamTime):
+        """
+        The media player backend has found the duration of the stream.
+        """
+        self.position.duration = duration
+        self.transmitter.send('duration_ready', duration)
 
     def load_playlist(self, playlist_data: book.PlaylistData):
         """
         Load self.stream_data with a StreamData from the database if it exists, or set it to a newly created one that
         starts at the beginning of the first track in the playlist.
-
-        Raises: RuntimeError if load_playlist() fails to generate a completely instantiated StreamData object.
         """
         playlist_id = playlist_data.get_id()
-        position = self.player_dbi.get_saved_position(playlist_id=playlist_id)
-        if not position.is_fully_set():
-            position = self.player_dbi.get_new_position(playlist_id=playlist_id, track_number=0, time_=StreamTime(0))
-
-        if position.is_fully_set():
-            self.player_backend.load_stream(stream_data=position)
-        else:
-            raise RuntimeError('Failed to load playlist stream_data ', position)
+        self.position = self.player_dbi.get_saved_position(playlist_id=playlist_id)
+        if not self.position.is_fully_set():
+            self.set_track(track_number=0)
+        self.player_backend.load_stream(stream_data=self.position)
 
     def play(self):
         """
@@ -322,7 +410,8 @@ class GstPlayer:
             # returning False stops this from being called again
             return False
         if self.playback_state != 'stopped':
-            GLib.idle_add(self.transmitter.send, 'time_updated', priority=GLib.PRIORITY_DEFAULT)
+            time_ = self.query_position()
+            GLib.idle_add(self.transmitter.send, 'time_updated', time_, priority=GLib.PRIORITY_DEFAULT)
         # Returning True allows this method to continue being called.
         return True
 
@@ -415,7 +504,8 @@ class GstPlayer:
 
     def _on_duration_ready(self, bus: Gst.Bus, _: Gst.Message):
         bus.disconnect_by_func(self._on_duration_ready)
-        self.transmitter.send('duration_ready')
+        duration = self.query_duration()
+        self.transmitter.send('duration_ready', duration=duration)
 
     def _init_start_position(self, bus: Gst.Bus, msg: Gst.Message, time_: StreamTime):
         """

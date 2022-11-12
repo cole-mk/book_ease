@@ -264,6 +264,18 @@ class PlTrack:
         con.execute(sql)
 
     @staticmethod
+    def get_track_count_by_playlist_id(con: sqlite3.Connection, playlist_id: int) -> int:
+        """get the number of tracks in a playlist."""
+        sql = """
+            SELECT COUNT(*)
+            FROM pl_track
+            WHERE playlist_id = (?)
+            """
+        cur = con.execute(sql, (playlist_id,))
+        count = cur.fetchone()
+        return count[0]
+
+    @staticmethod
     def add(con, playlist_id, track_number, track_id) -> 'lastrowid:int':
         """insert track"""
         sql = """

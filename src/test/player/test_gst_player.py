@@ -318,7 +318,7 @@ class Test_OnDurationReady:
         gst_player, m_bus, m_msg = self.init_mocks()
         gst_player._on_duration_ready(m_bus, m_msg)
         gst_player.transmitter.send.assert_called()
-        gst_player.transmitter.send.assert_called_with('duration_ready')
+        gst_player.transmitter.send.assert_called_with('duration_ready', duration=self.duration)
 
     def test_disconnects_callback(self):
         """
@@ -795,9 +795,9 @@ class Test_StartUpdateTime:
 # noinspection PyPep8Naming
 class Test_UpdateTime:
     """Unit tests for _update_time()"""
+    cur_position = player.StreamTime(39, 's')
 
-    @staticmethod
-    def init_mocks():
+    def init_mocks(self):
         """
         Create and return all the mocks that are used for this test class.
         They should be in a state that is conducive to passing the tests.
@@ -811,6 +811,8 @@ class Test_UpdateTime:
         gst_player.pipeline = mock.Mock()
         gst_player.transmitter = mock.Mock()
         gst_player.transmitter.send = mock.Mock()
+        gst_player.query_position = mock.Mock()
+        gst_player.query_position.return_value = self.cur_position
         player.GLib = mock.Mock()
         player.GLib.idle_add = mock.Mock()
         return gst_player
@@ -853,7 +855,7 @@ class Test_UpdateTime:
         gst_player._update_time()
         player.GLib.idle_add.assert_called()
         player.GLib.idle_add.assert_called_with(
-            gst_player.transmitter.send, 'time_updated', priority=player.GLib.PRIORITY_DEFAULT
+            gst_player.transmitter.send, 'time_updated', self.cur_position, priority=player.GLib.PRIORITY_DEFAULT
         )
 
 class TestQueryPosition:
