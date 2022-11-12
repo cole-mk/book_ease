@@ -33,7 +33,6 @@ This test requires sqlite_tools.DBConnectionManager, because it does matter that
 state as what's being used in the program, ie foreign keys.
 """
 
-import sqlite3
 from test.audio_book_tables import sample_data
 import pytest
 import audio_book_tables
@@ -74,6 +73,3 @@ class TestGetTrackCountByPlaylistId:
             playlist_id = sample_data_.playlist_list[1]['id']
             track_count = audio_book_tables.PlTrack.get_track_count_by_playlist_id(con, playlist_id)
             assert track_count == 1, 'Failed to count the correct number of pl_tracks.'
-
-
-
