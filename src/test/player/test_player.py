@@ -358,3 +358,86 @@ class TestLoadPlaylist:
         player_.load_playlist(playlist_data=playlist_data)
         _, kwargs = player_.player_backend.load_stream.call_args
         assert kwargs['stream_data'] is self.sample_data_saved
+
+
+class TestSetTrackRelative:
+    """Unit test for method set_track_relative()"""
+
+    def test_sets_stream_data_to_incremented_track_number(self):
+        """
+        Assert that set_track_relative() calls Player.set_track() with the correct args.
+
+        It is not necessary to test that the tracks wrap around to the beginning or end.
+        That is a test for Player._get_incremented_track_number().
+        It is only necessary to show that set_track_relative() is using a method that rotates
+        the track numbers.
+        """
+        player_ = player.Player()
+        player_._get_incremented_track_number = mock.Mock()
+        player_.set_track = mock.Mock()
+        current_track_num = 2
+        player_._get_incremented_track_number.side_effect = lambda x: current_track_num + x
+
+        player_.set_track_relative(track_delta=1)
+        player_.set_track.assert_called_with(track_number=3)
+
+        player_.set_track_relative(track_delta=-1)
+        player_.set_track.assert_called_with(track_number=1)
+
+
+# noinspection PyPep8Naming
+class Test_GetIncrementedTrackNumber:
+    """Unit test for method _get_incremented_track_number()"""
+
+    @staticmethod
+    def init_mocks():
+        """
+        Create and return all the mocks that are used for this test class.
+        They should be in a state that is conducive to passing the tests.
+        """
+        player_ = Player()
+        player_.position = player.StreamData
+        player_.position.track_number = 3
+        player_.player_dbi = mock.Mock()
+        player_.player_dbi.get_number_of_pl_tracks = mock.Mock()
+        player_.player_dbi.get_number_of_pl_tracks.return_value = 12
+        return player_
+
+    def test_returns_track_number_incremented_by_track_delta(self):
+        """
+        Assert that _get_incremented_track_number() increments
+        """
+        player_ = self.init_mocks()
+
+        # Increase track number by one.
+        new_track_number = player_._get_incremented_track_number(track_delta=1)
+        assert new_track_number == 4
+
+        # Decrease track number by one.
+        new_track_number = player_._get_incremented_track_number(track_delta=-1)
+        assert new_track_number == 2
+
+    def test_wraps_to_beginning_when_passing_end(self):
+        """
+        Assert that _get_incremented_track_number() returns the first track
+        when incrementing past the end of the playlist.
+        """
+        player_ = self.init_mocks()
+        player_.position.track_number = 11
+
+        # Increase track number by one.
+        new_track_number = player_._get_incremented_track_number(track_delta=1)
+        assert new_track_number == 0
+
+    def test_wraps_to_end_when_passing_beginning(self):
+        """
+        Assert that _get_incremented_track_number() returns the first track
+        when incrementing past the end of the playlist.
+        """
+        player_ = self.init_mocks()
+        player_.position.track_number = 0
+
+        # Decrease track number by one.
+        new_track_number = player_._get_incremented_track_number(track_delta=-1)
+        assert new_track_number == 11
+

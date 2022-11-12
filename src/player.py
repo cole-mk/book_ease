@@ -198,6 +198,29 @@ class Player:
         self.skip_duration_short = StreamTime(3, 's')
         self.skip_duration_long = StreamTime(30, 's')
 
+
+    def _get_incremented_track_number(self, track_delta: Literal[-1, 1]):
+        """
+        Get a new track number by incrementing the value of self.position.track_number by track_delta,
+        providing wrap-around functionality.
+
+        This does not increment self.position.track_number itself.
+        """
+        track_count = self.player_dbi.get_number_of_pl_tracks(self.position.playlist_id)
+        new_track_number = self.position.track_number + track_delta
+        if new_track_number >= track_count:
+            new_track_number = 0
+        elif new_track_number < 0:
+            new_track_number = track_count - 1
+        return new_track_number
+
+    def set_track_relative(self, track_delta: Literal[-1, 1]):
+        """
+        Skip a number of tracks based on the value of track_delta.
+        """
+        new_track_number = self._get_incremented_track_number(track_delta)
+        self.set_track(track_number=new_track_number)
+
     def set_track(self, track_number: int):
         """
         Set the current track to track_number.
