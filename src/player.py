@@ -402,11 +402,11 @@ class GstPlayer:
             uri = Gst.filename_to_uri(path)
         return uri
 
-    def _update_time(self):
+    def _update_time(self, assigned_pipeline):
         """
         Set self.stream_data.time to the stream's current stream_data.
         """
-        if self.pipeline is None:
+        if self.pipeline is not assigned_pipeline:
             # returning False stops this from being called again
             return False
         if self.playback_state != 'stopped':
@@ -499,7 +499,7 @@ class GstPlayer:
         if msg.src == self.pipeline:
             old, new, pending = msg.parse_state_changed()  # pylint: disable=unused-variable
             if new == Gst.State.PLAYING and pending == Gst.State.VOID_PENDING:
-                GLib.timeout_add_seconds(1, self._update_time)
+                GLib.timeout_add_seconds(1, self._update_time, self.pipeline)
                 bus.disconnect_by_func(self._start_update_time)
 
     def _on_duration_ready(self, bus: Gst.Bus, _: Gst.Message):

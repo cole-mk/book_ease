@@ -683,7 +683,7 @@ class Test_StartUpdateTime:
     def test_starts_update_time_if_caller_msg_src_is_pipeline_and_pipeline_entered_playing_state(self):
         """
         _start_update_time() must start the timer that calls GstPlayer._update_time() periodically.
-        _start_update_time() does this by calling GLib.timeout_add_seconds(timeout, callback)
+        _start_update_time() does this by calling GLib.timeout_add_seconds(timeout, callback, user_data)
         This test shows that _start_update_time() passes an int for the timeout
         and GstPlayer._update_time for the callback.
 
@@ -694,6 +694,7 @@ class Test_StartUpdateTime:
         gst_player._start_update_time(bus, msg)
         assert isinstance(m_timeout_add_seconds.call_args[0][0], int)
         assert m_timeout_add_seconds.call_args[0][1] == gst_player._update_time
+        assert m_timeout_add_seconds.call_args[0][2] == gst_player.pipeline
 
     def test_not_starts_update_time_if_caller_msg_src_is_not_pipeline(self):
         """
@@ -806,15 +807,28 @@ class Test_UpdateTime:
         player.GLib.idle_add = mock.Mock()
         return gst_player
 
-    def test_returns_false_when_pipeline_None(self):
+    def test_returns_false_when_pipeline_is_not_assigned_pipeline(self):
         """
-        Assert that _update_time() stops itself from being called when the pipeline has been closed.
-        returning False tells the Gst.MessageBus to stop periodically calling _update_time().
+        Assert that _update_time() stops itself from being called if the pipeline which was active when this callback
+        was registered (assigned_pipeline), is no longer the current self.pipeline.
+
+        Returning False tells the Gst.MessageBus to stop periodically calling _update_time().
         """
         gst_player = self.init_mocks()
-        gst_player.pipeline = None
-        ret_val = gst_player._update_time()
+        new_pipeline = mock.Mock()
+        ret_val = gst_player._update_time(assigned_pipeline=new_pipeline)
         assert ret_val is False
+
+    def test_returns_true_when_when_pipeline_is_assigned_pipeline(self):
+        """
+        Assert that _update_time() returns True if the pipeline which was active when this callback
+        was registered (assigned_pipeline), is the current self.pipeline.
+
+        Returning True tells the Gst.MessageBus to continue periodically calling _update_time().
+        """
+        gst_player = self.init_mocks()
+        ret_val = gst_player._update_time(gst_player.pipeline)
+        assert ret_val is True
 
     def test_returns_true_when_playback_state_is_stopped(self):
         """
@@ -823,7 +837,7 @@ class Test_UpdateTime:
         """
         gst_player = self.init_mocks()
         gst_player.playback_state = 'stopped'
-        ret_val = gst_player._update_time()
+        ret_val = gst_player._update_time(gst_player.pipeline)
         assert ret_val is True
 
     def test_returns_true_when_playback_state_is_not_stopped(self):
@@ -832,16 +846,18 @@ class Test_UpdateTime:
         updating an unchanging field.
         """
         gst_player = self.init_mocks()
-        ret_val = gst_player._update_time()
+        ret_val = gst_player._update_time(gst_player.pipeline)
         assert ret_val is True
 
-    def test_calls_glib_idle_add_when_playback_state_is_not_stopped(self):
+    def test_calls_glib_idle_add_when_pipeline_is_assigned_pipeline(self):
         """
-        Assert that _update_time() calls Glib.idle_add if playback state is not 'stopped'.
-        the args to glib.idle_add should be to call the transmitter to signal 'time_updated'
+        Assert that _update_time() calls Glib.idle_add if the pipeline which was active when this callback
+        was registered (assigned_pipeline), is the current self.pipeline.
+
+        The args to glib.idle_add should be to call the transmitter to signal 'time_updated'
         """
         gst_player = self.init_mocks()
-        gst_player._update_time()
+        gst_player._update_time(assigned_pipeline=gst_player.pipeline)
         player.GLib.idle_add.assert_called()
         player.GLib.idle_add.assert_called_with(
             gst_player.transmitter.send, 'time_updated', self.cur_position, priority=player.GLib.PRIORITY_DEFAULT
