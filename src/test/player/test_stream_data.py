@@ -42,3 +42,64 @@ Unit test for class player.StreamData
 from unittest import mock
 import pytest
 import player
+
+class TestIsFullySet:
+    """Unit test for method is_fully_set()"""
+
+    def init_mocks(self):
+        """
+        Create and return all the mocks that are used for this test class.
+        They should be in a state that is conducive to passing the tests.
+        """
+        stream_data = player.StreamData(path='/some/path',
+                                        time=player.StreamTime(0),
+                                        track_number=1,
+                                        playlist_id=2,
+                                        pl_track_id=3)
+        return stream_data
+
+    def test_returns_true_if_all_required_attributes_are_set(self):
+        """
+        Assert that is_fully_set() returns True if all the "required" attributes
+        have been set.
+        """
+        stream_data = self.init_mocks()
+        assert stream_data.is_fully_set()
+
+    def test_returns_false_if_not_all_required_attributes_are_set(self):
+        """
+        assert that is_fully_set() returns False if any one of the required attributes has not been given a value.
+        """
+        stream_data = self.init_mocks()
+
+        for attribute in player.StreamData._required_attributes:
+            tmp = getattr(stream_data, attribute)
+            setattr(stream_data, attribute, None)
+            assert not stream_data.is_fully_set()
+            setattr(stream_data, attribute, tmp)
+
+
+class TestMarkSavedPosition:
+    """Unit test for method mark_saved_position()"""
+
+    def init_mocks(self):
+        """
+        Create and return all the mocks that are used for this test class.
+        They should be in a state that is conducive to passing the tests.
+        """
+        stream_data = player.StreamData(path='/some/path',
+                                        time=player.StreamTime(0),
+                                        track_number=1,
+                                        playlist_id=2,
+                                        pl_track_id=3)
+        return stream_data
+
+    def test_sets_last_saved_position_to_current_time(self):
+        """
+        Assert that mark_saved_position() sets last_saved_position to the value held in self.time.
+        """
+        stream_data = self.init_mocks()
+        assert stream_data.last_saved_position != stream_data.time
+        stream_data.mark_saved_position()
+        assert stream_data.last_saved_position == stream_data.time
+

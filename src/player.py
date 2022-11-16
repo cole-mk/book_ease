@@ -79,6 +79,7 @@ class PlayerDBI:
             position.pl_track_id = row['pl_track_id']
             position.playlist_id = row['playlist_id']
             position.track_number = row['track_number']
+            position.mark_saved_position()
         return position
 
     def get_new_position(self, playlist_id: int, track_number: int, time_: StreamTime) -> StreamData:
@@ -179,6 +180,7 @@ class StreamData:
     track_number: int | None = None
     playlist_id: int | None = None
     pl_track_id: int | None = None
+    last_saved_position: StreamTime = StreamTime(-1)
 
     def is_fully_set(self):
         """Check that all required attributes have been set."""
@@ -186,6 +188,12 @@ class StreamData:
             if item[1] is None and item[0] in self._required_attributes:
                 return False
         return True
+
+    def mark_saved_position(self):
+        """
+        Record what the time was when the position was last saved to the database.
+        """
+        self.last_saved_position.set_time(self.time.get_time())
 
 
 class Player:
