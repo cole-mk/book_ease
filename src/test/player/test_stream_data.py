@@ -39,8 +39,6 @@
 Unit test for class player.StreamData
 """
 
-from unittest import mock
-import pytest
 import player
 
 class TestIsFullySet:
@@ -102,4 +100,3 @@ class TestMarkSavedPosition:
         assert stream_data.last_saved_position != stream_data.time
         stream_data.mark_saved_position()
         assert stream_data.last_saved_position == stream_data.time
-
