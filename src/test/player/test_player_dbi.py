@@ -82,17 +82,16 @@ class TestGetSavedPosition:
 
     @mock.patch.object(audio_book_tables, 'DB_CONNECTION', sqlite_tools.DBConnectionManager(":memory:"))
     @mock.patch.object(audio_book_tables.JoinTrackFilePlTrackPlayerPosition, 'get_row_by_playlist_id')
-    def test_returns_empty_position_data_when_get_row_by_playlist_id_returns_none(self, magic_mock):
+    def test_returns_empty_position_data_when_get_row_by_playlist_id_returns_none(self, m_get_row_by_playlist_id):
         """
-        Show that get_saved_position returns None when
+        Show that get_saved_position returns an unset StreamData object when
         audio_book_tables.JoinTrackFilePlTrackPlayerPosition.get_path_position_by_playlist_id
         returns None.
         """
-        magic_mock.return_value = None
+        m_get_row_by_playlist_id.return_value = None
         player_dbi = player.PlayerDBI()
         position_data = player_dbi.get_saved_position(playlist_id=1)
-        for item in position_data.__dict__.items():
-            assert item[1] is None
+        assert not position_data.is_fully_set()
 
 
 class TestSavePosition:

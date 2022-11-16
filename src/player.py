@@ -79,6 +79,7 @@ class PlayerDBI:
             position.pl_track_id = row['pl_track_id']
             position.playlist_id = row['playlist_id']
             position.track_number = row['track_number']
+            position.mark_saved_position()
         return position
 
     def get_new_position(self, playlist_id: int, track_number: int, time_: StreamTime) -> StreamData:
@@ -179,6 +180,7 @@ class StreamData:
     track_number: int | None = None
     playlist_id: int | None = None
     pl_track_id: int | None = None
+    last_saved_position: StreamTime = StreamTime(-1)
 
     def is_fully_set(self):
         """Check that all required attributes have been set."""
@@ -186,6 +188,12 @@ class StreamData:
             if item[1] is None and item[0] in self._required_attributes:
                 return False
         return True
+
+    def mark_saved_position(self):
+        """
+        Record what the time was when the position was last saved to the database.
+        """
+        self.last_saved_position.set_time(self.time.get_time())
 
 
 class Player:
@@ -212,15 +220,9 @@ class Player:
         """
         old_track_num = self.stream_data.track_number
         self.set_track_relative(1)
-        self.player_backend.load_stream(self.stream_data)
         if old_track_num < self.stream_data.track_number:
             # The end of the playlist has not yet been reached. Continue playback.
             self.play()
-        self.player_dbi.save_position(
-            pl_track_id=self.stream_data.pl_track_id,
-            playlist_id=self.stream_data.playlist_id,
-            time_=self.stream_data.time
-        )
 
     def _get_incremented_track_number(self, track_delta: Literal[-1, 1]):
         """
@@ -256,7 +258,14 @@ class Player:
             time_=StreamTime(0)
         )
         if new_stream_data.is_fully_set():
+            try:
+                self.player_backend.unload_stream()
+            except RuntimeError:
+                pass
+
             self.stream_data = new_stream_data
+            self.player_backend.load_stream(stream_data=self.stream_data)
+            self._save_position()
         else:
             raise RuntimeError('Failed to load track.')
 
@@ -266,6 +275,15 @@ class Player:
         """
         self.stream_data.time = time_
         self.transmitter.send('time_updated', time_)
+        # Save position when 30 seconds elapsed.
+        if time_.get_time('s') - self.stream_data.last_saved_position.get_time('s') > 29:
+            self._save_position()
+
+    def _save_position(self):
+        self.player_dbi.save_position(pl_track_id=self.stream_data.pl_track_id,
+                                      playlist_id=self.stream_data.playlist_id,
+                                      time_=self.stream_data.time)
+        self.stream_data.mark_saved_position()
 
     def _on_duration_ready(self, duration: StreamTime):
         """
@@ -281,9 +299,11 @@ class Player:
         """
         playlist_id = playlist_data.get_id()
         self.stream_data = self.player_dbi.get_saved_position(playlist_id=playlist_id)
-        if not self.stream_data.is_fully_set():
+        if self.stream_data.is_fully_set():
+            self.player_backend.load_stream(stream_data=self.stream_data)
+        else:
+            # No saved position exists; load the first track.
             self.set_track(track_number=0)
-        self.player_backend.load_stream(stream_data=self.stream_data)
 
     def play(self):
         """
@@ -298,6 +318,8 @@ class Player:
         Calls on the media-player backend to pause a playing stream.
         """
         self.player_backend.pause()
+        self.stream_data.time = self.player_backend.query_position()
+        self._save_position()
 
     def stop(self):
         """
@@ -305,6 +327,8 @@ class Player:
         Calls on the media-player backend to stop a playing stream.
         """
         self.player_backend.stop()
+        self.stream_data.time = StreamTime(0)
+        self._save_position()
 
     def go_to_position(self, time_: StreamTime):
         """
