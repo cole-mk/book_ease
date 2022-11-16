@@ -66,6 +66,7 @@ class TestGoToPosition:
 
 class TestPause:
     """Unit test for method pause()"""
+    current_time = player.StreamTime(123, 's')
 
     @pytest.fixture()
     @mock.patch('player.GstPlayer')
@@ -76,6 +77,10 @@ class TestPause:
         They should be in a state that is conducive to passing the tests.
         """
         player_ = Player()
+        player_.stream_data = player.StreamData()
+        player_._save_position = mock.Mock()
+        player_.player_backend.query_position = mock.Mock()
+        player_.player_backend.query_position.return_value = self.current_time
         m_gst_player.pause = mock.Mock()
         return player_
 
@@ -86,6 +91,22 @@ class TestPause:
         player_ = init_mocks
         player_.pause()
         assert player_.player_backend.pause.called
+
+    def test_calls_save_position(self, init_mocks):
+        """
+        Assert that pause() saves the new position to the database when pausing playback.
+        """
+        player_ = init_mocks
+        player_.pause()
+        player_._save_position.assert_called()
+
+    def test_sets_self_dot_stream_data_dot_time_to_current_time(self, init_mocks):
+        """
+        Assert that pause() sets self.stream_data.time to the current playback position.
+        """
+        player_ = init_mocks
+        player_.pause()
+        assert player_.stream_data.time.get_time() == self.current_time.get_time()
 
 
 class TestPlay:
@@ -230,6 +251,8 @@ class TestStop:
         They should be in a state that is conducive to passing the tests.
         """
         player_ = Player()
+        player_.stream_data = player.StreamData()
+        player_._save_position = mock.Mock()
         m_gst_player.stop = mock.Mock()
         return player_
 
@@ -241,6 +264,21 @@ class TestStop:
         player_.stop()
         player_.player_backend.stop.assert_called()
 
+    def test_sets_self_dot_stream_data_dot_time_to_zero(self, init_mocks):
+        """
+        Assert that stop() sets self.stream_data.time to zero.
+        """
+        player_ = init_mocks
+        player_.stop()
+        assert player_.stream_data.time.get_time() == 0
+
+    def test_calls_save_position(self, init_mocks):
+        """
+        Assert that stop() saves the new position to the database when stopping playback.
+        """
+        player_ = init_mocks
+        player_.stop()
+        player_._save_position.assert_called()
 
 # noinspection PyPep8Naming
 class Test_OnDurationReady:
@@ -304,6 +342,12 @@ class TestSetTrack:
             pl_track_id=7
         )
         player_.player_dbi.get_new_position.return_value = self.sample_data
+        # The side effect ensures that unload_stream is in a try block.
+        player_.player_backend.unload_stream = mock.Mock()
+        player_.player_backend.unload_stream.side_effect = RuntimeError
+        player_.player_backend.load_stream = mock.Mock()
+
+        player_._save_position = mock.Mock()
 
         return player_
 
@@ -323,6 +367,23 @@ class TestSetTrack:
         player_ = self.init_mocks()
         player_.set_track(1)
         assert player_.stream_data is self.sample_data
+
+    def test_tries_to_unload_existing_stream(self):
+        """
+        Assert that set_track() calls gst_player.unload_stream()
+        """
+        player_ = self.init_mocks()
+        player_.set_track(1)
+        player_.player_backend.unload_stream.assert_called()
+
+    def test_calls_save_position(self):
+        """
+        Assert that set_track() saves the new position to the database when switching tracks.
+        """
+        player_ = self.init_mocks()
+        player_.set_track(1)
+        player_._save_position.assert_called()
+
 
 
 class TestLoadPlaylist:
@@ -372,16 +433,15 @@ class TestLoadPlaylist:
         playlist_data = book.PlaylistData(title='some_title', path='some_path', id_=1)
         return player_, playlist_data
 
-    def test_calls_backend_dot_load_stream_when_get_saved_position_fails(self):
+    def test_calls_set_track_when_get_saved_position_fails(self):
         """
-        Assert that load_playlist() calls player_backend.load_stream with
+        Assert that load_playlist() calls self.set_track() with
         a fully set StreamData even when there is not an already saved stream_data.
         """
         player_, playlist_data = self.init_mocks()
         player_.player_dbi.get_saved_position.return_value = player.StreamData()
         player_.load_playlist(playlist_data=playlist_data)
-        _, kwargs = player_.player_backend.load_stream.call_args
-        assert kwargs['stream_data'] is self.sample_data_new
+        player_.set_track.assert_called_with(track_number=0)
 
     def test_calls_backend_dot_load_stream_when_saved_position_exists(self):
         """
@@ -543,13 +603,26 @@ class Test_OnEos:
 class Test_OnTimeUpdated:
     """Unit test for method _on_time_updated()"""
 
+    @staticmethod
+    def init_mocks():
+        """
+        Create and return all the mocks that are used for this test class.
+        They should be in a state that is conducive to passing the tests.
+        """
+        player_ = Player()
+        player_.stream_data = player.StreamData()
+        player_.stream_data.last_saved_position = player.StreamTime(0)
+        player_.transmitter = mock.Mock()
+        player_.transmitter.send = mock.Mock()
+        player_._save_position = mock.Mock()
+        new_stream_time = player.StreamTime(30, 's')
+        return player_, new_stream_time
+
     def test_updates_time(self):
         """
         Assert that _on_time_updated() updates its stream_data with the new time.
         """
-        player_ = Player()
-        player_.stream_data = player.StreamData()
-        new_stream_time = player.StreamTime(30)
+        player_, new_stream_time = self.init_mocks()
 
         player_._on_time_updated(new_stream_time)
         assert player_.stream_data.time == new_stream_time
@@ -559,11 +632,24 @@ class Test_OnTimeUpdated:
         Assert that _on_time_updated() transmits the 'time_updated' signal
         with time as an argument.
         """
-        player_ = Player()
-        player_.stream_data = player.StreamData()
-        player_.transmitter = mock.Mock()
-        player_.transmitter.send = mock.Mock()
-        new_stream_time = player.StreamTime(30)
+        player_, new_stream_time = self.init_mocks()
 
         player_._on_time_updated(new_stream_time)
         player_.transmitter.send.assert_called_with('time_updated', new_stream_time)
+
+    def test_calls_save_position_if_30_seconds_elapsed_since_last_save(self):
+        """
+        Asert that _on_time_updated() saves the new position if and only if 30 seconds has elapsed
+        since the position was last saved.
+        """
+
+        # elapsed time is exactly 30 seconds
+        player_, new_stream_time = self.init_mocks()
+        player_._on_time_updated(new_stream_time)
+        player_._save_position.assert_called()
+
+        # elapsed time is 29 seconds
+        player_, _ = self.init_mocks()
+        new_stream_time = player.StreamTime(29, 's')
+        player_._on_time_updated(new_stream_time)
+        player_._save_position.assert_not_called()

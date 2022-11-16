@@ -258,7 +258,14 @@ class Player:
             time_=StreamTime(0)
         )
         if new_stream_data.is_fully_set():
+            try:
+                self.player_backend.unload_stream()
+            except RuntimeError:
+                pass
+
             self.stream_data = new_stream_data
+            self.player_backend.load_stream(stream_data=self.stream_data)
+            self._save_position()
         else:
             raise RuntimeError('Failed to load track.')
 
@@ -268,6 +275,15 @@ class Player:
         """
         self.stream_data.time = time_
         self.transmitter.send('time_updated', time_)
+        # Save position when 30 seconds elapsed.
+        if time_.get_time('s') - self.stream_data.last_saved_position.get_time('s') > 29:
+            self._save_position()
+
+    def _save_position(self):
+        self.player_dbi.save_position(pl_track_id=self.stream_data.pl_track_id,
+                                      playlist_id=self.stream_data.playlist_id,
+                                      time_=self.stream_data.time)
+        self.stream_data.mark_saved_position()
 
     def _on_duration_ready(self, duration: StreamTime):
         """
@@ -283,9 +299,11 @@ class Player:
         """
         playlist_id = playlist_data.get_id()
         self.stream_data = self.player_dbi.get_saved_position(playlist_id=playlist_id)
-        if not self.stream_data.is_fully_set():
+        if self.stream_data.is_fully_set():
+            self.player_backend.load_stream(stream_data=self.stream_data)
+        else:
+            # No saved position exists; load the first track.
             self.set_track(track_number=0)
-        self.player_backend.load_stream(stream_data=self.stream_data)
 
     def play(self):
         """
@@ -300,6 +318,8 @@ class Player:
         Calls on the media-player backend to pause a playing stream.
         """
         self.player_backend.pause()
+        self.stream_data.time = self.player_backend.query_position()
+        self._save_position()
 
     def stop(self):
         """
@@ -307,6 +327,8 @@ class Player:
         Calls on the media-player backend to stop a playing stream.
         """
         self.player_backend.stop()
+        self.stream_data.time = StreamTime(0)
+        self._save_position()
 
     def go_to_position(self, time_: StreamTime):
         """
