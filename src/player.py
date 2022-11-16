@@ -220,15 +220,9 @@ class Player:
         """
         old_track_num = self.stream_data.track_number
         self.set_track_relative(1)
-        self.player_backend.load_stream(self.stream_data)
         if old_track_num < self.stream_data.track_number:
             # The end of the playlist has not yet been reached. Continue playback.
             self.play()
-        self.player_dbi.save_position(
-            pl_track_id=self.stream_data.pl_track_id,
-            playlist_id=self.stream_data.playlist_id,
-            time_=self.stream_data.time
-        )
 
     def _get_incremented_track_number(self, track_delta: Literal[-1, 1]):
         """

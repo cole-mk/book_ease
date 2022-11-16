@@ -513,19 +513,6 @@ class Test_OnEos:
         self.player_.player_dbi.save_position = mock.Mock()
         return self.player_
 
-    def test_saves_position_at_beginning_of_next_track(self):
-        """
-        Assert that _on_eos() saves the new position at the beginning of the next track.
-        """
-        player_ = self.init_mocks()
-        player_._on_eos()
-
-        self.player_.player_dbi.save_position.assert_called()
-        _, kwargs = self.player_.player_dbi.save_position.call_args
-        assert kwargs['pl_track_id'] == 2
-        assert kwargs['playlist_id'] == 1
-        assert kwargs['time_'] == player.StreamTime(0)
-
     def test_calls_play_if_not_wrapped_back_to_first_track(self):
         """
         Assert that _on_eos() calls self.play if The StreamData was advanced forward to the next track_number.
@@ -550,14 +537,6 @@ class Test_OnEos:
         player_ = self.init_mocks()
         player_._on_eos()
         player_.set_track_relative.assert_called_with(1)
-
-    def test_calls_backend_dot_load_stream(self):
-        """
-        Assert that the newly advanced StreamData is loaded into the media player backend.
-        """
-        player_ = self.init_mocks()
-        player_._on_eos()
-        player_.player_backend.load_stream.assert_called_with(player_.stream_data)
 
 
 # noinspection PyPep8Naming
