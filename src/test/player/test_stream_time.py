@@ -182,30 +182,14 @@ class TestInit:
         assert st._time is None or st._time == 0
 
     @mock.patch('player.StreamTime.set_time')
-    def test_calls_set_time_with_zero_and_ns_when_no_args_given(self, m_set_time):
+    def test_sets_time_to_none_when_no_args_given(self, m_set_time):
         """
-        Assert that __init__() calls self.set_time() with the following parameters,
-        when __init__() is called with no args:
-        time_=0, unit='ns'
+        Assert that __init__() sets self._time to None when no args are given.
+        It should not call self.set_time().
         """
-        StreamTime()
-        m_set_time.assert_called_with(time_=0, unit='ns')
-
-    @mock.patch('player.StreamTime.set_time')
-    def test_calls_set_time_with_zero_and_unit_when_only_unit_given(self, m_set_time):
-        """
-        Assert that __init__() calls self.set_time() with the following parameters,
-        when __init__() is called with only the units given as arg:
-        time_=0, unit=unit
-        """
-        StreamTime(unit='s')
-        m_set_time.assert_called_with(time_=0, unit='s')
-
-        StreamTime(unit='ms')
-        m_set_time.assert_called_with(time_=0, unit='ms')
-
-        StreamTime(unit='ns')
-        m_set_time.assert_called_with(time_=0, unit='ns')
+        test_time = StreamTime()
+        m_set_time.assert_not_called()
+        assert test_time._time is None
 
     @mock.patch('player.StreamTime.set_time')
     def test_calls_set_time_with_time_and_ns_when_only_time_given(self, m_set_time):

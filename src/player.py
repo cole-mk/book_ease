@@ -145,9 +145,11 @@ class StreamTime:
         's': pow(10, 9)
     }
 
-    def __init__(self, time_: int | float = 0, unit: str = 'ns'):
-        self._time = None
-        self.set_time(time_=time_, unit=unit)
+    def __init__(self, time_: int | float = None, unit: str = 'ns'):
+        if time_ is None:
+            self._time = time_
+        else:
+            self.set_time(time_=time_, unit=unit)
 
     def __eq__(self, other):
         if isinstance(other, StreamTime):
