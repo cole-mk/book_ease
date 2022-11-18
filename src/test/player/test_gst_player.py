@@ -248,7 +248,7 @@ class TestSetPositionRelative:
 
     def test_calls_set_position_with_t_seconds_normalized_to_valid_range(self):
         """
-        Assert that set_position_relative() normalizes the new stream_data time to the nearest endpoint of the valid
+        Assert that set_position_relative() normalizes the new stream_data position to the nearest endpoint of the valid
         stream_data range, when (current stream_data + delta_t) is outside the valid range of positions for this
         stream.
         """
@@ -485,7 +485,7 @@ class Test_InitMessageBus:
         bus_mock.connect = mock.Mock()
         gst_player.pipeline.get_bus = get_bus_mock = mock.Mock()
         gst_player.pipeline.get_bus.return_value = bus_mock
-        stream_data = player.StreamData(time=player.StreamTime(30, 's'))
+        stream_data = player.StreamData(position=player.StreamTime(30, 's'))
         return gst_player, get_bus_mock, bus_mock, stream_data
 
     def test_adds_signal_watch(self):
@@ -506,7 +506,7 @@ class Test_InitMessageBus:
             mock.call("message::error", gst_player._on_error),
             mock.call("message::eos", gst_player._on_eos),
             mock.call("message::state-changed",
-                      gst_player._init_start_position, stream_data.time),
+                      gst_player._init_start_position, stream_data.position),
             mock.call("message::duration-changed", gst_player._on_duration_ready)
         ]
         bus_mock.connect.assert_has_calls(calls, any_order=True)

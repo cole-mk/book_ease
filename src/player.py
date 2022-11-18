@@ -75,7 +75,7 @@ class PlayerDBI:
         position = StreamData()
         if row is not None:
             position.path = row['path']
-            position.time = StreamTime(row['time'])
+            position.position = StreamTime(row['time'])
             position.pl_track_id = row['pl_track_id']
             position.playlist_id = row['playlist_id']
             position.track_number = row['track_number']
@@ -99,7 +99,7 @@ class PlayerDBI:
                 track_number=track_number,
                 playlist_id=playlist_id,
                 path=path,
-                time=time_
+                position=time_
             )
         else:
             position = StreamData()
@@ -173,11 +173,11 @@ class StreamTime:
 @dataclass
 class StreamData:
     """Container for stream data."""
-    _required_attributes: ClassVar[tuple] = ('path', 'time', 'track_number', 'playlist_id', 'pl_track_id')
+    _required_attributes: ClassVar[tuple] = ('path', 'position', 'track_number', 'playlist_id', 'pl_track_id')
 
     # instance attributes
     path: str | None = None
-    time: StreamTime | None = None
+    position: StreamTime | None = None
     duration: StreamTime | None = None
     track_number: int | None = None
     playlist_id: int | None = None
@@ -195,7 +195,7 @@ class StreamData:
         """
         Record what the time was when the position was last saved to the database.
         """
-        self.last_saved_position.set_time(self.time.get_time())
+        self.last_saved_position.set_time(self.position.get_time())
 
 
 class Player:
@@ -271,20 +271,20 @@ class Player:
         else:
             raise RuntimeError('Failed to load track.')
 
-    def _on_time_updated(self, time_: StreamTime):
+    def _on_time_updated(self, position: StreamTime):
         """
         The media player backend has updated the playback position.
         """
-        self.stream_data.time = time_
-        self.transmitter.send('time_updated', time_)
+        self.stream_data.position = position
+        self.transmitter.send('time_updated', position)
         # Save position when 30 seconds elapsed.
-        if time_.get_time('s') - self.stream_data.last_saved_position.get_time('s') > 29:
+        if position.get_time('s') - self.stream_data.last_saved_position.get_time('s') > 29:
             self._save_position()
 
     def _save_position(self):
         self.player_dbi.save_position(pl_track_id=self.stream_data.pl_track_id,
                                       playlist_id=self.stream_data.playlist_id,
-                                      time_=self.stream_data.time)
+                                      time_=self.stream_data.position)
         self.stream_data.mark_saved_position()
 
     def _on_duration_ready(self, duration: StreamTime):
@@ -320,7 +320,7 @@ class Player:
         Calls on the media-player backend to pause a playing stream.
         """
         self.player_backend.pause()
-        self.stream_data.time = self.player_backend.query_position()
+        self.stream_data.position = self.player_backend.query_position()
         self._save_position()
 
     def stop(self):
@@ -329,7 +329,7 @@ class Player:
         Calls on the media-player backend to stop a playing stream.
         """
         self.player_backend.stop()
-        self.stream_data.time = StreamTime(0)
+        self.stream_data.position = StreamTime(0)
         self._save_position()
 
     def go_to_position(self, time_: StreamTime):
@@ -454,7 +454,7 @@ class GstPlayer:
         bus.add_signal_watch()
         bus.connect("message::error", self._on_error)
         bus.connect("message::eos", self._on_eos)
-        bus.connect("message::state-changed", self._init_start_position, stream_data.time)
+        bus.connect("message::state-changed", self._init_start_position, stream_data.position)
         bus.connect("message::state-changed", self._start_update_time)
         bus.connect("message::duration-changed", self._on_duration_ready)
         # bus.connect("message::application", self.on_application_message)
