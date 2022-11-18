@@ -41,6 +41,7 @@ Unit test for class player.StreamData
 
 import player
 
+
 class TestIsFullySet:
     """Unit test for method is_fully_set()"""
 
@@ -100,4 +101,3 @@ class TestMarkSavedPosition:
         assert stream_data.last_saved_position != stream_data.position
         stream_data.mark_saved_position()
         assert stream_data.last_saved_position == stream_data.position
-
