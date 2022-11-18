@@ -108,6 +108,15 @@ class TestPause:
         player_.pause()
         assert player_.stream_data.position.get_time() == self.current_time.get_time()
 
+    def test_sets_player_state_to_paused(self, init_mocks):
+        """
+        Assert that pause() sets the Player state to 'paused'.
+        """
+        player_ = init_mocks
+        assert player_.state != 'paused', 'Failed to set preliminary conditions for test.'
+        player_.pause()
+        assert player_.state == 'paused'
+
 
 class TestPlay:
     """Unit test for method play()"""
@@ -126,11 +135,20 @@ class TestPlay:
 
     def test_play_calls_gst_player_play(self, init_mocks):
         """
-        Assert that pause() calls method GstPlayer.play().
+        Assert that play() calls method GstPlayer.play().
         """
         player_ = init_mocks
         player_.play()
         player_.player_backend.play.assert_called()
+
+    def test_sets_player_state_to_ready(self, init_mocks):
+        """
+        Assert that play() sets the Player state to 'playing'.
+        """
+        player_ = init_mocks
+        assert player_.state != 'playing', 'Failed to set preliminary conditions for test.'
+        player_.play()
+        assert player_.state == 'playing'
 
 
 class TestSkipForwardLong:
@@ -276,6 +294,15 @@ class TestStop:
         player_.stop()
         player_._save_position.assert_called()
 
+    def test_sets_player_state_to_stopped(self, init_mocks):
+        """
+        Assert that stop() sets the Player state to 'stopped'.
+        """
+        player_ = init_mocks
+        assert player_.state != 'stopped', 'Failed to set preliminary conditions for test.'
+        player_.stop()
+        assert player_.state == 'stopped'
+
 
 # noinspection PyPep8Naming
 class Test_OnDurationReady:
@@ -345,6 +372,7 @@ class TestSetTrack:
         player_.player_backend.load_stream = mock.Mock()
 
         player_._save_position = mock.Mock()
+        player_.play = mock.Mock()
 
         return player_
 
@@ -380,6 +408,15 @@ class TestSetTrack:
         player_ = self.init_mocks()
         player_.set_track(1)
         player_._save_position.assert_called()
+
+    def test_resumes_playback_if_in_playing_state(self):
+        """
+        Assert that set_track() calls self.play() if the Player is in the 'playing' state.
+        """
+        player_ = self.init_mocks()
+        player_.state = 'playing'
+        player_.set_track(1)
+        player_.play.assert_called()
 
 
 class TestLoadPlaylist:
@@ -448,6 +485,27 @@ class TestLoadPlaylist:
         player_.load_playlist(playlist_data=playlist_data)
         _, kwargs = player_.player_backend.load_stream.call_args
         assert kwargs['stream_data'] is self.sample_data_saved
+
+    def test_sets_player_state_to_ready_when_saved_position_exists(self):
+        """
+        Assert that load_playlist() sets the Player's state to 'ready', when there
+        is a position already saved in the database.
+        """
+        player_, playlist_data = self.init_mocks()
+        assert player_.state != 'ready', 'Failed to set preliminary conditions for test.'
+        player_.load_playlist(playlist_data=playlist_data)
+        assert player_.state == 'ready'
+
+    def test_sets_player_state_to_ready_when_when_get_saved_position_fails(self):
+        """
+        Assert that load_playlist() sets the Player's state to 'ready', when there
+        is not a position already saved in the database.
+        """
+        player_, playlist_data = self.init_mocks()
+        assert player_.state != 'ready', 'Failed to set preliminary conditions for test.'
+        player_.player_dbi.get_saved_position.return_value = player.StreamData()
+        player_.load_playlist(playlist_data=playlist_data)
+        assert player_.state == 'ready'
 
 
 class TestSetTrackRelative:
