@@ -126,7 +126,7 @@ class TestPlay:
 
     def test_play_calls_gst_player_play(self, init_mocks):
         """
-        Assert that pause() calls method GstPlayer.play().
+        Assert that play() calls method GstPlayer.play().
         """
         player_ = init_mocks
         player_.play()
