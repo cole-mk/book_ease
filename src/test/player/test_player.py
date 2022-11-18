@@ -304,7 +304,6 @@ class TestStop:
         assert player_.state == 'stopped'
 
 
-
 # noinspection PyPep8Naming
 class Test_OnDurationReady:
     """Unit test for method _on_duration_ready()"""
