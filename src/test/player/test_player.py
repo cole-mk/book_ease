@@ -136,7 +136,6 @@ class TestPlay:
 class TestSkipForwardLong:
     """Unit test for method skip_forward_long()"""
 
-
     @pytest.fixture()
     @mock.patch('player.GstPlayer')
     @mock.patch('player.PlayerDBI')
@@ -161,7 +160,6 @@ class TestSkipForwardLong:
 
 class TestSkipForwardShort:
     """Unit test for method skip_forward_short()"""
-
 
     @pytest.fixture()
     @mock.patch('player.GstPlayer')
@@ -188,7 +186,6 @@ class TestSkipForwardShort:
 class TestSkipReverseLong:
     """Unit test for method skip_reverse_long()"""
 
-
     @pytest.fixture()
     @mock.patch('player.GstPlayer')
     @mock.patch('player.PlayerDBI')
@@ -214,7 +211,6 @@ class TestSkipReverseLong:
 
 class TestSkipReverseShort:
     """Unit test for method skip_reverse_short()"""
-
 
     @pytest.fixture()
     @mock.patch('player.GstPlayer')
@@ -279,6 +275,7 @@ class TestStop:
         player_ = init_mocks
         player_.stop()
         player_._save_position.assert_called()
+
 
 # noinspection PyPep8Naming
 class Test_OnDurationReady:
@@ -383,7 +380,6 @@ class TestSetTrack:
         player_ = self.init_mocks()
         player_.set_track(1)
         player_._save_position.assert_called()
-
 
 
 class TestLoadPlaylist:
