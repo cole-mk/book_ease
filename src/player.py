@@ -215,6 +215,7 @@ class Player:
 
         self.transmitter = signal_.Signal()
         self.transmitter.add_signal('time_updated', 'duration_ready', 'eos')
+        self.state = 'no_playlist_loaded'
 
     def _on_eos(self):
         """
@@ -268,6 +269,8 @@ class Player:
             self.stream_data = new_stream_data
             self.player_backend.load_stream(stream_data=self.stream_data)
             self._save_position()
+            if self.state == 'playing':
+                self.play()
         else:
             raise RuntimeError('Failed to load track.')
 
@@ -306,6 +309,7 @@ class Player:
         else:
             # No saved position exists; load the first track.
             self.set_track(track_number=0)
+        self.state = 'ready'
 
     def play(self):
         """
@@ -313,6 +317,7 @@ class Player:
         Calls on the media-player backend to play a stream.
         """
         self.player_backend.play()
+        self.state = 'playing'
 
     def pause(self):
         """
@@ -322,6 +327,7 @@ class Player:
         self.player_backend.pause()
         self.stream_data.position = self.player_backend.query_position()
         self._save_position()
+        self.state = 'paused'
 
     def stop(self):
         """
@@ -331,6 +337,7 @@ class Player:
         self.player_backend.stop()
         self.stream_data.position = StreamTime(0)
         self._save_position()
+        self.state = 'stopped'
 
     def go_to_position(self, time_: StreamTime):
         """
