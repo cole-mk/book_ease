@@ -50,7 +50,7 @@ class TestIsFullySet:
         They should be in a state that is conducive to passing the tests.
         """
         stream_data = player.StreamData(path='/some/path',
-                                        time=player.StreamTime(0),
+                                        position=player.StreamTime(0),
                                         track_number=1,
                                         playlist_id=2,
                                         pl_track_id=3)
@@ -86,7 +86,7 @@ class TestMarkSavedPosition:
         They should be in a state that is conducive to passing the tests.
         """
         stream_data = player.StreamData(path='/some/path',
-                                        time=player.StreamTime(0),
+                                        position=player.StreamTime(0),
                                         track_number=1,
                                         playlist_id=2,
                                         pl_track_id=3)
@@ -94,9 +94,10 @@ class TestMarkSavedPosition:
 
     def test_sets_last_saved_position_to_current_time(self):
         """
-        Assert that mark_saved_position() sets last_saved_position to the value held in self.time.
+        Assert that mark_saved_position() sets last_saved_position to the value held in self.position.
         """
         stream_data = self.init_mocks()
-        assert stream_data.last_saved_position != stream_data.time
+        assert stream_data.last_saved_position != stream_data.position
         stream_data.mark_saved_position()
-        assert stream_data.last_saved_position == stream_data.time
+        assert stream_data.last_saved_position == stream_data.position
+

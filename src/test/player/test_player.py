@@ -106,7 +106,7 @@ class TestPause:
         """
         player_ = init_mocks
         player_.pause()
-        assert player_.stream_data.time.get_time() == self.current_time.get_time()
+        assert player_.stream_data.position.get_time() == self.current_time.get_time()
 
 
 class TestPlay:
@@ -266,11 +266,11 @@ class TestStop:
 
     def test_sets_self_dot_stream_data_dot_time_to_zero(self, init_mocks):
         """
-        Assert that stop() sets self.stream_data.time to zero.
+        Assert that stop() sets self.stream_data.position to zero.
         """
         player_ = init_mocks
         player_.stop()
-        assert player_.stream_data.time.get_time() == 0
+        assert player_.stream_data.position.get_time() == 0
 
     def test_calls_save_position(self, init_mocks):
         """
@@ -327,7 +327,7 @@ class TestSetTrack:
         player_.player_dbi.get_new_position = mock.Mock()
         self.sample_data = player.StreamData(
             path='some/path.mp3',
-            time=player.StreamTime(0),
+            position=player.StreamTime(0),
             duration=player.StreamTime(100),
             track_number=1,
             playlist_id=2,
@@ -335,7 +335,7 @@ class TestSetTrack:
         )
         player_.stream_data = player.StreamData(
             path='some/path.mp3',
-            time=player.StreamTime(99),
+            position=player.StreamTime(99),
             duration=player.StreamTime(999),
             track_number=9,
             playlist_id=8,
@@ -406,7 +406,7 @@ class TestLoadPlaylist:
         """
         self.sample_data_saved = player.StreamData(
             path='some/path.mp3',
-            time=player.StreamTime(0),
+            position=player.StreamTime(0),
             duration=player.StreamTime(100),
             track_number=1,
             playlist_id=2,
@@ -415,7 +415,7 @@ class TestLoadPlaylist:
 
         self.sample_data_new = player.StreamData(
             path='some/path.mp3',
-            time=player.StreamTime(9),
+            position=player.StreamTime(9),
             duration=player.StreamTime(999),
             track_number=9,
             playlist_id=8,
@@ -551,7 +551,7 @@ class Test_OnEos:
             self.player_.stream_data.track_number += track_delta
         elif self.go_to_first_track is True:
             self.player_.stream_data.track_number = 0
-        self.player_.stream_data.time = player.StreamTime(0)
+        self.player_.stream_data.position = player.StreamTime(0)
 
     def init_mocks(self):
         """
@@ -561,7 +561,7 @@ class Test_OnEos:
         self.player_ = Player()
         self.player_.stream_data = player.StreamData(track_number=3,
                                                      path='some/path',
-                                                     time=player.StreamTime(120),
+                                                     position=player.StreamTime(120),
                                                      duration=player.StreamTime(200),
                                                      playlist_id=1,
                                                      pl_track_id=2)
@@ -620,12 +620,12 @@ class Test_OnTimeUpdated:
 
     def test_updates_time(self):
         """
-        Assert that _on_time_updated() updates its stream_data with the new time.
+        Assert that _on_time_updated() updates its stream_data with the new position.
         """
-        player_, new_stream_time = self.init_mocks()
+        player_, new_stream_position = self.init_mocks()
 
-        player_._on_time_updated(new_stream_time)
-        assert player_.stream_data.time == new_stream_time
+        player_._on_time_updated(new_stream_position)
+        assert player_.stream_data.position == new_stream_position
 
     def test_sends_time_updated_signal(self):
         """

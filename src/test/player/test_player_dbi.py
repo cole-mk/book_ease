@@ -296,7 +296,7 @@ class TestGetNewPosition:
         assert position.track_number == track_number
         assert position.playlist_id == playlist_id
         assert position.pl_track_id == pl_track_id
-        assert isinstance(position.time, player.StreamTime)
+        assert isinstance(position.position, player.StreamTime)
 
 
 class TestGetNumberOfPlTracks:
