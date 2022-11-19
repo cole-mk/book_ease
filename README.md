@@ -25,7 +25,7 @@
 
 ## Authors
 
-mark cole <mark@capstonedistribution.com>
+Mark Cole 
 
 ## Version History
 * There are no official numbered releases
