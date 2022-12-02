@@ -38,7 +38,7 @@ class Signal():
         create empty signal handler container, dict
         note: instantiated/inherited by server
 
-        _sig_handlers:
+        _sig_handlers, _sig_handlers_once:
         for each key/val pair,
         the key will be the signal handle
         and the val will hold a list of containers that hold
@@ -48,6 +48,7 @@ class Signal():
         This list contains signal handles that are to be ignored when sending a signal.
         """
         self._sig_handlers = {}
+        self._sig_handlers_once = {}
         self._muted_signals = []
 
     def add_signal(self, handle: str, *more_handles: str):
@@ -55,16 +56,18 @@ class Signal():
         create/add signal to the sig handlers list
         note: called by server
         """
-        self._sig_handlers[handle] = []
-        for additional_handle in more_handles:
-            self._sig_handlers[additional_handle] = []
+        for sig_h in (self._sig_handlers, self._sig_handlers_once):
+            sig_h[handle] = []
+            for additional_handle in more_handles:
+                sig_h[additional_handle] = []
 
     def remove_signal(self, handle):
         """
         remove signal from the sig handlers list
         note: called by server
         """
-        del self._sig_handlers[handle]
+        for sig_h in (self._sig_handlers, self._sig_handlers_once):
+            del sig_h[handle]
 
     def connect(self, handle, method, *cb_args, **cb_kwargs):
         """
@@ -79,6 +82,27 @@ class Signal():
         """
         self._sig_handlers[handle].append((method, cb_args, cb_kwargs))
 
+    def connect_once(self, handle, method, *cb_args, pass_sig_data_to_cb: bool = False, **cb_kwargs) -> tuple:
+        """
+        Connect callback to signal in the sig handlers list
+        This connection will be transmitted once and then removed from the list.
+
+        note: called by subscriber
+        note: server must have added the signal before subscriber can connect
+
+        handle: signal name
+        method: subscriber chosen method to call during signal execution
+        cb_args: user data to be passed to the callback function during signal execution
+        cb_kwargs: user data to be passed to the callback function during signal execution
+
+        Returns the sig_data tuple that is added to the list.
+        """
+        sig_data = (method, cb_args, cb_kwargs)
+        if pass_sig_data_to_cb:
+            sig_data[2]['sig_data'] = sig_data
+        self._sig_handlers_once[handle].append(sig_data)
+        return sig_data
+
     def send(self, handle, *extra_args, **extra_kwargs):
         """
         execute each signal for this handle in the sig handlers list
@@ -91,9 +115,12 @@ class Signal():
         signal[1]: cb_args
         signal[2]: cb_kwargs
         """
-        if not handle in self._muted_signals:
-            for signal in self._sig_handlers[handle]:
-                signal[0](*signal[1], *extra_args, **signal[2], **extra_kwargs)
+        if handle not in self._muted_signals:
+            for sig_h in (self._sig_handlers, self._sig_handlers_once):
+                # reversed so a calback can remove itself wihout disrupting the iteration.
+                for signal in reversed(sig_h[handle]):
+                    signal[0](*signal[1], *extra_args, **signal[2], **extra_kwargs)
+            self._sig_handlers_once[handle] = []
 
     def mute_signal(self, handle):
         """add a signal handle to the list of signals to be ignored while sending"""
@@ -107,11 +134,15 @@ class Signal():
     def disconnect_by_call_back(self, handle: str, call_back: Callable):
         """
         remove a callback from the signal handler's list by matching handle and callback method.
-        This will remove all matching entries where the same callback method was connected more than once by the same
-        object instance.
+        This will remove the first matching entry matching handle and callback method to a signal.
+
+        Callbacks can not safely remove themselves from sig handler's list by calling disconnect_by_call_back
+        without disrupting the iteration of the list. Callbacks should use disconnect_by_signal_data() instead,
+        or preferably use connect_once() whenever possible.
         """
-        index = len(self._sig_handlers[handle]) -1
-        for sig in reversed(self._sig_handlers[handle]):
-            if call_back == sig[0]:
-                self._sig_handlers[handle].pop(index)
-            index -= 1
+        for sig_h in (self._sig_handlers, self._sig_handlers_once):
+            for sig in sig_h[handle]:
+                if call_back == sig[0]:
+                    sig_h[handle].remove(sig)
+                    return
+        raise ValueError(f'call_back: {call_back} not found for signal: {handle}.')
