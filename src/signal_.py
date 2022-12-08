@@ -136,15 +136,6 @@ class Signal():
                     signal.callback(*signal.cb_args, *extra_args, **signal.cb_kwargs, **extra_kwargs)
             self._sig_handlers_once[handle] = []
 
-    def mute_signal(self, handle):
-        """add a signal handle to the list of signals to be ignored while sending"""
-        if handle not in self._muted_signals:
-            self._muted_signals.append(handle)
-
-    def unmute_signal(self, handle):
-        """remove a signal handle from the list of signals to be ignored while sending"""
-        self._muted_signals.remove(handle)
-
     def disconnect_by_call_back(self, handle: str, call_back: Callable):
         """
         remove a callback from the signal handler's list by matching handle and callback method.
