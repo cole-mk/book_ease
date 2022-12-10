@@ -155,7 +155,30 @@ class StreamTime:
         if isinstance(other, StreamTime):
             if other._time == self._time:
                 return True
-        return False
+            return False
+        raise TypeError(f'Cannot compare {StreamTime} and {type(other)}')
+
+    def __gt__(self, other):
+        if isinstance(other, StreamTime):
+            if self._time > other._time:
+                return True
+            return False
+        raise TypeError(f'Cannot compare {StreamTime} and {type(other)}')
+
+    def __add__(self, other):
+        if isinstance(other, StreamTime):
+            sum_ = self.get_time() + other.get_time()
+            return StreamTime(sum_)
+        raise TypeError(f'expected {StreamTime} but got {type(other)}')
+
+    def __sub__(self, other):
+        if isinstance(other, StreamTime):
+            diff = self.get_time() - other.get_time()
+            return StreamTime(diff)
+        raise TypeError(f'expected {StreamTime} but got {type(other)}')
+
+    def __neg__(self):
+        return StreamTime(self._time * -1)
 
     def get_time(self, unit: str = 'ns'):
         """
