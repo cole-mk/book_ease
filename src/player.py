@@ -523,18 +523,6 @@ class GstPlayer:
         self._close_pipeline()
         self.transmitter.send('eos')
 
-    def set_position_relative(self, delta_t: StreamTime):
-        """
-        Set stream position to current position + delta_t.
-
-        Normalize the new position to values acceptable to self.set_position()
-        """
-        cur_position = self.query_position()
-        new_position = cur_position.get_time() + delta_t.get_time()
-        # ensure new_position in valid range
-        new_position = max(new_position, 0)
-        self.set_position(time_=StreamTime(new_position))
-
     def set_position(self, time_: StreamTime):
         """
         Attempt to set stream position to time_.
