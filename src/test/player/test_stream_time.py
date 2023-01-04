@@ -43,12 +43,16 @@
 # pylint: disable=unnecessary-dunder-call
 # disabled because dunder methods are being tested.
 #
+# pylint: disable=expression-not-assigned
+# disabled because some expressions are used only for testing their side effects.
+#
 
 """
 Unit test for class player.StreamTime
 """
 
 from unittest import mock
+import pytest
 
 import player
 from player import StreamTime
@@ -237,10 +241,63 @@ class TestEQ:
         st2 = StreamTime(20)
         assert st1.__eq__(st2) is False
 
-    def test_returns_false_when_comparing_different_classes(self):
+    def test_raises_type_error_when_comparing_different_classes(self):
         """
         Assert that __eq__() returns False when the other object is not a StreamTime object.
         """
         st1 = StreamTime(30)
         st2 = 30
-        assert st1.__eq__(st2) is False
+        with pytest.raises(TypeError):
+            st1.__eq__(st2) is False
+
+
+class TestAdd:
+    """Unit test for the method __add__()"""
+
+    def test_raises_type_error_if_other_is_not_stream_time(self):
+        """
+        Assert that __add__() raises TypeError of other is not a StreamTime object.
+        """
+        with pytest.raises(TypeError):
+            StreamTime(30) + 1
+
+    def test_sums_two_stream_times(self):
+        """
+        Assert that __add__() sums the times stored by two Streamtime objects.
+        """
+        assert StreamTime(30) + StreamTime(69) == StreamTime(99)
+        assert StreamTime(30) + StreamTime(-69) == StreamTime(-39)
+        assert StreamTime(-30) + StreamTime(-69) == StreamTime(-99)
+        assert StreamTime(-30) + StreamTime(69) == StreamTime(39)
+
+
+class TestSub:
+    """Unit test for the method __sub__()"""
+
+    def test_raises_type_error_if_other_is_not_stream_time(self):
+        """
+        Assert that __sub__() raises TypeError of other is not a StreamTime object.
+        """
+        with pytest.raises(TypeError):
+            StreamTime(30) - 1
+
+    def test_subtracts_two_stream_times(self):
+        """
+        Assert that __sub__() finds the difference between the times stored by two Streamtime objects.
+        """
+        assert StreamTime(30) - StreamTime(-69) == StreamTime(99)
+        assert StreamTime(30) - StreamTime(69) == StreamTime(-39)
+        assert StreamTime(-30) - StreamTime(69) == StreamTime(-99)
+        assert StreamTime(-30) - StreamTime(-69) == StreamTime(39)
+
+
+class TestAbs:
+    """Unit test for the method __abs__()"""
+
+    def test_returns_absolute_value(self):
+        """
+        Show that abs(StreamTime()) returns |StreamTime()|.
+        """
+        assert abs(StreamTime(2)) == StreamTime(2)
+        assert abs(StreamTime(-2)) == StreamTime(2)
+        assert abs(StreamTime(0)) == StreamTime(0)
