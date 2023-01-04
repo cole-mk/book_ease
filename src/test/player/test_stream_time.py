@@ -289,3 +289,15 @@ class TestSub:
         assert StreamTime(30) - StreamTime(69) == StreamTime(-39)
         assert StreamTime(-30) - StreamTime(69) == StreamTime(-99)
         assert StreamTime(-30) - StreamTime(-69) == StreamTime(39)
+
+
+class TestAbs:
+    """Unit test for the method __abs__()"""
+
+    def test_returns_absolute_value(self):
+        """
+        Show that abs(StreamTime()) returns |StreamTime()|.
+        """
+        assert abs(StreamTime(2)) == StreamTime(2)
+        assert abs(StreamTime(-2)) == StreamTime(2)
+        assert abs(StreamTime(0)) == StreamTime(0)

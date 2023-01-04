@@ -180,6 +180,11 @@ class StreamTime:
     def __neg__(self):
         return StreamTime(self._time * -1)
 
+    def __abs__(self):
+        if self._time < 0:
+            return -self
+        return self
+
     def get_time(self, unit: str = 'ns'):
         """
         Get the stored time in the desired units, truncated to a whole number.
