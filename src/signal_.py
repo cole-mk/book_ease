@@ -60,7 +60,6 @@ class Signal():
         """
         self._sig_handlers = {}
         self._sig_handlers_once = {}
-        self._muted_signals = []
 
     def add_signal(self, handle: str, *more_handles: str):
         """
@@ -129,12 +128,11 @@ class Signal():
         extra_args: allow server to add args to the signal call
         extra_kwargs: allow server to add kwargs to the signal call
         """
-        if handle not in self._muted_signals:
-            for sig_h in (self._sig_handlers, self._sig_handlers_once):
-                # reversed so a calback can remove itself wihout disrupting the iteration.
-                for signal in reversed(sig_h[handle]):
-                    signal.callback(*signal.cb_args, *extra_args, **signal.cb_kwargs, **extra_kwargs)
-            self._sig_handlers_once[handle] = []
+        for sig_h in (self._sig_handlers, self._sig_handlers_once):
+            # reversed so a calback can remove itself wihout disrupting the iteration.
+            for signal in reversed(sig_h[handle]):
+                signal.callback(*signal.cb_args, *extra_args, **signal.cb_kwargs, **extra_kwargs)
+        self._sig_handlers_once[handle] = []
 
     def disconnect_by_call_back(self, handle: str, call_back: Callable):
         """
