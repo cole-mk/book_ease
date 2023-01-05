@@ -409,6 +409,77 @@ class Player:
         self.player_backend.set_position_relative(delta_t=StreamTime(rev_skip_time))
 
 
+class MetaTask:
+    """
+    MetaTask acquires a lock when any sub-task is acquired and releases it
+    when all sub-tasks have been completed.
+
+    MetaTask emits an 'meta_task_complete' signal when all subtasks are ended.
+    It can be subscribed to via MetaTask.transmitter.
+    """
+
+    def __init__(self):
+        self.transmitter = signal_.Signal()
+        self.transmitter.add_signal('meta_task_complete')
+        self._meta_task = Lock()
+        self._tasks = {}
+
+    def add_subtask(self, task_name: str):
+        """
+        Add a sub-task to the MetaTask
+        """
+        if task_name in self._tasks:
+            raise ValueError(f'Can\'t add duplicate task: {task_name}')
+        self._tasks[task_name] = Lock()
+
+    def begin_subtask(self, subtask_name: str) -> bool:
+        """
+        Begin a sub-task, which begins a MetaTask if its not already began.
+
+        Returns True if the sub-task was began.
+        Returns False if the subtask was already running.
+        """
+        subtask_began = self._tasks[subtask_name].acquire(blocking=False)
+        if subtask_began:
+            self._meta_task.acquire(blocking=False)
+        return subtask_began
+
+    def subtask_running(self, subtask_name: str) -> bool:
+        """
+        Get the status of a sub-task.
+        """
+        return self._tasks[subtask_name].locked()
+
+    def get_running_subtasks(self) -> tuple[str]:
+        """
+        Return a set of all running subtasks
+        """
+        return set(task for task in self._tasks if self.subtask_running(task))
+
+    def running(self) -> bool:
+        """
+        Get the status of the MetaTask.
+        """
+        return self._meta_task.locked()
+
+    def end_subtask(self, subtask_name: str, abort: bool = False):
+        """
+        complete a sub-task, which finishes the MetaTask if all sub-tasks have been completed.
+
+        Transmits the 'meta_task_complete' signal if ending the MetaTask.
+        """
+        self._tasks[subtask_name].release()
+        all_sub_tasks_ended = True
+        for _, task in self._tasks.items():
+            if task.locked():
+                all_sub_tasks_ended = False
+                break
+        if all_sub_tasks_ended:
+            self._meta_task.release()
+            if not abort:
+                self.transmitter.send('meta_task_complete')
+
+
 class GstPlayer:
     """The wrapper for the gstreamer backend"""
 
