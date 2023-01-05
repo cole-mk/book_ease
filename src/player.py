@@ -489,40 +489,128 @@ class GstPlayer:
         self.playback_state = None
         self.pipeline = None
         self.transmitter = signal_.Signal()
-        self.transmitter.add_signal('time_updated', 'duration_ready', 'eos')
+        self.transmitter.add_signal('time_updated', 'stream_ready', 'eos', 'seek_complete')
+
+        self.stream_tasks = MetaTask()
+        self.stream_tasks.add_subtask('duration_ready')
+        self.stream_tasks.add_subtask('start_position_set')
+        self.stream_tasks.add_subtask('seek')
+        self.stream_tasks.add_subtask('state_change')
+        self.stream_tasks.add_subtask('load_stream')
+        self.stream_tasks.transmitter.connect('meta_task_complete', self.transmitter.send, 'stream_ready')
+
+    @staticmethod
+    def _g_idle_add_once(callback, *cb_args, **g_kwargs):
+        """
+        Wrap GLib.idle_add() calls with a False return value so the callback only fires once.
+
+          *cb_args: args passed to callback
+        **g_kwargs: keyword args that will be passed to GLib.idle_add. ie priority=GLib.PRIORITY_LOW
+
+        """
+        def wrap_call_with_false_ret_value(callback, *cb_args):
+            # I don't think that any kwargs get passed to the callback by GLib.idle_add
+            # so they're not included here.
+            callback(*cb_args)
+            return False
+
+        # I think that the only kwarg that GLib.idle_add accepts is 'priority'.
+        GLib.idle_add(wrap_call_with_false_ret_value, callback, *cb_args, **g_kwargs)
 
     def load_stream(self, stream_data: StreamData):
-        """Set the player position."""
+        """Load the stream and prepare for playback."""
+
+        if self.pipeline is not None:
+            raise RuntimeError('''\nGstPlayer failed to load stream: self.pipeline is not None.''')
+
+        if running_tasks := self.stream_tasks.get_running_subtasks():
+            raise RuntimeError(f'''\nGstPlayer failed to load stream:'''
+                               f'''\nGstPlayer busy with the following tasks:\n{running_tasks}''')
+
+        for task in ('duration_ready', 'load_stream', 'start_position_set'):
+            self.stream_tasks.begin_subtask(task)
+
         self._init_pipeline(stream_data)
-        self._init_message_bus(stream_data)
+        self._init_message_bus()
+        self._set_state(state=Gst.State.PAUSED, blocking=True)
+        GLib.idle_add(self._load_stream_controller, stream_data.position)
 
     def unload_stream(self):
         """Cleanup pipeline."""
         self._close_pipeline()
 
-    def play(self):
+    def _set_state(self, state: Gst.State, blocking: bool = False) -> bool:
         """
-        Place GstPlayer into the playing state
-        """
-        if self.pipeline.set_state(state=Gst.State.PLAYING) == Gst.StateChangeReturn.FAILURE:
-            raise RuntimeError('failed to set pipeline state to Playing')
-        self.playback_state = 'playing'
+        Change the playback state (play, paused, ready) of the gstreamer pipeline.
 
-    def pause(self):
+        returns True if the state change return is ASYNC or SUCCESS
+        returns False if state_change subtask was locked.
+        raises RuntimeError if the state change return is FAILURE or NO_PREROLL.
+
+        If blocking is not set, _set_state() is asynchronous even if Gstreamer
+        sets the state synchronously. This is to simplify any methods that call
+        _set_state(), allowing them to finish their execution and wait for the
+        ready signal. The calling methods don't have to account for both types of
+        behavior-- unless explicitly requesting synchronous behavior.
+
+        Note: the 'ready' signal is not called when blocking=True or if an exception is raised.
+        """
+        if self.stream_tasks.begin_subtask('state_change'):
+            state_change_return = self.pipeline.set_state(state=state)
+
+            if state_change_return in (Gst.StateChangeReturn.ASYNC, Gst.StateChangeReturn.SUCCESS):
+                if blocking:
+                    # get_state() blocks until gstreamer has finished the state change.
+                    self.pipeline.get_state(Gst.CLOCK_TIME_NONE)
+                    self.stream_tasks.end_subtask('state_change')
+                else:
+                    # state-changed never gets triggered when new_state==old_state.
+                    # End the state_change task anyway.
+                    success, cur, pen = self.pipeline.get_state(0)
+                    if success and cur == state and pen == Gst.State.VOID_PENDING:
+                        self._g_idle_add_once(self.stream_tasks.end_subtask, 'state_change')
+                    else:
+                        bus = self.pipeline.get_bus()
+                        bus.connect("message::state-changed", self._on_state_change_complete, state)
+            else:
+                # state_change_return == FAILURE, or NO_PREROLL
+                self.stream_tasks.end_subtask('state_change', abort=True)
+                raise RuntimeError(f'Failed to set pipeline state to {state}')
+            return True
+        return False
+
+    def play(self) -> bool:
+        """
+        Place GstPlayer into the playing state.
+
+        Returns: True if GstPlayer successfuly sets the stream's state to play.
+        """
+        if not self.stream_tasks.running() and self._set_state(state=Gst.State.PLAYING):
+            self.playback_state = 'playing'
+            return True
+        return False
+
+    def pause(self) -> bool:
         """
         Place GstPlayer into the paused state
+
+        Returns: True if GstPlayer successfuly sets the stream's state to paused.
         """
-        if self.pipeline.set_state(Gst.State.PAUSED) == Gst.StateChangeReturn.FAILURE:
-            raise RuntimeError('failed to set playbin state to Paused')
-        self.playback_state = 'paused'
+        if not self.stream_tasks.running() and self._set_state(state=Gst.State.PAUSED):
+            self.playback_state = 'paused'
+            return True
+        return False
 
     def stop(self):
         """
         Place GstPlayer into the stopped state.
         """
-        self.pause()
-        self.playback_state = 'stopped'
-        self.set_position(time_=StreamTime(0))
+        if not self.stream_tasks.running() \
+                and self._set_state(state=Gst.State.PAUSED) \
+                and self._set_position(time_=StreamTime(0)):
+            self.playback_state = 'stopped'
+            return True
+        return False
 
     @staticmethod
     def get_uri_from_path(path: str) -> str:
@@ -543,8 +631,11 @@ class GstPlayer:
             # returning False stops this from being called again
             return False
         if self.playback_state != 'stopped':
-            time_ = self.query_position()
-            GLib.idle_add(self.transmitter.send, 'time_updated', time_, priority=GLib.PRIORITY_DEFAULT)
+            if not self.stream_tasks.running():
+                time_ = self.query_position()
+                self._g_idle_add_once(
+                    self.transmitter.send, 'time_updated', time_, priority=GLib.PRIORITY_DEFAULT
+                )
         # Returning True allows this method to continue being called.
         return True
 
@@ -552,21 +643,31 @@ class GstPlayer:
         """Cleanup the pipeline"""
         if self.pipeline is None:
             raise RuntimeError('Pipeline does not exist')
-        self.pipeline.set_state(state=Gst.State.NULL)
+        self._set_state(state=Gst.State.NULL, blocking=True)
         self.pipeline = None
 
-    def _init_message_bus(self, stream_data: StreamData):
+    def _init_message_bus(self):
         """Set up the Gst messages that will be handled"""
         bus = self.pipeline.get_bus()
         bus.add_signal_watch()
         bus.connect("message::error", self._on_error)
         bus.connect("message::eos", self._on_eos)
-        bus.connect("message::state-changed", self._init_start_position, stream_data.position)
         bus.connect("message::state-changed", self._start_update_time)
         bus.connect("message::duration-changed", self._on_duration_ready)
         # bus.connect("message::application", self.on_application_message)
 
+    def _on_seek_complete(self, bus, _, msg_handle=None):
+        """
+        Clear the seek subtask and disconnect this callback.
+        """
+        if msg_handle is not None and msg_handle == '_on_seek_complete':
+            bus.disconnect_by_func(self._on_seek_complete)
+            self.stream_tasks.end_subtask('seek')
+
     def _init_pipeline(self, stream_data: StreamData):
+        """
+        Initialize self.pipeline into a playbin element.
+        """
         if self.pipeline is not None:
             raise RuntimeError('self.pipeline already exists.')
         self.pipeline = Gst.ElementFactory.make("playbin", "playbin")
@@ -576,11 +677,12 @@ class GstPlayer:
         )
         uri = self.get_uri_from_path(stream_data.path)
         self.pipeline.set_property('uri', uri)
-        if self.pipeline.set_state(Gst.State.READY) == Gst.StateChangeReturn.FAILURE:
-            raise RuntimeError('failed to set playbin state to Ready')
 
     @staticmethod
     def _on_error(_, msg):
+        """
+        Print an error message.
+        """
         err, dbg = msg.parse_error()
         print("ERROR:", msg.src.get_name(), ":", err.message)
         if dbg:
@@ -591,11 +693,37 @@ class GstPlayer:
         The end of the stream has been reached.
         Start cleanup.
         """
-        self.stop()
         self._close_pipeline()
+        self.playback_state = None
         self.transmitter.send('eos')
 
     def set_position(self, time_: StreamTime):
+        """
+        Set the stream to a new playback position.
+
+        Returns False if GstPlayer is busy with another stream task.
+        Otherwise it returns the bool value returned from its call to _set_position().
+
+        This method is a wrapper for _set_position that does the following:
+
+            Raises RuntimeError when the position parameter passed to method
+            is not within the range:
+            [0, infinity)
+
+            With anything past the end of the stream, Gst.Pipeline.seek_simple() returns True
+            and triggers EOS. Hence, there is no upper bound on the range.
+
+            returns True if the seek was successful
+            returns False if the seek subtask was locked.
+            raises RuntimeError if seek failed.
+
+            sends the 'ready' signal when a successful seek has completed.
+        """
+        if not self.stream_tasks.running() and self._set_position(time_):
+            return True
+        return False
+
+    def _set_position(self, time_: StreamTime) -> bool:
         """
         Attempt to set stream position to time_.
 
@@ -605,12 +733,25 @@ class GstPlayer:
 
         With anything past the end of the stream, Gst.Pipeline.seek_simple() returns True
         and triggers EOS. Hence, there is no upper bound on the range.
+
+        returns True if the seek was successful
+        returns False if the seek subtask was locked.
+        raises RuntimeError if seek failed.
+
+        sends the 'stream_ready' signal when a successful seek has completed.
         """
-        seek_success = self.pipeline.seek_simple(format=Gst.Format.TIME,
-                                                 seek_flags=Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
-                                                 seek_pos=time_.get_time('ns'))
-        if not seek_success:
-            raise RuntimeError('Failed to set stream playback position.')
+        if self.stream_tasks.begin_subtask('seek'):
+            seek_success = self.pipeline.seek_simple(format=Gst.Format.TIME,
+                                                     seek_flags=Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
+                                                     seek_pos=time_.get_time('ns'))
+            if seek_success:
+                bus = self.pipeline.get_bus()
+                bus.connect("message::async-done", self._on_seek_complete, '_on_seek_complete')
+            if not seek_success:
+                self.stream_tasks.end_subtask('seek', abort=True)
+                raise RuntimeError('Failed to set stream playback position.')
+            return True
+        return False
 
     def _start_update_time(self, bus: Gst.Bus, msg: Gst.Message):
         """
@@ -618,27 +759,54 @@ class GstPlayer:
         This is a state-changed callback.
         """
         if msg.src == self.pipeline:
-            old, new, pending = msg.parse_state_changed()  # pylint: disable=unused-variable
+            _, new, pending = msg.parse_state_changed()
             if new == Gst.State.PLAYING and pending == Gst.State.VOID_PENDING:
                 GLib.timeout_add_seconds(1, self._update_time, self.pipeline)
                 bus.disconnect_by_func(self._start_update_time)
 
-    def _on_duration_ready(self, bus: Gst.Bus, _: Gst.Message):
+    def _on_duration_ready(self, bus: Gst.Bus, _):
+        """Simply mark duration_ready subtask as complete."""
         bus.disconnect_by_func(self._on_duration_ready)
-        duration = self.query_duration()
-        self.transmitter.send('duration_ready', duration=duration)
+        self.stream_tasks.end_subtask('duration_ready')
 
-    def _init_start_position(self, bus: Gst.Bus, msg: Gst.Message, time_: StreamTime):
+    def _load_stream_controller(self, start_position: StreamTime) -> bool:
         """
-        Set playback position to the time saved in self.stream_data or the start of the stream.
-        This is a state-changed callback.
+        Manage all of the necessary tasks that GStreamer needs to complete before
+        GstPlayer considers the pipeline ready for playback.
+
+        This method is intended to be placed on the GLib.MainLoop by GLib.idle_add
+        so that it is called on each iteration of the loop until all tasks are completed.
+
+        Returns:
+            True to continue being called by GLib.MainLoop()
+            False to stop being called by GLib.MainLoop()
+        """
+        tasks = self.stream_tasks.get_running_subtasks()
+
+        if 'start_position_set' in tasks:
+            self._set_position(start_position)
+            self.stream_tasks.end_subtask('start_position_set')
+
+        elif {'duration_ready', 'load_stream'} == tasks:
+            # Pipeline sometimes needs to be kicked again to free up the duration.
+            self._set_position(start_position)
+
+        elif {'load_stream'} == tasks:
+            self.stream_tasks.end_subtask('load_stream')
+            return False
+        return True
+
+    def _on_state_change_complete(self, bus: Gst.Bus, msg: Gst.Message, target_state: Gst.State):
+        """
+        Clear the lock and disconnect this callback.
+
+        target_state is a user_data parameter supplied by _set_state.
         """
         if msg.src == self.pipeline:
-            old, new, pen = msg.parse_state_changed()
-            if old == Gst.State.READY and new == Gst.State.PAUSED and pen == Gst.State.PLAYING:
-                self.set_position(time_=time_)
-                # This only needs to be done once per stream. Disconnect this callback.
-                bus.disconnect_by_func(self._init_start_position)
+            _, new_state, pen_state = msg.parse_state_changed()
+            if new_state == target_state and pen_state == Gst.State.VOID_PENDING:
+                bus.disconnect_by_func(self._on_state_change_complete)
+                self.stream_tasks.end_subtask('state_change')
 
     def query_position(self) -> StreamTime:
         """
@@ -648,9 +816,10 @@ class GstPlayer:
 
         Raises: RuntimeError if query_position() fails to retrieve the current position.
         """
-        query_success, cur_position = self.pipeline.query_position(Gst.Format.TIME)
-        if query_success:
-            return StreamTime(cur_position, 'ns')
+        if not self.stream_tasks.running():
+            query_success, cur_position = self.pipeline.query_position(Gst.Format.TIME)
+            if query_success is True and cur_position is not None:
+                return StreamTime(cur_position, 'ns')
         raise RuntimeError('Failed to query current position.')
 
     def query_duration(self) -> StreamTime:
