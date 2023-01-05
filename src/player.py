@@ -35,6 +35,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import ClassVar
 from typing import Literal
+from threading import Lock
 import gi
 gi.require_version('Gst', '1.0')
 # gi.require_version('Gtk', '3.0')
