@@ -491,6 +491,24 @@ class GstPlayer:
         self.transmitter = signal_.Signal()
         self.transmitter.add_signal('time_updated', 'duration_ready', 'eos')
 
+    @staticmethod
+    def _g_idle_add_once(callback, *cb_args, **g_kwargs):
+        """
+        Wrap GLib.idle_add() calls with a False return value so the callback only fires once.
+
+          *cb_args: args passed to callback
+        **g_kwargs: keyword args that will be passed to GLib.idle_add. ie priority=GLib.PRIORITY_LOW
+
+        """
+        def wrap_call_with_false_ret_value(callback, *cb_args):
+            # I don't think that any kwargs get passed to the callback by GLib.idle_add
+            # so they're not included here.
+            callback(*cb_args)
+            return False
+
+        # I think that the only kwarg that GLib.idle_add accepts is 'priority'.
+        GLib.idle_add(wrap_call_with_false_ret_value, callback, *cb_args, **g_kwargs)
+
     def load_stream(self, stream_data: StreamData):
         """Set the player position."""
         self._init_pipeline(stream_data)
