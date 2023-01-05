@@ -319,6 +319,11 @@ def load_stream(gst_player: GstPlayer, stream_data: player.StreamData, call_twic
     GstPlayer()._g_idle_add_once(ls, gst_player, stream_data, status, call_twice)
 
     status['stream_loaded'] = bool(lock.acquire(timeout=10))
+    if status['stream_loaded']:
+        gst_player.pipeline.set_property(
+            'video-sink', Gst.ElementFactory.make("fakeaudiosink", "audio_sink")
+        )
+
     return status
 
 
