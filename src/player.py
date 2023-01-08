@@ -492,6 +492,7 @@ class GstPlayer:
         self.transmitter.add_signal('time_updated', 'stream_ready', 'eos', 'seek_complete')
 
         self.stream_tasks = MetaTask()
+        self.stream_tasks.add_subtask('unload_stream')
         self.stream_tasks.add_subtask('duration_ready')
         self.stream_tasks.add_subtask('start_position_set')
         self.stream_tasks.add_subtask('seek')
@@ -537,7 +538,11 @@ class GstPlayer:
 
     def unload_stream(self):
         """Cleanup pipeline."""
-        self._close_pipeline()
+        if not self.stream_tasks.running() and self._close_pipeline():
+            self.stream_tasks.begin_subtask('unload_stream')
+            self._g_idle_add_once(self.stream_tasks.end_subtask, 'unload_stream')
+            return True
+        return False
 
     def _set_state(self, state: Gst.State, blocking: bool = False) -> bool:
         """
@@ -643,8 +648,10 @@ class GstPlayer:
         """Cleanup the pipeline"""
         if self.pipeline is None:
             raise RuntimeError('Pipeline does not exist')
-        self._set_state(state=Gst.State.NULL, blocking=True)
-        self.pipeline = None
+        if self._set_state(state=Gst.State.NULL):
+            self.pipeline = None
+            return True
+        return False
 
     def _init_message_bus(self):
         """Set up the Gst messages that will be handled"""

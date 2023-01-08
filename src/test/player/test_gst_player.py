@@ -105,7 +105,8 @@ class StatusDict(dict):
             'load_stream': {'stream_loaded': False, 'exception': None},
             'query_position': {'position': None, 'exception': None},
             'set_playback_state': {'ret_val': None, 'signal_received': False, 'exception': None},
-            'set_position': {'ret_val': None, 'signal_received': False, 'exception': None}
+            'set_position': {'ret_val': None, 'signal_received': False, 'exception': None},
+            'unload_stream': {'ret_val': None, 'signal_received': False, 'exception': None, 'pipeline_state': None}
         }
         return statuses[status_name] if status_name else statuses
 
@@ -333,13 +334,20 @@ def unload_stream(gst_player):
 
     Raises: RuntimeError if it timeouts after 10 seconds.
     """
-    print('unload_stream')
+    def us(gst_player: GstPlayer, status: dict):
+        try:
+            status['ret_val'] = gst_player.unload_stream()
+        except Exception as e:
+            status['exception'] = e
+
     lock = Lock()
     lock.acquire()
+    status = StatusDict.get_new_status('unload_stream')
     gst_player.transmitter.connect_once('stream_ready', lock.release)
-    GstPlayer()._g_idle_add_once(gst_player.unload_stream)
-    if not lock.acquire(timeout=10):
-        raise RuntimeError('Failed to load test_file')
+
+    GstPlayer()._g_idle_add_once(us, gst_player, status)
+    status['signal_received'] = bool(lock.acquire(timeout=5))
+    return status
 
 
 class TestLoadStream:
@@ -778,3 +786,125 @@ class TestQueryPosition:
         status.raise_if('unknown_exception', 'load_stream')
 
         assert isinstance(status['query_position']['exception'], RuntimeError)
+
+
+class TestUnloadStream:
+    """
+    Unit test for method unload_stream()
+    """
+
+    def test_raises_runtime_error_when_pipeline_does_not_already_exist(self):
+        """
+        Show that unload_stream() raises a RuntimeError if GstPlayer.pipeline is None
+        """
+
+        @g_control_thread
+        def control_thread(_,
+                           gst_player: GstPlayer,
+                           __: player.StreamData,
+                           status: dict):
+            """
+            From a background thread, instruct GstPlayer to unload a stream even though
+            a stream was never loaded.
+            """
+            status['unload_stream'] |= unload_stream(gst_player)
+
+        status = StatusDict()
+        run_gstreamer_and_control_thread(control_thread, None, status)
+        status.raise_if('unknown_exception')
+
+        assert isinstance(status['unload_stream']['exception'], RuntimeError)
+
+    def test_returns_false_when_gst_player_busy(self):
+        """
+        Show that unload_stream() returns False
+        if GstPlayer is busy with another stream task.
+        """
+
+        @g_control_thread
+        def control_thread(_,
+                           gst_player: GstPlayer,
+                           stream_data: player.StreamData,
+                           status: dict):
+            """
+            From a background thread, instruct GstPlayer to unload a stream
+            while GstPlayer is busy with another task.
+            """
+            status['load_stream'] |= load_stream(gst_player, stream_data)
+            # unload_stream needs to be functional when this method returns
+            original = gst_player.stream_tasks.running
+            gst_player.stream_tasks.running = mock.Mock(ret_val=True)
+            status['unload_stream'] |= unload_stream(gst_player)
+            gst_player.stream_tasks.running = original
+
+        status = StatusDict()
+        stream_data = get_new_stream_data()
+        run_gstreamer_and_control_thread(control_thread, stream_data, status)
+        status.raise_if()
+        assert status['unload_stream']['ret_val'] is False
+
+    def test_pipeline_gets_cleaned_up(self):
+        """
+        Gstreamer requires that a pipeline gets put into the NULL state
+        so it can stop all of the background threads, and release memory.
+
+        Show that the pipeline's state is set to Null after unload_stream() has been called.
+        """
+
+        @g_control_thread
+        def control_thread(_,
+                           gst_player: GstPlayer,
+                           stream_data: player.StreamData,
+                           status: dict):
+            """
+            When GstPlayer unloads a stream, it should cleanup the pipeline and then set the pipeline to None.
+            Here, I am going to get a reference to that pipeline before calling unload_stream,
+            so that afterword, I can show that it was indeed cleaned up.
+            """
+            status['load_stream'] |= load_stream(gst_player, stream_data)
+            pipeline = gst_player.pipeline
+
+            status['unload_stream'] |= unload_stream(gst_player)
+
+            timeout = player.StreamTime(10, 's').get_time()
+            status['unload_stream']['pipeline_state'] = pipeline.get_state(timeout=timeout)
+            pipeline = None
+            if status['unload_stream']['signal_received'] is True:
+                # Reload the stream so that @g_control_thread doesn't hang until timeout
+                # when it calls unload_stream()
+                load_stream(gst_player, stream_data)
+
+        status = StatusDict()
+        stream_data = get_new_stream_data()
+        run_gstreamer_and_control_thread(control_thread, stream_data, status)
+        status.raise_if()
+        assert status['unload_stream']['pipeline_state'] == (Gst.StateChangeReturn.SUCCESS,
+                                                             Gst.State.NULL,
+                                                             Gst.State.VOID_PENDING)
+
+    def test_unload_stream_triggers_ready_callback(self):
+        """
+        Show that stream_ready signal is sent after unload_stream() has finished all of its tasks.
+        """
+
+        @g_control_thread
+        def control_thread(_,
+                           gst_player: GstPlayer,
+                           stream_data: player.StreamData,
+                           status: dict):
+            """
+            Instruct GstPlayer to load a stream
+            """
+            status['load_stream'] |= load_stream(gst_player, stream_data)
+            status['unload_stream'] |= unload_stream(gst_player)
+            if status['unload_stream']['signal_received'] is True:
+                # Reload the stream so that @g_control_thread doesn't hang until timeout
+                # when it calls unload_stream()
+                load_stream(gst_player, stream_data)
+
+        status = StatusDict()
+        stream_data = get_new_stream_data()
+        run_gstreamer_and_control_thread(control_thread, stream_data, status)
+        status.raise_if()
+        assert status['load_stream']['stream_loaded'] is True, 'Failed to initialize test.'
+        assert status['unload_stream']['signal_received'] is True
