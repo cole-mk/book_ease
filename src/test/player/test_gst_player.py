@@ -102,7 +102,7 @@ class StatusDict(dict):
         statuses = {
             'unknown_exception': {'exception': None},
             'query_state': {'state': None, 'exception': None},
-            'load_stream': {'stream_loaded': False, 'exception': None},
+            'load_stream': {'stream_loaded': False, 'exception': None, 'ret_val': None, 'busy_state': None},
             'query_position': {'position': None, 'exception': None},
             'set_playback_state': {'ret_val': None, 'signal_received': False, 'exception': None},
             'set_position': {'ret_val': None, 'signal_received': False, 'exception': None},
@@ -308,7 +308,7 @@ def load_stream(gst_player: GstPlayer, stream_data: player.StreamData, call_twic
         try:
             if call_twice:
                 gst_player.load_stream(stream_data)
-            gst_player.load_stream(stream_data)
+            status['ret_val'] = gst_player.load_stream(stream_data)
         except Exception as e:
             status['exception'] = e
 
@@ -319,7 +319,7 @@ def load_stream(gst_player: GstPlayer, stream_data: player.StreamData, call_twic
 
     GstPlayer()._g_idle_add_once(ls, gst_player, stream_data, status, call_twice)
 
-    status['stream_loaded'] = bool(lock.acquire(timeout=10))
+    status['stream_loaded'] = bool(lock.acquire(timeout=3))
     if status['stream_loaded']:
         gst_player.pipeline.set_property(
             'audio-sink', Gst.ElementFactory.make("fakeaudiosink", "audio_sink")
@@ -392,14 +392,22 @@ class TestLoadStream:
             """
             Instruct GstPlayer to load a stream and immediately call load_stream again.
             """
-            status['load_stream'] |= load_stream(gst_player, stream_data, call_twice=True)
+
+            status['load_stream_initial'] |= load_stream(gst_player, stream_data)
+            status['load_stream'] |= load_stream(gst_player, stream_data)
+            status['load_stream']['busy_state'] = gst_player.stream_tasks.running()
 
         status = StatusDict()
+        status['load_stream_initial'] = StatusDict.get_new_status('load_stream')
         stream_data = get_new_stream_data()
         run_gstreamer_and_control_thread(control_thread, stream_data, status)
         status.raise_if('unknown_exception')
 
+        assert status['load_stream_initial']['stream_loaded'] is True, 'Failed to initialize test.'
         assert isinstance(status['load_stream']['exception'], RuntimeError)
+        # a raised exception implies that the stream was not initially in the busy state.
+        # Show that when raising an exception, GstPlayer is not left dead locked in a busy state.
+        assert status['load_stream']['busy_state'] is False, 'GstPlayer left in busy state after raising exception.'
 
     def test_sets_position_to_time_stored_in_stream_data(self):
         """
@@ -453,6 +461,29 @@ class TestLoadStream:
             status.raise_if()
 
             assert status['query_state']['state'] == Gst.State.PAUSED
+
+    def test_load_stream_returns_false_if_stream_busy(self):
+        """
+        Show that loads_stream() returns False when GstPlayer is busy with another stream task.
+        """
+
+        @g_control_thread
+        def control_thread(_,
+                           gst_player: GstPlayer,
+                           stream_data: player.StreamData,
+                           status: dict):
+            original = gst_player.stream_tasks.running
+            gst_player.stream_tasks.running = mock.Mock(ret_val=True)
+            status['load_stream'] |= load_stream(gst_player, stream_data)
+            gst_player.stream_tasks.running = original
+            # load the stream successfully so that
+            # @g_control_thread doesn't hang when it calls unload_stream()
+            load_stream(gst_player, stream_data)
+
+        stream_data = get_new_stream_data()
+        status = StatusDict()
+        run_gstreamer_and_control_thread(control_thread, stream_data, status)
+        assert status['load_stream']['ret_val'] is False
 
 
 class TestPlayPauseStop:

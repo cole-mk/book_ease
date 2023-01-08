@@ -520,21 +520,15 @@ class GstPlayer:
 
     def load_stream(self, stream_data: StreamData):
         """Load the stream and prepare for playback."""
-
-        if self.pipeline is not None:
-            raise RuntimeError('''\nGstPlayer failed to load stream: self.pipeline is not None.''')
-
-        if running_tasks := self.stream_tasks.get_running_subtasks():
-            raise RuntimeError(f'''\nGstPlayer failed to load stream:'''
-                               f'''\nGstPlayer busy with the following tasks:\n{running_tasks}''')
-
-        for task in ('duration_ready', 'load_stream', 'start_position_set'):
-            self.stream_tasks.begin_subtask(task)
-
-        self._init_pipeline(stream_data)
-        self._init_message_bus()
-        self._set_state(state=Gst.State.PAUSED, blocking=True)
-        GLib.idle_add(self._load_stream_controller, stream_data.position)
+        if not self.stream_tasks.running():
+            self._init_pipeline(stream_data)
+            self._init_message_bus()
+            self._set_state(state=Gst.State.PAUSED)
+            for task in ('duration_ready', 'load_stream', 'start_position_set'):
+                self.stream_tasks.begin_subtask(task)
+            GLib.idle_add(self._load_stream_controller, stream_data.position)
+            return True
+        return False
 
     def unload_stream(self):
         """Cleanup pipeline."""
@@ -790,7 +784,8 @@ class GstPlayer:
         """
         tasks = self.stream_tasks.get_running_subtasks()
 
-        if 'start_position_set' in tasks:
+        # wait for stream to enter paused state and then set start position.
+        if 'start_position_set' in tasks and 'state_change' not in tasks:
             self._set_position(start_position)
             self.stream_tasks.end_subtask('start_position_set')
 
