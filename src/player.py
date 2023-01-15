@@ -24,6 +24,9 @@
 # pylint: disable=wrong-import-position
 # disabled because gi.repository requires an import order that pylint dislikes.
 #
+# pylint: disable=consider-using-with
+# disabled because the locks need to be released outside the context of where they're acquired.
+#
 
 """
 This module controls the playback of playlists.
