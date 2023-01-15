@@ -50,6 +50,9 @@
 # disabled because pylint doesn't know that There are
 # exceptions being stored in dicts and passed to other threads.
 #
+# pylint: disable=consider-using-with
+# disabled because the locks need to be released outside the context of where they're acquired.
+
 
 """
 Unit test for class player.GstPlayer

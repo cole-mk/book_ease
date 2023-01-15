@@ -24,6 +24,9 @@
 # pylint: disable=wrong-import-position
 # disabled because gi.repository requires an import order that pylint dislikes.
 #
+# pylint: disable=consider-using-with
+# disabled because the locks need to be released outside the context of where they're acquired.
+#
 
 """
 This module controls the playback of playlists.
@@ -36,6 +39,7 @@ from typing import TYPE_CHECKING
 from typing import ClassVar
 from typing import Literal
 from threading import Lock
+import collections
 import gi
 gi.require_version('Gst', '1.0')
 # gi.require_version('Gtk', '3.0')
@@ -836,3 +840,121 @@ class GstPlayer:
         if query_success:
             return StreamTime(cur_duration, 'ns')
         raise RuntimeError('Failed to query the current duration.')
+
+
+class GstPlayerA:
+    """
+    Adapter to go between Player and GstPlayer.
+    Provides queuing services, allowing Player to fire and forget commands to GstPlayer.
+    """
+
+    def __init__(self):
+        self._gst_player = GstPlayer()
+        self._deque = collections.deque()
+        self._queued_position = None
+
+        self.transmitter = signal_.Signal()
+        self.transmitter.add_signal('stream_loaded')
+
+        self._call_in_progress = False
+
+    def _appendleft(self, command: tuple):
+        """
+        Wrapper for self._deque.appendleft.
+        Adds pop() to the GLib.MainLoop.
+        """
+        self._deque.appendleft(command)
+        if not self._call_in_progress:
+            self._call_in_progress = True
+            self.pop()
+
+    def load_stream(self, stream_data: StreamData):
+        """
+        Add a load_stream command to the deque.
+        """
+        def post_pop():
+            self._gst_player.transmitter.connect_once('stream_ready', self.transmitter.send, "stream_loaded")
+
+        self._appendleft((post_pop, self._gst_player.load_stream, stream_data))
+
+    def unload_stream(self):
+        """
+        Add an unload_stream command to the deque.
+        """
+        self._deque.clear()
+        self._appendleft((lambda: None, self._gst_player.unload_stream))
+
+    def pop(self):
+        """
+        Remove and execute a command from the deque.
+
+        If the called method returns False, then the command remains in the deque.
+        """
+        if self._deque:
+            try:
+                cmd = self._deque.pop()
+                # cmd[0]  : Callable    post_pop callback
+                # cmd[1]  : Callable    GstPlayer command. These always return False if GstPlayer is busy.
+                # cmd[2:] : Any         GstPlayer command args
+                if cmd[1](*cmd[2:]):
+                    self._gst_player.transmitter.connect_once('stream_ready', self.pop)
+                    cmd[0]()
+                else:
+                    self._deque.append(cmd)
+
+            except RuntimeError as e:
+                print(e)
+                self._deque.clear()
+            except Exception as e:
+                print(e)
+                self._deque.clear()
+                raise
+        else:
+            self._call_in_progress = False
+
+    def play(self):
+        """
+        Add a play command to the deque.
+        """
+        self._appendleft((lambda: None, self._gst_player.play))
+
+    def pause(self):
+        """
+        Add a pause command to the deque.
+        """
+        self._appendleft((lambda: None, self._gst_player.pause))
+
+    def stop(self):
+        """
+        Add a stop command to the deque.
+        """
+        self._appendleft((lambda: None, self._gst_player.stop))
+
+    def set_position(self, position: StreamTime):
+        """
+        Add a set_position command to the deque.
+        """
+        def post_pop():
+            self._queued_position = None
+
+        if self._queued_position is None:
+            self._queued_position = (post_pop, self._gst_player.set_position, position)
+            self._appendleft(self._queued_position)
+        else:
+            self._queued_position[2].set_time(position.get_time())
+
+    def query_duration(self) -> StreamTime:
+        """
+        Query the duration from GstPlayer.
+        """
+        return self._gst_player.query_duration()
+
+    def query_position(self) -> StreamTime:
+        """
+        Query the position from GstPlayer.
+
+        Returns the queued position if is exists, or queries the position from GstPlayer.
+        """
+        if self._queued_position:
+            return self._queued_position[2]
+        return self._gst_player.query_position()
