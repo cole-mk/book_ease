@@ -355,8 +355,6 @@ def unload_stream(gst_player):
 
 class TestLoadStream:
     """Unit tests for method load_stream()"""
-    stream_loaded_flag = False
-    runtime_error_raised = False
 
     def test_loadstream_triggers_ready_callback(self):
         """
