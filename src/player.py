@@ -485,6 +485,10 @@ class MetaTask:
                 self.transmitter.send('meta_task_complete')
 
 
+class GstPlayerError(Exception):
+    """Exeption raised by the GstPlayer class."""
+
+
 class GstPlayer:
     """The wrapper for the gstreamer backend"""
 
@@ -548,7 +552,7 @@ class GstPlayer:
 
         returns True if the state change return is ASYNC or SUCCESS
         returns False if state_change subtask was locked.
-        raises RuntimeError if the state change return is FAILURE or NO_PREROLL.
+        raises GstPlayerError if the state change return is FAILURE or NO_PREROLL.
 
         If blocking is not set, _set_state() is asynchronous even if Gstreamer
         sets the state synchronously. This is to simplify any methods that call
@@ -578,7 +582,7 @@ class GstPlayer:
             else:
                 # state_change_return == FAILURE, or NO_PREROLL
                 self.stream_tasks.end_subtask('state_change', abort=True)
-                raise RuntimeError(f'Failed to set pipeline state to {state}')
+                raise GstPlayerError(f'Failed to set pipeline state to {state}')
             return True
         return False
 
@@ -645,7 +649,7 @@ class GstPlayer:
     def _close_pipeline(self):
         """Cleanup the pipeline"""
         if self.pipeline is None:
-            raise RuntimeError('Pipeline does not exist')
+            raise GstPlayerError('Pipeline does not exist')
         if self._set_state(state=Gst.State.NULL):
             self.pipeline = None
             return True
@@ -674,7 +678,7 @@ class GstPlayer:
         Initialize self.pipeline into a playbin element.
         """
         if self.pipeline is not None:
-            raise RuntimeError('self.pipeline already exists.')
+            raise GstPlayerError('self.pipeline already exists.')
         self.pipeline = Gst.ElementFactory.make("playbin", "playbin")
         # fakevideosink element discards the video portion of the stream
         self.pipeline.set_property(
@@ -711,7 +715,7 @@ class GstPlayer:
 
         This method is a wrapper for _set_position that does the following:
 
-            Raises RuntimeError when the position parameter passed to method
+            Raises GstPlayerError when the position parameter passed to method
             is not within the range:
             [0, infinity)
 
@@ -720,7 +724,7 @@ class GstPlayer:
 
             returns True if the seek was successful
             returns False if the seek subtask was locked.
-            raises RuntimeError if seek failed.
+            raises GstPlayerError if seek failed.
 
             sends the 'ready' signal when a successful seek has completed.
         """
@@ -732,7 +736,7 @@ class GstPlayer:
         """
         Attempt to set stream position to time_.
 
-        Raises RuntimeError when the position parameter passed to method
+        Raises GstPlayerError when the position parameter passed to method
         is not within the range:
         [0, infinity)
 
@@ -741,7 +745,7 @@ class GstPlayer:
 
         returns True if the seek was successful
         returns False if the seek subtask was locked.
-        raises RuntimeError if seek failed.
+        raises GstPlayerError if seek failed.
 
         sends the 'stream_ready' signal when a successful seek has completed.
         """
@@ -754,7 +758,7 @@ class GstPlayer:
                 bus.connect("message::async-done", self._on_seek_complete, '_on_seek_complete')
             if not seek_success:
                 self.stream_tasks.end_subtask('seek', abort=True)
-                raise RuntimeError('Failed to set stream playback position.')
+                raise GstPlayerError('Failed to set stream playback position.')
             return True
         return False
 
@@ -820,13 +824,13 @@ class GstPlayer:
 
         Returns: current position in StreamTime format
 
-        Raises: RuntimeError if query_position() fails to retrieve the current position.
+        Raises: GstPlayerError if query_position() fails to retrieve the current position.
         """
         if not self.stream_tasks.running():
             query_success, cur_position = self.pipeline.query_position(Gst.Format.TIME)
             if query_success is True and cur_position is not None:
                 return StreamTime(cur_position, 'ns')
-        raise RuntimeError('Failed to query current position.')
+        raise GstPlayerError('Failed to query current position.')
 
     def query_duration(self) -> StreamTime:
         """
@@ -834,12 +838,12 @@ class GstPlayer:
 
         Returns: current duration in Gst time format
 
-        Raises: RuntimeError if query_duration() fails to retrieve the duration of the current stream.
+        Raises: GstPlayerError if query_duration() fails to retrieve the duration of the current stream.
         """
         query_success, cur_duration = self.pipeline.query_duration(Gst.Format.TIME)
         if query_success:
             return StreamTime(cur_duration, 'ns')
-        raise RuntimeError('Failed to query the current duration.')
+        raise GstPlayerError('Failed to query the current duration.')
 
 
 class GstPlayerA:
@@ -902,7 +906,7 @@ class GstPlayerA:
                 else:
                     self._deque.append(cmd)
 
-            except RuntimeError as e:
+            except GstPlayerError as e:
                 print(e)
                 self._deque.clear()
             except Exception as e:
