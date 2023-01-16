@@ -60,6 +60,7 @@ from gi.repository import GLib
 
 import player
 from player import GstPlayerA
+from player import GstPlayerError
 
 
 class TestLoadStream:
@@ -349,7 +350,7 @@ class TestQueryPosition:
         player_a._gst_player = get_mock_gst_player()
 
         player_a._gst_player.query_position = mock.Mock(
-            side_effect=RuntimeError('gst_player.query_position should not have been called')
+            side_effect=GstPlayerError('gst_player.query_position should not have been called')
         )
 
         position_1 = player.StreamTime(1)
@@ -385,10 +386,10 @@ class TestPop:
     def test_runtime_error_clears_the_queue(self):
         """
         Shows that any pending commands are removed from the queue,
-        if the current command results in a RuntimeError.
+        if the current command results in a GstPlayerError.
         """
         player_a = GstPlayerA()
-        player_a._gst_player.play = mock.Mock(side_effect=[True, RuntimeError, True])
+        player_a._gst_player.play = mock.Mock(side_effect=[True, GstPlayerError, True])
 
         player_a.play()
         player_a.play()

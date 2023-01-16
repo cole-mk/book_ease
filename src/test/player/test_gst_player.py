@@ -65,6 +65,7 @@ gi.require_version('Gst', '1.0')
 from gi.repository import Gst, GLib
 import player
 from player import GstPlayer
+from player import GstPlayerError
 
 
 class StatusDict(dict):
@@ -131,7 +132,7 @@ def g_control_thread(func):
         finally:
             try:
                 unload_stream(gst_player)
-            except RuntimeError:
+            except GstPlayerError:
                 pass
             GLib.idle_add(loop.quit)
     return gct
@@ -148,7 +149,7 @@ def query_state(gst_player: GstPlayer) -> dict:
             queried_state['state'] = new
             lock.release()
         else:
-            queried_state['exception'] = RuntimeError(
+            queried_state['exception'] = GstPlayerError(
                 f'failed to query the pipeline\'s state. state change return = {success}'
             )
 
@@ -157,7 +158,7 @@ def query_state(gst_player: GstPlayer) -> dict:
     lock.acquire()
     GstPlayer._g_idle_add_once(qs, gst_player, lock, queried_state)
     if not lock.acquire(timeout=10):
-        raise RuntimeError('failed to query the pipeline\'s state.')
+        raise GstPlayerError('failed to query the pipeline\'s state.')
     return queried_state
 
 
@@ -244,14 +245,14 @@ def wait_for_glib_loop_start():
     """
     Wait on GLib.loop to be functional.
     timeout after 10 s.
-    Raises: RuntimeError if loop fails to start.
+    Raises: GstPlayerError if loop fails to start.
     """
     lock = Lock()
     # Allow up to 10 seconds for GLib.loop to start.
     lock.acquire()
     GstPlayer()._g_idle_add_once(lock.release)
     if not lock.acquire(timeout=10):
-        raise RuntimeError('Failed to start GLib.loop')
+        raise GstPlayerError('Failed to start GLib.loop')
 
 
 def get_new_stream_data() -> player.StreamData:
@@ -302,7 +303,7 @@ def load_stream(gst_player: GstPlayer, stream_data: player.StreamData, call_twic
     """
     Load a stream into GstPlayer and wait for it to finish.
 
-    Raises: RuntimeError if it timeouts after 10 seconds.
+    Raises: GstPlayerError if it timeouts after 10 seconds.
     """
     def ls(gst_player: GstPlayer,
            stream_data: player.StreamData,
@@ -335,7 +336,7 @@ def unload_stream(gst_player):
     """
     Unload a stream from GstPlayer and wait for it to finish.
 
-    Raises: RuntimeError if it timeouts after 10 seconds.
+    Raises: GstPlayerError if it timeouts after 10 seconds.
     """
     def us(gst_player: GstPlayer, status: dict):
         try:
@@ -355,8 +356,6 @@ def unload_stream(gst_player):
 
 class TestLoadStream:
     """Unit tests for method load_stream()"""
-    stream_loaded_flag = False
-    runtime_error_raised = False
 
     def test_loadstream_triggers_ready_callback(self):
         """
@@ -383,7 +382,7 @@ class TestLoadStream:
 
     def test_raises_exception_if_a_stream_is_already_loaded(self):
         """
-        Assert that load_stream() raises a RuntimeError if attempting to load a stream without first
+        Assert that load_stream() raises a GstPlayerError if attempting to load a stream without first
         cleaning up any previous stream.
         """
 
@@ -407,7 +406,7 @@ class TestLoadStream:
         status.raise_if('unknown_exception')
 
         assert status['load_stream_initial']['stream_loaded'] is True, 'Failed to initialize test.'
-        assert isinstance(status['load_stream']['exception'], RuntimeError)
+        assert isinstance(status['load_stream']['exception'], GstPlayerError)
         # a raised exception implies that the stream was not initially in the busy state.
         # Show that when raising an exception, GstPlayer is not left dead locked in a busy state.
         assert status['load_stream']['busy_state'] is False, 'GstPlayer left in busy state after raising exception.'
@@ -687,7 +686,7 @@ class TestSetPosition:
 
     def test_raises_exception_when_new_position_out_of_range(self):
         """
-        Show that set_position() raises a RuntimeError if the new
+        Show that set_position() raises a GstPlayerError if the new
         position is outside the range [0, infinity)
 
         Show that the stream_ready flag is not transmitted when this is the case.
@@ -710,9 +709,9 @@ class TestSetPosition:
 
         run_gstreamer_and_control_thread(control_thread, stream_data, status, new_position)
         status.raise_if('unknown_exception', 'load_stream')
-        assert isinstance(status['set_position']['exception'], RuntimeError)
+        assert isinstance(status['set_position']['exception'], GstPlayerError)
         assert status['set_position']['signal_received'] is False, \
-            "Set_position raised a RuntimeError, but the 'stream_ready' flag was transmitted anyway."
+            "Set_position raised a GstPlayerError, but the 'stream_ready' flag was transmitted anyway."
 
     def test_returns_false_when_gst_player_busy(self):
         """
@@ -770,7 +769,7 @@ class TestQueryPosition:
 
             assert status['query_position']['position'].get_time('s') == position
 
-    def test_raises_runtime_error_when_gst_player_is_busy(self):
+    def test_raises_exception_when_gst_player_is_busy(self):
         """
         Show that query_position() raises a RutimeError if
         GstPlayer is busy with another stream task.
@@ -793,9 +792,9 @@ class TestQueryPosition:
         run_gstreamer_and_control_thread(control_thread, stream_data, status)
         status.raise_if('unknown_exception', 'load_stream')
 
-        assert isinstance(status['query_position']['exception'], RuntimeError)
+        assert isinstance(status['query_position']['exception'], GstPlayerError)
 
-    def test_raises_runtime_error_when_gstreamer_fails_to_query_position(self):
+    def test_raises_exception_when_gstreamer_fails_to_query_position(self):
         """
         Show that query_position() raises a RutimeError if
         Gstreamer fails to successfully query the position from the pipeline.
@@ -819,7 +818,7 @@ class TestQueryPosition:
         run_gstreamer_and_control_thread(control_thread, stream_data, status)
         status.raise_if('unknown_exception', 'load_stream')
 
-        assert isinstance(status['query_position']['exception'], RuntimeError)
+        assert isinstance(status['query_position']['exception'], GstPlayerError)
 
 
 class TestUnloadStream:
@@ -827,9 +826,9 @@ class TestUnloadStream:
     Unit test for method unload_stream()
     """
 
-    def test_raises_runtime_error_when_pipeline_does_not_already_exist(self):
+    def test_raises_exception_when_pipeline_does_not_already_exist(self):
         """
-        Show that unload_stream() raises a RuntimeError if GstPlayer.pipeline is None
+        Show that unload_stream() raises a GstPlayerError if GstPlayer.pipeline is None
         """
 
         @g_control_thread
@@ -847,7 +846,7 @@ class TestUnloadStream:
         run_gstreamer_and_control_thread(control_thread, None, status)
         status.raise_if('unknown_exception')
 
-        assert isinstance(status['unload_stream']['exception'], RuntimeError)
+        assert isinstance(status['unload_stream']['exception'], GstPlayerError)
 
     def test_returns_false_when_gst_player_busy(self):
         """
