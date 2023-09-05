@@ -41,6 +41,8 @@ Unit test for class signal_.Signal
 
 from unittest import mock
 import pytest
+import weakref
+import gc
 from signal_ import Signal
 
 
@@ -48,20 +50,31 @@ class TestSignal:
     """
     Unit test for class signal_.Signal
     """
+    call_count = 0
+    sig_data_passed_to_cb_list = []
+    args_list = []
+
+    def callback(self, *args, **kwargs):
+        """test callback"""
+        self.call_count += 1
+        for arg in args:
+            self.args_list.append(arg)
+        if 'sig_data' in kwargs:
+            self.sig_data_passed_to_cb_list.append(kwargs['sig_data'])
 
     def test_sends_connected_signals_multiple_times(self):
         """
         Assert that send() can transmit a signal repeatedly if it has been connected via connect().
         """
+        self.call_count = 0
         tx = Signal()
         tx.add_signal('handle')
-        callback = mock.Mock()
-        tx.connect('handle', callback)
+        tx.connect('handle', self.callback)
 
         for _ in range(3):
             tx.send('handle')
 
-        assert callback.call_count == 3
+        assert self.call_count == 3
 
     def test_connect_raises_key_error_if_signal_not_added(self):
         """
@@ -69,13 +82,13 @@ class TestSignal:
         been added to the list of registered signals.
         """
         tx = Signal()
-        callback = mock.Mock()
+        #callback = mock.Mock()
 
         with pytest.raises(KeyError):
-            tx.connect('handle', callback)
+            tx.connect('handle', self.callback)
 
         with pytest.raises(KeyError):
-            tx.connect_once('handle', callback)
+            tx.connect_once('handle', self.callback)
 
     def test_remove_causes_connect_to_raise_key_error(self):
         """
@@ -83,14 +96,13 @@ class TestSignal:
         Assert that calling connect() after removing the signal raises a KeyError.
         """
         tx = Signal()
-        callback = mock.Mock()
 
         tx.add_signal('handle')
-        tx.connect('handle', callback)
+        tx.connect('handle', self.callback)
         tx.remove_signal('handle')
 
         with pytest.raises(KeyError):
-            tx.connect('handle', callback)
+            tx.connect('handle', self.callback)
 
     def test_sends_connect_once_transmitts_a_single_time_only(self):
         """
@@ -98,14 +110,13 @@ class TestSignal:
         the signal is sent only on the next call to send().
         """
         tx = Signal()
-        callback = mock.Mock()
-
+        self.call_count = 0
         tx.add_signal('handle')
-        tx.connect_once('handle', callback)
+        tx.connect_once('handle', self.callback)
         tx.send('handle')
         tx.send('handle')
 
-        callback.assert_called_once()
+        assert self.call_count == 1
 
     def test_disconnect_by_signal_data_removes_signal_from_call_list(self):
         """
@@ -114,30 +125,29 @@ class TestSignal:
         """
 
         tx = Signal()
-        callback = mock.Mock()
+        self.sig_data_passed_to_cb_list = []
 
         tx.add_signal('handle')
-        sig_data = [tx.connect('handle', callback, pass_sig_data_to_cb=True) for _ in range(3)]
+        sig_data = [tx.connect('handle', self.callback, pass_sig_data_to_cb=True) for _ in range(3)]
         tx.disconnect_by_signal_data(sig_data[1])
         tx.send('handle')
 
-        signals_passed_to_cb = {call[1]['sig_data'] for call in callback.call_args_list}
-        assert sig_data[0] in signals_passed_to_cb
-        assert sig_data[1] not in signals_passed_to_cb
-        assert sig_data[2] in signals_passed_to_cb
+        assert sig_data[0] in self.sig_data_passed_to_cb_list
+        assert sig_data[1] not in self.sig_data_passed_to_cb_list
+        assert sig_data[2] in self.sig_data_passed_to_cb_list
 
     def test_passes_sig_data_as_kwargs_when_pass_sig_data_to_cb_is_true(self):
         """
         Show that send passes SignalData object to the callback as cb_kwarg[sig_data] after
         calling connect() or connect_once() with parameter pass_sig_data_to_cb=True.
         """
+        self.sig_data_passed_to_cb_list = []
         tx = Signal()
-        callback = mock.Mock()
 
         tx.add_signal('handle')
-        sig_data = tx.connect('handle', callback, pass_sig_data_to_cb=True)
+        sig_data = tx.connect('handle', self.callback, pass_sig_data_to_cb=True)
         tx.send('handle')
-        callback.assert_called_with(sig_data=sig_data)
+        assert sig_data in self.sig_data_passed_to_cb_list
 
     def test_extra_args_called_after_subscriber_args(self):
         """
@@ -147,12 +157,59 @@ class TestSignal:
         This is important because allows connected signals to be daisy chained across multiple
         signal instances without mangling the args.
         """
+        self.args_list = []
         tx = Signal()
-        callback = mock.Mock()
 
         tx.add_signal('handle')
-        tx.connect('handle', callback, 'subscriber_arg')
+        tx.connect('handle', self.callback, 'subscriber_arg')
         tx.send('handle', 'tx_arg')
-        args, _ = callback.call_args
-        assert args[0] == 'subscriber_arg'
-        assert args[1] == 'tx_arg'
+
+        assert self.args_list[0] == 'subscriber_arg', self.args_list
+        assert self.args_list[1] == 'tx_arg'
+
+    def test_signal_does_not_prevent_deleted_subscriber_from_garbage_collection(self):
+        """
+        Show that a Signal subscription does not prevent a subscriber from being
+        freed by the garbage collector if the subscriber goes out of scope or gets del'd.
+        """
+        class internal_class:
+            """class only used by this function"""
+            def cb(self) -> None:
+                """Sample callback"""
+
+        ic = internal_class()
+        ic_wr = weakref.ref(ic)
+
+        tx = Signal()
+        tx.add_signal('handle')
+        tx.connect('handle', ic.cb)
+
+        del ic
+        gc.collect()
+
+        assert ic_wr() is None
+
+    def test_signal_does_not_notify_deleted_subscribers(self):
+        """
+        Show that a Signal subscription does not try to notify a subscriber that has gone
+        out of scope or has been del'd.
+        """
+
+        class internal_class:
+            """class only used by this function"""
+            cb_called_n_times = 0
+
+            def cb(self, *args, **kwargs) -> None:
+                """Sample callback"""
+                internal_class.cb_called_n_times += 1
+
+        ic = internal_class()
+
+        tx = Signal()
+        tx.add_signal('handle')
+        tx.connect('handle', ic.cb)
+
+        del ic
+        gc.collect()
+        tx.send('handle')
+        assert internal_class.cb_called_n_times == 0
