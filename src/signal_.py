@@ -44,7 +44,7 @@ class Signal():
     note: instantiated/inherited by server
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         create empty signal handler container, dict
         note: instantiated/inherited by server
@@ -61,7 +61,7 @@ class Signal():
         self._sig_handlers = {}
         self._sig_handlers_once = {}
 
-    def add_signal(self, handle: str, *more_handles: str):
+    def add_signal(self, handle: str, *more_handles: tuple[str]) -> None:
         """
         create/add signal to the sig handlers list
         note: called by server
@@ -71,7 +71,7 @@ class Signal():
             for additional_handle in more_handles:
                 sig_h[additional_handle] = []
 
-    def remove_signal(self, handle):
+    def remove_signal(self, handle: str) -> None:
         """
         remove signal from the sig handlers list
         note: called by server
@@ -134,7 +134,7 @@ class Signal():
                 signal.callback(*signal.cb_args, *extra_args, **signal.cb_kwargs, **extra_kwargs)
         self._sig_handlers_once[handle] = []
 
-    def disconnect_by_call_back(self, handle: str, call_back: Callable):
+    def disconnect_by_call_back(self, handle: str, call_back: Callable) -> None:
         """
         remove a callback from the signal handler's list by matching handle and callback method.
         This will remove the first matching entry matching handle and callback method to a signal.
@@ -150,7 +150,7 @@ class Signal():
                     return
         raise ValueError(f'call_back: {call_back} not found for signal: {handle}.')
 
-    def disconnect_by_signal_data(self, sig_data: SignalData, handle: str = None) -> bool:
+    def disconnect_by_signal_data(self, sig_data: SignalData, handle: str=None) -> None:
         """
         Remove callback by finding the matching signal data-- match by identity.
 
