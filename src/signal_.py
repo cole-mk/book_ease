@@ -110,7 +110,7 @@ class Signal():
 
         Returns a weakref.proxy->SignalData object that is added to the list.
         """
-        sig_data = SignalData(cb_method, self.disconnect_by_signal_data, *cb_args, cb_kwargs=cb_kwargs)
+        sig_data = SignalData(cb_method, self.disconnect_by_signal_data, *cb_args, **cb_kwargs)
 
         sig_handler_dict[handle].append(sig_data)
         sig_data_proxy = weakref.proxy(sig_data)
@@ -143,7 +143,7 @@ class Signal():
                              method,
                              *cb_args,
                              pass_sig_data_to_cb=pass_sig_data_to_cb,
-                             cb_kwargs=cb_kwargs)
+                             **cb_kwargs)
 
     def connect_once(self,
                      handle: str,
@@ -170,7 +170,7 @@ class Signal():
                              method,
                              *cb_args,
                              pass_sig_data_to_cb=pass_sig_data_to_cb,
-                             cb_kwargs=cb_kwargs)
+                             **cb_kwargs)
 
     def send(self, handle: str, *extra_args: tuple, **extra_kwargs: dict) -> None:
         """
@@ -198,7 +198,7 @@ class Signal():
         """
         for sig_h in (self._sig_handlers, self._sig_handlers_once):
             for sig in sig_h[handle]:
-                if call_back == sig[0]:
+                if call_back == sig.callback:
                     sig_h[handle].remove(sig)
                     return
         raise ValueError(f'call_back: {call_back} not found for signal: {handle}.')
