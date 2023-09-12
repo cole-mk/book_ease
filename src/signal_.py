@@ -57,8 +57,11 @@ class SignalData:
         Wrapper for the weakref callback. Replace the passed in reference to self.callback
         with a reference to self.
         """
-        self._subscriber_died_cb(self)
-
+        self.logger.debug('_cleanup() called.')
+        try:
+            self._subscriber_died_cb(self)
+        except ValueError:
+            self.logger.debug('_cleanup() called for a signal that was allready removed')
 
 class Signal():
     """
@@ -222,7 +225,6 @@ class Signal():
         then disconnect_by_signal_data searches for the sig_data in all rgistered signals.
         """
         handles = list(handle) if handle is not None else list(self._sig_handlers)
-
         for _handle in handles:
             for sig_h in (self._sig_handlers, self._sig_handlers_once):
                 try:
