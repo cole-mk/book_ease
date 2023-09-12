@@ -136,6 +136,33 @@ class TestSignal:
         assert sig_data[1] not in self.sig_data_passed_to_cb_list
         assert sig_data[2] in self.sig_data_passed_to_cb_list
 
+    def test_disconnect_by_callback_removes_signal_from_call_list(self):
+        """
+        Show that disconnect_by_signal_data() removes the correct signal from the
+        call lists. It cannot be fooled by identical signals connected multiple times.
+        """
+
+        tx = Signal()
+
+        tx.add_signal('handle')
+        for _ in range(3):
+            tx.connect('handle', self.callback, pass_sig_data_to_cb=True)
+
+        self.sig_data_passed_to_cb_list = []
+        tx.disconnect_by_call_back('handle', self.callback)
+        tx.send('handle')
+        assert len(self.sig_data_passed_to_cb_list) == 2
+
+        self.sig_data_passed_to_cb_list = []
+        tx.disconnect_by_call_back('handle', self.callback)
+        tx.send('handle')
+        assert len(self.sig_data_passed_to_cb_list) == 1
+
+        self.sig_data_passed_to_cb_list = []
+        tx.disconnect_by_call_back('handle', self.callback)
+        tx.send('handle')
+        assert len(self.sig_data_passed_to_cb_list) == 0
+
     def test_passes_sig_data_as_kwargs_when_pass_sig_data_to_cb_is_true(self):
         """
         Show that send passes SignalData object to the callback as cb_kwarg[sig_data] after
