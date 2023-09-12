@@ -23,8 +23,14 @@
 """
 helper module to implement signal system (notifications)
 note: instantiated/inherited by server
+
+This module provides logging output. It is set to output to the NullHandler.
+To access the output, place the following in the main application file:
+import logging
+logging.getLogger('signal_').addHandler(logging.StreamHandler())
 """
 import weakref
+import logging
 from typing import Callable
 
 
@@ -32,6 +38,8 @@ class SignalData:
     """
     Store information about a callback and the parameters to be passed to it.
     """
+    logger = logging.getLogger(f'{__name__}.SignalData')
+    logger.addHandler(logging.NullHandler())
 
     def __init__(self,
                  callback: Callable,

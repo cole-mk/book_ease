@@ -25,6 +25,7 @@
 import os
 from datetime import datetime
 import re
+import logging
 from pathlib import Path
 #pylint: disable=unused-import
 import pdb
@@ -39,6 +40,11 @@ import signal_
 import book_reader
 import book_ease_tables
 
+logging_stream_handler = logging.StreamHandler()
+logging_stream_handler.setFormatter(logging.Formatter('%(levelname)s - %(name)s - %(message)s'))
+logging.getLogger('signal_').addHandler(logging_stream_handler)
+
+logging.getLogger().setLevel(logging.WARNING)
 
 class RenameTvEntryDialog(Gtk.Dialog):
     """Dialog for renaming a bookmark"""
