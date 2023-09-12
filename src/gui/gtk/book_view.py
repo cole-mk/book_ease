@@ -409,7 +409,7 @@ class PlaylistVC:
         self.playlist_model.transmitter.connect('row_deleted', self.clear_col_sort_indicators)
         # assign the playlist to the view
         self.playlist_v.set_model(self.playlist_model.get_model())
-        PlaylistVMetadataComboC(self.playlist_model, self.playlist_v)
+        self.playlist_v_metadata_combo_c = PlaylistVMetadataComboC(self.playlist_model, self.playlist_v)
 
     def update(self, book_data) -> None:
         """get the tracklist from the Book and add the data to the playlist_model and secondary_metadata models"""

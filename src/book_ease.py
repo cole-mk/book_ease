@@ -900,7 +900,7 @@ class MainWindow(Gtk.Window):
             self.file_manager_pane.show()
 
 
-def main(unused_args):
+def main(unused_args):  # pylint: disable=unused-variable
     """entry point for book_ease"""
     builder = Gtk.Builder()
     builder.add_from_file("book_ease.glade")
@@ -909,15 +909,15 @@ def main(unused_args):
     # left side file viewer
     files_view_1 = Files_View(builder.get_object("files_1"), files)
     # left side bookmarks
-    BookMark(builder.get_object("bookmarks_1"), files_view_1, files)
+    book_mark_1 = BookMark(builder.get_object("bookmarks_1"), files_view_1, files)
     # image pane
-    Image_View(files, builder)
+    image_view_ref = Image_View(files, builder)
 
     # bookreader backend
-    book_reader.BookReader(files, builder)
+    book_reader_ref = book_reader.BookReader(files, builder)
 
     # main window
-    MainWindow(builder.get_object("window1"), builder.get_object("window_1_pane"), builder)
+    main_window_ref = MainWindow(builder.get_object("window1"), builder.get_object("window_1_pane"), builder)
 
     Gtk.main()
     return 0

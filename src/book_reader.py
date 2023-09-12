@@ -71,24 +71,14 @@ class BookReader:
         self.note_book = NoteBook(gui_builder)
         self.note_book.append_page(NoteBookPage(start_page.get_view()), start_page.get_tab_label())
 
-    def get_book(self, index):
-        """retrieve a book from the book list"""
-        return self.books[index]
-
-    def remove_book(self, book_index):
+    def remove_book(self, open_book: OpenBook) -> None:
         """remove a book from the book list"""
-        self.books.pop(book_index)
-        # propagate changes to book list indices
-        while book_index < len(self.books):
-            self.get_book(book_index)[0].set_index(book_index)
-            book_index += 1
+        self.books.remove(open_book)
 
-    def append_book(self, book_):
+    def append_book(self, open_book: OpenBook) -> None:
         """append book to list of opened books"""
-        index = len(self.books)
-        book_.set_index(index)
-        self.books.append(book_)
-        return index
+        self.books.append(open_book)
+        open_book.transmitter.connect_once('close', self.remove_book, open_book)
 
     def open_existing_book(self, pl_data: book.PlaylistData):
         """
@@ -98,9 +88,9 @@ class BookReader:
         book_ = book.BookC(self.files.get_path_current(), None, self)
         br_note_book_tab_vc = BookReaderNoteBookTabVC(book_.transmitter, book_.component_transmitter)
         note_book_page = NoteBookPage(book_.get_view(), pl_data.get_id(), book_.transmitter)
+
         self.note_book.append_page(note_book_page, br_note_book_tab_vc.get_view())
-        index = self.append_book(book_)
-        book_.transmitter.connect('close', self.remove_book, index)
+        self.append_book(OpenBook(book_, note_book_page, br_note_book_tab_vc))
         book_.transmitter.connect('update', self.existing_book_opener.update_book_list)
         # load the playlist metadata
         book_.open_existing_playlist(pl_data)
@@ -119,11 +109,11 @@ class BookReader:
         # create the book and the notebook tab view
         book_ = book.BookC(self.files.get_path_current(), f_list, self)
         br_title_vc = BookReaderNoteBookTabVC(book_.transmitter, book_.component_transmitter)
-        index = self.append_book(book_)
-        book_.transmitter.connect('close', self.remove_book, index)
+        note_book_page = NoteBookPage(book_.get_view(), book_.get_playlist_id(), book_.transmitter)
+
+        self.append_book(OpenBook(book_, note_book_page, br_title_vc))
         book_.transmitter.connect('update', self.existing_book_opener.update_book_list)
         # Add the book to the notebook view.
-        note_book_page = NoteBookPage(book_.get_view(), book_.get_playlist_id(), book_.transmitter)
         self.note_book.append_page(note_book_page, br_title_vc.get_view())
         # load the playlist metadata
         book_.open_new_playlist()
@@ -231,7 +221,6 @@ class NewBookOpener:
 
         self.files = files
         self.files.connect('cwd_changed', self.on_cwd_changed)
-
         self.view = book_reader_view.NewBookOpenerV(gui_builder)
         self.view.transmitter.connect('open_book', self.open_book)
 
@@ -367,13 +356,28 @@ class NoteBookPage:
     def close(self):
         """
         Destroy the view so that the Notebook page can actually close.
-        Close references to self in the book_transmitter's callback list. I don't know if this is necessary, because the
-        book is closing anyway.
         """
-        self.book_transmitter.disconnect_by_call_back('update', self.on_book_updated)
-        self.book_transmitter.disconnect_by_call_back('close', self.close)
         self.adapter_view.close()
 
     def get_id(self) -> int:
         """Get the id stored in the view"""
         return self.adapter_view.get_id()
+
+class OpenBook:
+    """
+    OpenBook is a container that holds references to a BookC with its associated gui support classes:
+    NoteBookPage and BookReaderNoteBookTabVC
+    """
+    def __init__(self, book_: book.BookC, notebook_page: NoteBookPage, br_notebook_tab_vc: BookReaderNoteBookTabVC):
+        self.transmitter = signal_.Signal()
+
+        self._book = book_
+        self._notebook_page = notebook_page
+        self.br_notebook_tab_vc = br_notebook_tab_vc
+
+        self.transmitter.add_signal('close', self)
+        self._book.transmitter.connect_once('close', self.close)
+
+    def close(self):
+        self.transmitter.send('close')
+        del self._book, self._notebook_page, self.br_notebook_tab_vc, self.transmitter

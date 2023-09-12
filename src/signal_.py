@@ -206,7 +206,7 @@ class Signal():
         """
         for sig_h in (self._sig_handlers, self._sig_handlers_once):
             for sig in sig_h[handle]:
-                if call_back == sig.callback:
+                if call_back == sig.callback():
                     sig_h[handle].remove(sig)
                     return
         raise ValueError(f'call_back: {call_back} not found for signal: {handle}.')
