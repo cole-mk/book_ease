@@ -23,8 +23,14 @@
 """
 helper module to implement signal system (notifications)
 note: instantiated/inherited by server
+
+This module provides logging output. It is set to output to the NullHandler.
+To access the output, place the following in the main application file:
+import logging
+logging.getLogger('signal_').addHandler(logging.StreamHandler())
 """
 import weakref
+import logging
 from typing import Callable
 
 
@@ -32,6 +38,8 @@ class SignalData:
     """
     Store information about a callback and the parameters to be passed to it.
     """
+    logger = logging.getLogger(f'{__name__}.SignalData')
+    logger.addHandler(logging.NullHandler())
 
     def __init__(self,
                  callback: Callable,
@@ -49,8 +57,11 @@ class SignalData:
         Wrapper for the weakref callback. Replace the passed in reference to self.callback
         with a reference to self.
         """
-        self._subscriber_died_cb(self)
-
+        self.logger.debug('_cleanup() called.')
+        try:
+            self._subscriber_died_cb(self)
+        except ValueError:
+            self.logger.debug('_cleanup() called for a signal that was allready removed')
 
 class Signal():
     """
@@ -198,7 +209,7 @@ class Signal():
         """
         for sig_h in (self._sig_handlers, self._sig_handlers_once):
             for sig in sig_h[handle]:
-                if call_back == sig.callback:
+                if call_back == sig.callback():
                     sig_h[handle].remove(sig)
                     return
         raise ValueError(f'call_back: {call_back} not found for signal: {handle}.')
@@ -214,7 +225,6 @@ class Signal():
         then disconnect_by_signal_data searches for the sig_data in all rgistered signals.
         """
         handles = list(handle) if handle is not None else list(self._sig_handlers)
-
         for _handle in handles:
             for sig_h in (self._sig_handlers, self._sig_handlers_once):
                 try:

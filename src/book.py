@@ -520,14 +520,14 @@ class BookC:
 
         # create the component view controllers.
         # title view
-        book_view.TitleVC(self.book, self.transmitter, self.component_transmitter, book_view_builder)
+        self.title_vc = book_view.TitleVC(self.book, self.transmitter, self.component_transmitter, book_view_builder)
         # control button view
-        book_view.ControlBtnVC(self.book, self.transmitter, self.component_transmitter, book_view_builder)
+        self.control_btn_vc = book_view.ControlBtnVC(self.book, self.transmitter, self.component_transmitter, book_view_builder)
         # playlist view
-        book_view.PlaylistVC(self.book, self.transmitter, self.component_transmitter, book_view_builder)
+        self.playlist_vc = book_view.PlaylistVC(self.book, self.transmitter, self.component_transmitter, book_view_builder)
         # pinned button view does not use the component_transmitter because it is responsible for signalling its own
         # controller.
-        book_reader_.pinned_books.get_pinned_button_new(self.transmitter, book_view_builder)
+        self.pinned_button = book_reader_.pinned_books.get_pinned_button_new(self.transmitter, book_view_builder)
 
     def get_view(self) -> object:
         """get the main outer most view"""
