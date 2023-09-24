@@ -59,7 +59,7 @@ Unit test for class player.GstPlayer
 """
 from unittest import mock
 from threading import Thread
-from threading import Lock
+from lock_wrapper import Lock
 import gi
 gi.require_version('Gst', '1.0')
 from gi.repository import Gst, GLib
