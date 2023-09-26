@@ -192,11 +192,19 @@ class Signal():
         extra_args: allow server to add args to the signal call
         extra_kwargs: allow server to add kwargs to the signal call
         """
-        for sig_h in (self._sig_handlers, self._sig_handlers_once):
+
+        # self._sig_handlers_once[handle] must be cleared before calling the callback in case
+        # the callback reconnects itself by calling connect_once. If not, the reconnected callback gets
+        # dsconnected as soon as control returns to this method. Previously, there was no
+        # temp_sig_handlers_once and self._sig_handlers_once[handle] was cleared after the for loop.
+        temp_sig_handlers_once = {}
+        temp_sig_handlers_once[handle] = self._sig_handlers_once[handle]
+        self._sig_handlers_once[handle] = []
+
+        for sig_h in (self._sig_handlers, temp_sig_handlers_once):
             # reversed so a calback can remove itself wihout disrupting the iteration.
             for signal in reversed(sig_h[handle]):
                 signal.callback()(*signal.cb_args, *extra_args, **signal.cb_kwargs, **extra_kwargs)
-        self._sig_handlers_once[handle] = []
 
     def disconnect_by_call_back(self, handle: str, call_back: Callable) -> None:
         """
