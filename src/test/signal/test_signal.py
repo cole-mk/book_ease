@@ -62,6 +62,25 @@ class TestSignal:
         if 'sig_data' in kwargs:
             self.sig_data_passed_to_cb_list.append(kwargs['sig_data'])
 
+        # for test_connect_once_callbacks_can_reconnect_themselves
+        if {'reconnect_once', 'tx_object'}.issubset(kwargs):
+            kwargs['tx_object'].connect_once('handle', self.callback)
+            kwargs['tx_object'].send('handle')
+
+    def test_connect_once_callbacks_can_reconnect_themselves(self):
+        """
+        Ensure that a callback that was registered with connect_once can re-add itself
+        to the connect_once signal list. There previously was a bug where the callback would
+        call connect_once to reconnect to the signal, but Signal.send() would delete the entire
+        connect_once list when Signal.send() finished processing the rest of the event queue.
+        """
+        self.call_count = 0
+        tx = Signal()
+        tx.add_signal('handle')
+        tx.connect_once('handle', self.callback, reconnect_once=True, tx_object=tx)
+        tx.send('handle')
+        assert self.call_count == 2
+
     def test_sends_connected_signals_multiple_times(self):
         """
         Assert that send() can transmit a signal repeatedly if it has been connected via connect().
