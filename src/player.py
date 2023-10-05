@@ -77,38 +77,39 @@ class PlayerDBI:
         """Get the playlist's saved position."""
         with audio_book_tables.DB_CONNECTION.query() as con:
             row = self.player_position_joined.get_row_by_playlist_id(con=con, playlist_id=playlist_id)
-        position = StreamData()
+
         if row is not None:
+            position = StreamData()
             position.path = row['path']
             position.position = StreamTime(row['time'])
             position.pl_track_id = row['pl_track_id']
             position.playlist_id = row['playlist_id']
             position.track_number = row['track_number']
             position.mark_saved_position()
-        return position
+            return position
+        return None
 
     def get_new_position(self, playlist_id: int, track_number: int, time_: StreamTime) -> StreamData:
         """
         Create a StreamData object set to the beginning of the track_number of the playlist.
-        Return an empty StreamData object if nothing was found.
+        Return an None object if nothing was found.
         """
         track_id, pl_track_id = self.get_track_id_pl_track_id_by_number(
             playlist_id=playlist_id,
             track_number=track_number
         )
-        if track_id is not None:
-            path = self.get_path_by_id(track_id=track_id)
 
-            position = StreamData(
-                pl_track_id=pl_track_id,
-                track_number=track_number,
-                playlist_id=playlist_id,
-                path=path,
-                position=time_
-            )
-        else:
-            position = StreamData()
-        return position
+        if track_id is not None:
+            if path:= self.get_path_by_id(track_id=track_id) is not None:
+                position = StreamData(
+                    pl_track_id=pl_track_id,
+                    track_number=track_number,
+                    playlist_id=playlist_id,
+                    path=path,
+                    position=time_
+                )
+                return position
+        return None
 
     def save_position(self, pl_track_id: int, playlist_id: int, time_: StreamTime):
         """Save player position to the database."""
@@ -131,10 +132,15 @@ class PlayerDBI:
         return None, None
 
     def get_path_by_id(self, track_id: int) -> str | pathlib.Path:
-        """Get a track's path based on track_id"""
+        """
+        Get a track's path based on track_id
+
+        Return: Path or None
+        """
         with audio_book_tables.DB_CONNECTION.query() as con:
-            row = self.track.get_row_by_id(con=con, id_=track_id)
-            return row['path'] if row is not None else None
+            if row := self.track.get_row_by_id(con=con, id_=track_id):
+                return row['path']
+        return None
 
 
 class StreamTime:
@@ -206,9 +212,7 @@ class StreamTime:
 @dataclass
 class StreamData:
     """Container for stream data."""
-    _required_attributes: ClassVar[tuple] = ('path', 'position', 'track_number', 'playlist_id', 'pl_track_id')
 
-    # instance attributes
     path: str | None = None
     position: StreamTime | None = None
     duration: StreamTime | None = None
@@ -216,13 +220,6 @@ class StreamData:
     playlist_id: int | None = None
     pl_track_id: int | None = None
     last_saved_position: StreamTime = StreamTime(-1)
-
-    def is_fully_set(self):
-        """Check that all required attributes have been set."""
-        for item in self.__dict__.items():
-            if item[1] is None and item[0] in self._required_attributes:
-                return False
-        return True
 
     def mark_saved_position(self):
         """
