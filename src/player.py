@@ -1129,6 +1129,7 @@ class GstPlayerA:
 
         If the called method returns False, then the command remains in the deque.
         """
+        self.logger.debug('pop')
         if self._deque:
             try:
                 cmd = self._deque.pop()
@@ -1161,6 +1162,7 @@ class GstPlayerA:
         """
         Add a pause command to the deque.
         """
+        self.logger.debug('pause')
         self._appendleft((lambda: None, self._gst_player.pause))
 
     def stop(self):
