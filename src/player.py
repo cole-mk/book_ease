@@ -38,7 +38,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import ClassVar
 from typing import Literal
-from lock_wrapper import Lock
 import collections
 import gi
 gi.require_version('Gst', '1.0')
@@ -46,6 +45,7 @@ gi.require_version('Gst', '1.0')
 # gi.require_version('GdkX11', '3.0')
 # gi.require_version('GstVideo', '1.0')
 from gi.repository import Gst, GLib
+from lock_wrapper import Lock
 import audio_book_tables
 import signal_
 if TYPE_CHECKING:
@@ -77,38 +77,39 @@ class PlayerDBI:
         """Get the playlist's saved position."""
         with audio_book_tables.DB_CONNECTION.query() as con:
             row = self.player_position_joined.get_row_by_playlist_id(con=con, playlist_id=playlist_id)
-        position = StreamData()
+
         if row is not None:
+            position = StreamData()
             position.path = row['path']
             position.position = StreamTime(row['time'])
             position.pl_track_id = row['pl_track_id']
             position.playlist_id = row['playlist_id']
             position.track_number = row['track_number']
             position.mark_saved_position()
-        return position
+            return position
+        return None
 
     def get_new_position(self, playlist_id: int, track_number: int, time_: StreamTime) -> StreamData:
         """
         Create a StreamData object set to the beginning of the track_number of the playlist.
-        Return an empty StreamData object if nothing was found.
+        Return an None object if nothing was found.
         """
         track_id, pl_track_id = self.get_track_id_pl_track_id_by_number(
             playlist_id=playlist_id,
             track_number=track_number
         )
-        if track_id is not None:
-            path = self.get_path_by_id(track_id=track_id)
 
-            position = StreamData(
-                pl_track_id=pl_track_id,
-                track_number=track_number,
-                playlist_id=playlist_id,
-                path=path,
-                position=time_
-            )
-        else:
-            position = StreamData()
-        return position
+        if track_id is not None:
+            if path:= self.get_path_by_id(track_id=track_id) is not None:
+                position = StreamData(
+                    pl_track_id=pl_track_id,
+                    track_number=track_number,
+                    playlist_id=playlist_id,
+                    path=path,
+                    position=time_
+                )
+                return position
+        return None
 
     def save_position(self, pl_track_id: int, playlist_id: int, time_: StreamTime):
         """Save player position to the database."""
@@ -131,10 +132,15 @@ class PlayerDBI:
         return None, None
 
     def get_path_by_id(self, track_id: int) -> str | pathlib.Path:
-        """Get a track's path based on track_id"""
+        """
+        Get a track's path based on track_id
+
+        Return: Path or None
+        """
         with audio_book_tables.DB_CONNECTION.query() as con:
-            row = self.track.get_row_by_id(con=con, id_=track_id)
-            return row['path'] if row is not None else None
+            if row := self.track.get_row_by_id(con=con, id_=track_id):
+                return row['path']
+        return None
 
 
 class StreamTime:
@@ -206,9 +212,7 @@ class StreamTime:
 @dataclass
 class StreamData:
     """Container for stream data."""
-    _required_attributes: ClassVar[tuple] = ('path', 'position', 'track_number', 'playlist_id', 'pl_track_id')
 
-    # instance attributes
     path: str | None = None
     position: StreamTime | None = None
     duration: StreamTime | None = None
@@ -217,13 +221,6 @@ class StreamData:
     pl_track_id: int | None = None
     last_saved_position: StreamTime = StreamTime(-1)
 
-    def is_fully_set(self):
-        """Check that all required attributes have been set."""
-        for item in self.__dict__.items():
-            if item[1] is None and item[0] in self._required_attributes:
-                return False
-        return True
-
     def mark_saved_position(self):
         """
         Record what the time was when the position was last saved to the database.
@@ -231,26 +228,174 @@ class StreamData:
         self.last_saved_position.set_time(self.position.get_time())
 
 
-class Player:
-    """The model class for the media player backend"""
+class SeekTime(Enum):
+    """Enum containing relative seek times"""
+    FORWARD_LONG = StreamTime(30, 's')
+    FORWARD_SHORT = StreamTime(5, 's')
+    REVERSE_LONG = StreamTime(-30, 's')
+    REVERSE_SHORT = StreamTime(-5, 's')
+
+
+class Player:  # pylint: disable=unused-argument
+    """The base class for the media player model."""
+
+    logger = logging.getLogger(f'{__name__}.PlayerState')
 
     def __init__(self):
         self.player_dbi = PlayerDBI()
 
-        self.player_backend = GstPlayer()
-        self.player_backend.transmitter.connect('time_updated', self._on_time_updated)
-        self.player_backend.transmitter.connect('duration_ready', self._on_duration_ready)
-        self.player_backend.transmitter.connect('eos', self._on_eos)
+        self.player_adapter = GstPlayerA()
+        self.player_adapter.transmitter.connect('time_updated', self._on_time_updated)
+        self.player_adapter.transmitter.connect('stream_loaded', self._on_stream_loaded)
+        self.player_adapter.transmitter.connect('eos', self._on_eos)
 
-        self.stream_data = None
-        self.skip_duration_short = StreamTime(3, 's')
-        self.skip_duration_long = StreamTime(30, 's')
+        self.stream_data = StreamData()
 
         self.transmitter = signal_.Signal()
-        self.transmitter.add_signal('time_updated', 'duration_ready', 'eos')
-        self.state = 'no_playlist_loaded'
+        self.transmitter.add_signal('stream_updated',
+                                    'position_updated',
+                                    'playlist_finished',
+                                    'player_enter_state')
 
-    def _on_eos(self):
+        # Set the initial state to Player.
+        self._set_state(PlayerStateInitial)
+
+    def state_entry(self) -> None:
+        """Initialize a state."""
+        self._state_entry()
+
+    def _set_state(self, player_state: Player) -> None:
+        """
+        Set state
+        player_state: State class that implements PlayerState.
+        """
+        self.__class__ = player_state
+        self.state_entry()
+
+    def get_state(self) -> type[Player]:
+        """
+        Get the Player's state.
+        returns the PlayerState class that has inherited Player.
+        """
+        return self.__class__
+
+    def load_playlist(self, playlist_data: book.PlaylistData) -> None:
+        """
+        Load self.stream_data with a StreamData from the database if it exists, or set it to a newly created one that
+        starts at the beginning of the first track in the playlist.
+
+        Note: PlayerState's should implement this by calling _load_playlist().
+        """
+        self.logger.warning('calling load_playlist() not implemented in this state, %s.', self.__class__.__name__)
+
+    def set_track(self, track_number: int) -> None:
+        """
+        Set the current track to track_number.
+
+        Raises: RuntimeError if set_track() fails to generate a completely instantiated StreamData object.
+
+        Note: PlayerState's should call _set_track().
+        """
+        self.logger.warning('calling set_track() not implemented in this state, %s.', self.__class__.__name__)
+
+    def set_track_relative(self, track_delta: Literal[-1, 1]) -> None:
+        """
+        Skip a number of tracks based on the value of track_delta.
+
+        Note: PlayerState's should call _set_track_relative().
+        """
+        self.logger.warning('calling set_track_relative() not implemented in this state, %s.', self.__class__.__name__)
+
+    def unload_playlist(self) -> None:
+        """
+        Remove all references to the currently loaded playlist.
+
+        Note: PlayerState's should call _unload_playlist().
+        """
+        self.logger.warning('calling unload_playlist() not implemented in this state, %s.', self.__class__.__name__)
+
+    def play(self) -> None:
+        """
+        Play a stream.
+
+        Note: PlayerState's should implement this.
+        """
+        self.logger.warning('method play() not implemented in this state, %s.', self.__class__.__name__)
+
+    def pause(self) -> None:
+        """
+        Pause a playing stream.
+
+        Note: PlayerState's should implement this.
+        """
+        self.logger.warning('calling pause() not implemented in this state, %s.', self.__class__.__name__)
+
+    def stop(self) -> None:
+        """
+        Stop a playing or paused stream.
+        While playing, stop() pauses the track.
+        While paused, stop() resets the streams position to the beginning of the track.
+
+        Note: PlayerState's should implement this.
+        """
+        self.logger.warning('calling stop() not implemented in this state, %s.', self.__class__.__name__)
+
+    def go_to_position(self, time_: StreamTime) -> bool:
+        """
+        Transport control method to set the position of a stream to time_.
+        Calls on the media-player backend to set the position of a playing stream.
+
+        return: False if the new position is past the end or beginning of a track.
+
+        Note: PlayerState's should implement this by calling _go_to_position().
+        """
+        self.logger.warning('calling go_to_position() not implemented in this state, %s.', self.__class__.__name__)
+
+    def seek(self, time_delta: SeekTime) -> None:
+        """
+        Seek forward or backward in a track by an amount equal to time_delta.
+
+        time_delta: The amount of time to skip forwad or backward in a track.
+        returns: False if the new position is past the end or beginning of a track.
+
+        Note: This method checks first with the player adapter for the most up to date position,
+        including any pending position changes that may be in the queue.
+
+        Note: PlayerState's should implement this by calling _seek().
+        """
+        self.logger.warning('calling seek() not implemented in this state, %s', self.__class__.__name__)
+
+    def _load_playlist(self, playlist_data: book.PlaylistData) -> None:
+        """Implementation for self.load_playlist"""
+        self.logger.warning('_load_playlist class %s', self.__class__)
+        if (new_stream_data := self.player_dbi.get_saved_position(playlist_data.get_id())) is None:
+            new_stream_data = self.player_dbi.get_new_position(playlist_data.get_id(), 0, StreamTime(0))
+            if new_stream_data is None:
+                raise RuntimeError('Failed to build StreamData object to load the stream.')
+        self.stream_data = new_stream_data
+
+    def _set_track(self, track_number: int) -> None:
+        """Implementation for self.set_track"""
+        new_stream_data = self.player_dbi.get_new_position(
+            playlist_id=self.stream_data.playlist_id,
+            track_number=track_number,
+            time_=StreamTime(0)
+        )
+        if new_stream_data is not None:
+            self.stream_data = new_stream_data
+        else:
+            raise RuntimeError('Failed to load track.')
+
+    def _set_track_relative(self, track_delta: Literal[-1, 1]):
+        """Implementation for self.set_track_relative"""
+        new_track_number = self._get_incremented_track_number(track_delta)
+        self._set_track(track_number=new_track_number)
+
+    def _unload_playlist(self) -> None:
+        """Implementation for self.unload_playlist"""
+        self.stream_data = StreamData()
+
+    def _on_eos(self) -> None:
         """
         The media player backend has reached the end of the stream.
         """
@@ -259,6 +404,8 @@ class Player:
         if old_track_num < self.stream_data.track_number:
             # The end of the playlist has not yet been reached. Continue playback.
             self.play()
+        else:
+            self.transmitter.send('playlist_finished')
 
     def _get_incremented_track_number(self, track_delta: Literal[-1, 1]):
         """
@@ -275,143 +422,231 @@ class Player:
             new_track_number = track_count - 1
         return new_track_number
 
-    def set_track_relative(self, track_delta: Literal[-1, 1]):
+    def _on_stream_loaded(self) -> None:
         """
-        Skip a number of tracks based on the value of track_delta.
+        The media player backend adapter has signaled that the stream is fully loaded.
         """
-        new_track_number = self._get_incremented_track_number(track_delta)
-        self.set_track(track_number=new_track_number)
+        self.logger.debug('_on_stream_loaded')
+        self.stream_data.duration = self.player_adapter.query_duration()
+        self.transmitter.send('stream_updated')
 
-    def set_track(self, track_number: int):
-        """
-        Set the current track to track_number.
-
-        Raises: RuntimeError if set_track() fails to generate a completely instantiated StreamData object.
-        """
-        new_stream_data = self.player_dbi.get_new_position(
-            playlist_id=self.stream_data.playlist_id,
-            track_number=track_number,
-            time_=StreamTime(0)
-        )
-        if new_stream_data.is_fully_set():
-            try:
-                self.player_backend.unload_stream()
-            except RuntimeError:
-                pass
-
-            self.stream_data = new_stream_data
-            self.player_backend.load_stream(stream_data=self.stream_data)
-            self._save_position()
-            if self.state == 'playing':
-                self.play()
-        else:
-            raise RuntimeError('Failed to load track.')
-
-    def _on_time_updated(self, position: StreamTime):
+    def _on_time_updated(self, position: StreamTime) -> None:
         """
         The media player backend has updated the playback position.
         """
         self.stream_data.position = position
-        self.transmitter.send('time_updated', position)
+        self.transmitter.send('position_updated', position)
         # Save position when 30 seconds elapsed.
         if position.get_time('s') - self.stream_data.last_saved_position.get_time('s') > 29:
             self._save_position()
 
-    def _save_position(self):
+    def _save_position(self) -> None:
         self.player_dbi.save_position(pl_track_id=self.stream_data.pl_track_id,
                                       playlist_id=self.stream_data.playlist_id,
                                       time_=self.stream_data.position)
         self.stream_data.mark_saved_position()
 
-    def _on_duration_ready(self, duration: StreamTime):
-        """
-        The media player backend has found the duration of the stream.
-        """
-        self.stream_data.duration = duration
-        self.transmitter.send('duration_ready', duration)
-
-    def load_playlist(self, playlist_data: book.PlaylistData):
-        """
-        Load self.stream_data with a StreamData from the database if it exists, or set it to a newly created one that
-        starts at the beginning of the first track in the playlist.
-        """
-        playlist_id = playlist_data.get_id()
-        self.stream_data = self.player_dbi.get_saved_position(playlist_id=playlist_id)
-        if self.stream_data.is_fully_set():
-            self.player_backend.load_stream(stream_data=self.stream_data)
+    def _go_to_position(self, time_: StreamTime) -> bool:
+        """Implementation for self.go_to_position"""
+        if(time_ > StreamTime(0) and time_ < self.stream_data.duration):
+            self.player_adapter.set_position(position=time_)
+            return True
         else:
-            # No saved position exists; load the first track.
-            self.set_track(track_number=0)
-        self.state = 'ready'
+            return False
 
-    def play(self):
-        """
-        Transport control method 'play'
-        Calls on the media-player backend to play a stream.
-        """
-        self.player_backend.play()
-        self.state = 'playing'
+    def _seek(self, time_delta: SeekTime) -> bool:
+        """Implementation for self.seek"""
+        if (position := self.player_adapter.query_position()) is not None:
+            position += time_delta.value
+        else:
+            position = self.stream_data.position + time_delta.value
 
-    def pause(self):
-        """
-        Transport control method 'pause'
-        Calls on the media-player backend to pause a playing stream.
-        """
-        self.player_backend.pause()
-        self.stream_data.position = self.player_backend.query_position()
-        self._save_position()
-        self.state = 'paused'
+        return self._go_to_position(time_=position)
 
-    def stop(self):
+    def _set_position_relative(self, time_delta: StreamTime) -> bool:
         """
-        Transport control method 'stop'
-        Calls on the media-player backend to stop a playing stream.
-        """
-        self.player_backend.stop()
-        self.stream_data.position = StreamTime(0)
-        self._save_position()
-        self.state = 'stopped'
+        Skip forward or backward in a track by an amount equal to time_delta.
 
-    def go_to_position(self, time_: StreamTime):
-        """
-        Transport control method to set the position of a stream to time_.
-        Calls on the media-player backend to set the position of a playing stream.
-        """
-        self.player_backend.set_position(time_=time_)
+        time_delta: The amount of time to skip forwad or backward in a track.
+        returns: False if the new position is past the end or beginning of a track.
 
-    def skip_forward_short(self):
+        Note: This method checks first with the player adapter for the most up to date position,
+        including any pending position changes that may be in the queue.
         """
-        Transport control method 'short skip forward'
-        Calls on the media-player backend to skip ahead in a playing stream,
-        by an amount equal to self.skip_duration_short.
-        """
-        self.player_backend.set_position_relative(delta_t=self.skip_duration_short)
+        if (position := self.player_adapter.query_position()) is not None:
+            position += time_delta
+        else:
+            position = self.stream_data.position + time_delta
 
-    def skip_reverse_short(self):
-        """
-        Transport control method 'short skip reverse'
-        Calls on the media-player backend to skip back in a playing stream,
-        by an amount equal to self.skip_duration_short.
-        """
-        rev_skip_time = self.skip_duration_short.get_time() * -1
-        self.player_backend.set_position_relative(delta_t=StreamTime(rev_skip_time))
+        return self._go_to_position(time_=position)
 
-    def skip_forward_long(self):
-        """
-        Transport control method 'long skip forward'
-        Calls on the media-player backend to skip ahead in a playing stream,
-        by an amount equal to self.skip_duration_long.
-        """
-        self.player_backend.set_position_relative(delta_t=self.skip_duration_long)
+    def _state_entry(self) -> None:
+        """Implementation for self.state_entry"""
+        self.transmitter.send('player_enter_state', self.__class__)
 
-    def skip_reverse_long(self):
+
+class PlayerStateInitial(Player):
+    """The initial state for the Player model."""
+
+    def state_entry(self) -> None:
+        self._state_entry()
+        self._set_state(PlayerStateNoPlaylistLoaded)
+
+
+class PlayerStateNoPlaylistLoaded(Player):
+    """Player State PlayerStateNoPlaylistLoaded"""
+
+    def load_playlist(self, playlist_data: book.PlaylistData) -> None:
+        self.logger.warning('PlayerStateNoPlaylistLoaded load_playlist')
+        self._load_playlist(playlist_data)
+        self.player_adapter.load_stream(self.stream_data)
+        self._set_state(PlayerStateStopped)
+
+
+class  PlayerStateStopped(Player):
+    """Player State PlayerStateNoPlaylistLoaded"""
+
+    def load_playlist(self, playlist_data: book.PlaylistData) -> None:
+        self.player_adapter.unload_stream()
+        self._unload_playlist()
+        self._load_playlist(playlist_data)
+        self.player_adapter.load_stream(self.stream_data)
+
+    def set_track(self, track_number: int) -> None:
+        self.player_adapter.unload_stream()
+        self._set_track(track_number)
+        self.player_adapter.load_stream(self.stream_data)
+
+    def set_track_relative(self, track_delta: Literal[-1, 1]) -> None:
+        self.player_adapter.unload_stream()
+        self._set_track_relative(track_delta)
+        self.player_adapter.load_stream(self.stream_data)
+
+    def unload_playlist(self) -> None:
+        self.player_adapter.unload_stream()
+        self._unload_playlist()
+        self._set_state(PlayerStateNoPlaylistLoaded)
+
+    def play(self) -> None:
+        self.player_adapter.play()
+        self._set_state(PlayerStatePlaying)
+
+    def seek(self, time_delta: SeekTime) -> None:
+        self._seek(time_delta)
+
+
+class  PlayerStatePlaying(Player):
+    """Player State PlayerStatePlaying"""
+
+    def load_playlist(self, playlist_data: book.PlaylistData) -> None:
+        self.player_adapter.stop()
+        self.player_adapter.unload_stream()
+        self._unload_playlist()
+        self._load_playlist(playlist_data)
+        self.player_adapter.load_stream(stream_data=self.stream_data)
+        self._set_state(PlayerStateStopped)
+
+    def set_track(self, track_number: int) -> None:
+        self.player_adapter.stop()
+        self.player_adapter.unload_stream()
+        self._set_track(track_number)
+        self.player_adapter.load_stream(self.stream_data)
+        self.player_adapter.play()
+
+    def set_track_relative(self, track_delta: Literal[-1, 1]) -> None:
+        self.player_adapter.stop()
+        self.player_adapter.unload_stream()
+        self._set_track_relative(track_delta)
+        self.player_adapter.load_stream(self.stream_data)
+        self.player_adapter.play()
+
+    def unload_playlist(self) -> None:
+        self.player_adapter.stop()
+        self.player_adapter.unload_stream()
+        self._unload_playlist()
+        self._set_state(PlayerStateNoPlaylistLoaded)
+
+    def pause(self) -> None:
+        self.player_adapter.pause()
+        self._set_state(PlayerStatePaused)
+
+    def stop(self) -> None:
+        self.player_adapter.stop()
+        self._set_state(PlayerStatePaused)
+
+    def seek(self, time_delta: SeekTime) -> None:
+        self._seek(time_delta)
+
+
+class  PlayerStatePaused(Player):
+    """Player State PlayerStatePaused"""
+
+    def load_playlist(self, playlist_data: book.PlaylistData) -> None:
+        self.player_adapter.stop()
+        self.player_adapter.unload_stream()
+        self._unload_playlist()
+        self._load_playlist(playlist_data)
+        self.player_adapter.load_stream(self.stream_data)
+        self._set_state(PlayerStateStopped)
+
+    def set_track(self, track_number: int) -> None:
+        self.player_adapter.stop()
+        self.player_adapter.unload_stream()
+        self._set_track(track_number)
+        self.player_adapter.load_stream(self.stream_data)
+        self._set_state(PlayerStateStopped)
+
+    def set_track_relative(self, track_delta: Literal[-1, 1]) -> None:
+        self.player_adapter.stop()
+        self.player_adapter.unload_stream()
+        self._set_track_relative(track_delta)
+        self.player_adapter.load_stream(self.stream_data)
+        self._set_state(PlayerStateStopped)
+
+    def unload_playlist(self) -> None:
+        self.player_adapter.stop()
+        self.player_adapter.unload_stream()
+        self._unload_playlist()
+        self._set_state(PlayerStateNoPlaylistLoaded)
+
+    def play(self) -> None:
+        self.player_adapter.play()
+        self._set_state(PlayerStatePlaying)
+
+    def stop(self) -> None:
+        self.player_adapter.stop()
+        self._set_state(PlayerStateStopped)
+
+    def seek(self, time_delta: SeekTime) -> None:
+        self._seek(time_delta)
+
+
         """
-        Transport control method 'long skip backward'
-        Calls on the media-player backend to skip back in a playing stream,
-        by an amount equal to self.skip_duration_long.
         """
-        rev_skip_time = self.skip_duration_long.get_time() * -1
-        self.player_backend.set_position_relative(delta_t=StreamTime(rev_skip_time))
+
+        """
+        """
+
+        """
+        """
+
+        """
+        """
+
+        """
+        """
+
+        """
+        """
+
+        """
+        """
+
+        """
+        """
+
+        """
+        """
 
 
 class MetaTask:
@@ -858,8 +1093,10 @@ class GstPlayerA:
         self._queued_position = None
 
         self.transmitter = signal_.Signal()
-        self.transmitter.add_signal('stream_loaded')
-
+        self.transmitter.add_signal('stream_loaded', 'time_updated', 'eos')
+        # 'stream_loaded' gets a connect_once called during load_stream() so don't connect here.
+        self._gst_player.transmitter.connect('time_updated', self.transmitter.send, 'time_updated')
+        self._gst_player.transmitter.connect('eos', self.transmitter.send, 'eos')
         self._call_in_progress = False
 
     def _appendleft(self, command: tuple):
@@ -894,6 +1131,7 @@ class GstPlayerA:
 
         If the called method returns False, then the command remains in the deque.
         """
+        self.logger.debug('pop')
         if self._deque:
             try:
                 cmd = self._deque.pop()
@@ -926,6 +1164,7 @@ class GstPlayerA:
         """
         Add a pause command to the deque.
         """
+        self.logger.debug('pause')
         self._appendleft((lambda: None, self._gst_player.pause))
 
     def stop(self):
@@ -959,6 +1198,15 @@ class GstPlayerA:
 
         Returns the queued position if is exists, or queries the position from GstPlayer.
         """
+        current_position = None
         if self._queued_position:
-            return self._queued_position[2]
-        return self._gst_player.query_position()
+            current_position = self._queued_position[2]
+        else:
+            try:
+                current_position = self._gst_player.query_position()
+            except GstPlayerError:
+                self.logger.debug(
+                    'query_position failed to retrieve the position from GstPlayer. returning %s',
+                    current_position
+                )
+        return current_position
