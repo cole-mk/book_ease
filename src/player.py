@@ -1198,6 +1198,15 @@ class GstPlayerA:
 
         Returns the queued position if is exists, or queries the position from GstPlayer.
         """
+        current_position = None
         if self._queued_position:
-            return self._queued_position[2]
-        return self._gst_player.query_position()
+            current_position = self._queued_position[2]
+        else:
+            try:
+                current_position = self._gst_player.query_position()
+            except GstPlayerError:
+                self.logger.debug(
+                    'query_position failed to retrieve the position from GstPlayer. returning %s',
+                    current_position
+                )
+        return current_position
