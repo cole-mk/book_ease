@@ -38,7 +38,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import ClassVar
 from typing import Literal
-from lock_wrapper import Lock
 import collections
 import gi
 gi.require_version('Gst', '1.0')
@@ -46,6 +45,7 @@ gi.require_version('Gst', '1.0')
 # gi.require_version('GdkX11', '3.0')
 # gi.require_version('GstVideo', '1.0')
 from gi.repository import Gst, GLib
+from lock_wrapper import Lock
 import audio_book_tables
 import signal_
 if TYPE_CHECKING:
