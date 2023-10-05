@@ -1093,8 +1093,10 @@ class GstPlayerA:
         self._queued_position = None
 
         self.transmitter = signal_.Signal()
-        self.transmitter.add_signal('stream_loaded')
-
+        self.transmitter.add_signal('stream_loaded', 'time_updated', 'eos')
+        # 'stream_loaded' gets a connect_once called during load_stream() so don't connect here.
+        self._gst_player.transmitter.connect('time_updated', self.transmitter.send, 'time_updated')
+        self._gst_player.transmitter.connect('eos', self.transmitter.send, 'eos')
         self._call_in_progress = False
 
     def _appendleft(self, command: tuple):
