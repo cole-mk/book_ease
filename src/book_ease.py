@@ -916,6 +916,8 @@ def main(unused_args):  # pylint: disable=unused-variable
     # bookreader backend
     book_reader_ref = book_reader.BookReader(files, builder)
 
+    player_c_ref = player.PlayerC(book_reader_ref, builder)
+
     # main window
     main_window_ref = MainWindow(builder.get_object("window1"), builder.get_object("window_1_pane"), builder)
 
