@@ -469,23 +469,6 @@ class Player:  # pylint: disable=unused-argument
 
         return self._go_to_position(time_=position)
 
-    def _set_position_relative(self, time_delta: StreamTime) -> bool:
-        """
-        Skip forward or backward in a track by an amount equal to time_delta.
-
-        time_delta: The amount of time to skip forwad or backward in a track.
-        returns: False if the new position is past the end or beginning of a track.
-
-        Note: This method checks first with the player adapter for the most up to date position,
-        including any pending position changes that may be in the queue.
-        """
-        if (position := self.player_adapter.query_position()) is not None:
-            position += time_delta
-        else:
-            position = self.stream_data.position + time_delta
-
-        return self._go_to_position(time_=position)
-
     def _state_entry(self) -> None:
         """Implementation for self.state_entry"""
         self.transmitter.send('player_enter_state', self.__class__)
