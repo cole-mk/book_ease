@@ -44,7 +44,8 @@ class BookReader:
                  files: book_ease.Files_,
                  book_view_builder: Gtk.Builder):
         self.files = files
-
+        self.transmitter = signal_.Signal()
+        self.transmitter.add_signal('book_opened', 'book_closed')
         # playlists database helper
         self.playlist_dbi = book.PlaylistDBI()
 
@@ -74,11 +75,13 @@ class BookReader:
     def remove_book(self, open_book: OpenBook) -> None:
         """remove a book from the book list"""
         self.books.remove(open_book)
+        self.transmitter.send('book_closed')
 
     def append_book(self, open_book: OpenBook) -> None:
         """append book to list of opened books"""
         self.books.append(open_book)
         open_book.transmitter.connect_once('close', self.remove_book, open_book)
+        self.transmitter.send('book_opened')
 
     def open_existing_book(self, pl_data: book.PlaylistData):
         """
@@ -121,6 +124,12 @@ class BookReader:
         # create_book_data_th = Thread(target=bk.open_new_playlist)
         # create_book_data_th.setDaemon(True)
         # create_book_data_th.start()
+
+    def get_active_book(self):
+        """
+        Get the playlist id of the book currently selected in the notebook view
+        """
+        return self.note_book.get_selected_playlist_id()
 
 
 class BookReaderNoteBookTabVC:
@@ -303,6 +312,14 @@ class NoteBook:
     def focus_page(self, index: int):
         """select the notebook page with the given index"""
         self.note_book_view.note_book.set_current_page(index)
+
+    def get_selected_playlist_id(self):
+        """
+        Get the playlist id of the selected NoteBookPage.
+        """
+        selected_index = self.note_book_view.note_book.get_current_page()
+        selected_page = self.note_book_view.note_book.get_nth_page(selected_index)
+        return selected_page.get_id()
 
 
 class NoteBookPage:

@@ -34,6 +34,8 @@ This module controls the playback of playlists.
 
 from __future__ import annotations
 import pathlib
+import logging
+from enum import Enum
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import ClassVar
@@ -48,9 +50,13 @@ from gi.repository import Gst, GLib
 from lock_wrapper import Lock
 import audio_book_tables
 import signal_
+import book
+from book_reader import BookReader
+from gui.gtk import player_view
 if TYPE_CHECKING:
     from pathlib import Path
-    import book
+    gi.require_version("Gtk", "3.0")  # pylint: disable=wrong-import-position
+    from gi.repository import Gtk
 
 
 class PlayerDBI:
@@ -621,32 +627,155 @@ class  PlayerStatePaused(Player):
         self._seek(time_delta)
 
 
-        """
-        """
+class PlayerC:
+    """
+    PlayerC routes the various signals between Player and the various player control widgits
+    as well as come commands that come from Book_Reader.
+    """
+    logger = logging.getLogger(f'{__name__}.PlayerC')
 
-        """
-        """
+    def __init__(self, book_reader: BookReader, builder: Gtk.Builder):
+        self.book_reader = book_reader
+        self.transmitter = signal_.Signal()
+        self.transmitter.add_signal('activate', 'deactivate', 'stream_updated', 'position_updated')
 
-        """
-        """
+        self.component_transmitter = signal_.Signal()
+        self.component_transmitter.add_signal('next',
+                                              'play',
+                                              'pause',
+                                              'previous',
+                                              'skip_forward_long',
+                                              'skip_reverse_long',
+                                              'stop')
 
-        """
-        """
+        self.component_transmitter.connect('play', self.on_play)
+        self.component_transmitter.connect('pause', self.on_pause)
+        self.component_transmitter.connect('next', self.on_next)
+        self.component_transmitter.connect('previous', self.on_previous)
+        self.component_transmitter.connect('skip_forward_long', self.on_skip_forward_long)
+        self.component_transmitter.connect('skip_reverse_long', self.on_skip_reverse_long)
+        self.component_transmitter.connect('stop', self.on_stop)
+        self.player = PlayerStateInitial()
 
-        """
-        """
+        self.player_button_next = player_view.PlayerButtonNextVC(
+            component_transmitter=self.component_transmitter,
+            controller_transmitter=self.transmitter,
+            builder=builder
+        )
+        self.player_button_previous = player_view.PlayerButtonPreviousVC(
+            component_transmitter=self.component_transmitter,
+            controller_transmitter=self.transmitter,
+            builder=builder
+        )
+        self.player_button_play_pause = player_view.PlayerButtonPlayPauseVC(
+            component_transmitter=self.component_transmitter,
+            controller_transmitter=self.transmitter,
+            builder=builder
+        )
+        self.player_button_forward = player_view.PlayerButtonForwardVC(
+            component_transmitter=self.component_transmitter,
+            controller_transmitter=self.transmitter,
+            builder=builder
+        )
+        self.player_button_rewind = player_view.PlayerButtonRewindVC(
+            component_transmitter=self.component_transmitter,
+            controller_transmitter=self.transmitter,
+            builder=builder
+        )
+        self.player_position_display = player_view.PlayerPositionDisplayVC(
+            component_transmitter=self.component_transmitter,
+            controller_transmitter=self.transmitter,
+            builder=builder
+        )
+        self.player_button_stop = player_view.PlayerButtonStopVC(
+            component_transmitter=self.component_transmitter,
+            controller_transmitter=self.transmitter,
+            builder=builder
+        )
 
-        """
-        """
+        self.player.transmitter.connect('stream_updated', self.on_stream_updated)
+        self.player.transmitter.connect('position_updated', self.on_position_updated)
+        self.player.transmitter.connect('playlist_finished', self.on_playlist_finished)
 
-        """
-        """
+        self.book_reader.transmitter.connect('book_opened', self.on_book_opened)
 
+    def on_stop(self) -> None:
         """
+        callback that stops a playlist from playing
         """
+        self.player.stop()
 
+    def on_stream_updated(self) -> None:
         """
+        Relay the signal 'stream_updated'
         """
+        self.transmitter.send('stream_updated', self.player.stream_data)
+
+    def on_position_updated(self, position: StreamTime) -> None:
+        """
+        Relay the signal 'position_updated'
+        """
+        self.transmitter.send('position_updated', position)
+
+    def on_book_opened(self) -> None:
+        """
+        Inform the various control widgits that a playlist has been
+        opened and that they need to activate.
+        """
+        self.logger.debug('on_book_opened')
+        self.transmitter.send('activate')
+
+    def on_playlist_finished(self) -> None:
+        """
+        Respond to the end of a playlist by sending the signal 'deactivate'.
+        """
+        self.logger.debug('on_playlist_finished')
+        self.transmitter.send('deactivate')
+
+    def on_play(self) -> None:
+        """
+        callback that starts a playlist playing
+        """
+        self.logger.debug('on_play')
+        if self.player.get_state() is PlayerStateNoPlaylistLoaded:
+            playlist_data = book.PlaylistData(id_=self.book_reader.get_active_book())
+            self.player.load_playlist(playlist_data)
+        self.player.play()
+
+    def on_pause(self) -> None:
+        """
+        pause player
+        """
+        self.logger.debug('on_pause')
+        self.player.pause()
+
+    def on_next(self) -> None:
+        """
+        Skip to the next track in the playlist.
+        """
+        self.logger.debug('on_next')
+        self.player.set_track_relative(1)
+
+    def on_previous(self) -> None:
+        """
+        Skip to the previous track in the playlist.
+        """
+        self.logger.debug('on_previous')
+        self.player.set_track_relative(-1)
+
+    def on_skip_forward_long(self) -> None:
+        """
+        Skip ahead in a track by calling Player.skip_forward_long()
+        """
+        self.logger.debug('on_skip_forward_long')
+        self.player.seek(SeekTime.FORWARD_LONG)
+
+    def on_skip_reverse_long(self) -> None:
+        """
+        Skip backward in a track by calling Player.skip_reverse_long()
+        """
+        self.logger.debug('on_skip_reverse_long')
+        self.player.seek(SeekTime.REVERSE_LONG)
 
 
 class MetaTask:
