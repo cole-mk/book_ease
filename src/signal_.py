@@ -83,15 +83,15 @@ class Signal():
         self._sig_handlers = {}
         self._sig_handlers_once = {}
 
-    def add_signal(self, handle: str, *more_handles: tuple[str]) -> None:
+    def add_signal(self, *handles: tuple[str]) -> None:
         """
         create/add signal to the sig handlers list
         note: called by server
         """
         for sig_h in (self._sig_handlers, self._sig_handlers_once):
-            sig_h[handle] = []
-            for additional_handle in more_handles:
-                sig_h[additional_handle] = []
+            for handle in handles:
+                if handle not in sig_h:
+                    sig_h[handle] = []
 
     def remove_signal(self, handle: str) -> None:
         """
