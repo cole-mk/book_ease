@@ -39,6 +39,7 @@ from gi.repository.GdkPixbuf import Pixbuf
 import signal_
 import book_reader
 import book_ease_tables
+import player
 
 logging_stream_handler = logging.StreamHandler()
 logging_stream_handler.setFormatter(logging.Formatter('%(levelname)s - %(name)s - %(message)s'))
