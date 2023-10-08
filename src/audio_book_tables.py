@@ -530,21 +530,3 @@ class PlayerPosition:
             """
         cur = con.execute(sql, (playlist_id,))
         return cur.fetchone()
-
-
-class JoinTrackFilePlTrackPlayerPosition:
-    """database accessor that joins tables track_file, player_position, and pl_track to perform queries"""
-
-    @staticmethod
-    def get_row_by_playlist_id(con: sqlite3.Connection, playlist_id: int) -> sqlite3.Row | None:
-        """Get path and position by playlist_id"""
-        sql = """
-            SELECT * from track_file
-            INNER JOIN pl_track
-                on pl_track.track_id = track_file.id
-            INNER JOIN player_position
-                on player_position.playlist_id = pl_track.playlist_id
-                AND player_position.pl_track_id = pl_track.id
-            WHERE player_position.playlist_id = (?)
-            """
-        return con.execute(sql, (playlist_id,)).fetchone()

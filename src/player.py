@@ -64,89 +64,32 @@ class PlayerDBI:
 
     def __init__(self):
         self.player_position = audio_book_tables.PlayerPosition
-        self.player_position_joined = audio_book_tables.JoinTrackFilePlTrackPlayerPosition
-        self.pl_track = audio_book_tables.PlTrack
-        self.track = audio_book_tables.TrackFile
         with audio_book_tables.DB_CONNECTION.query() as con:
             self.player_position.init_table(con)
-            self.pl_track.init_table(con)
-            self.track.init_table(con)
 
-    def get_number_of_pl_tracks(self, playlist_id: int) -> int:
-        """
-        Get the number of tracks in the playlist.
-        """
-        with audio_book_tables.DB_CONNECTION.query() as con:
-            return self.pl_track.get_track_count_by_playlist_id(con, playlist_id)
-
-    def get_saved_position(self, playlist_id: int) -> StreamData:
+    def get_position(self, playlist_id: int) -> PositionData | None:
         """Get the playlist's saved position."""
         with audio_book_tables.DB_CONNECTION.query() as con:
-            row = self.player_position_joined.get_row_by_playlist_id(con=con, playlist_id=playlist_id)
+            row = self.player_position.get_row_by_playlist_id(con, playlist_id)
 
+        position = None
         if row is not None:
-            position = StreamData()
-            position.path = row['path']
-            position.position = StreamTime(row['time'])
+            position = PositionData()
+            position.time = StreamTime(row['time'])
             position.pl_track_id = row['pl_track_id']
             position.playlist_id = row['playlist_id']
-            position.track_number = row['track_number']
-            position.mark_saved_position()
-            return position
-        return None
+        return position
 
-    def get_new_position(self, playlist_id: int, track_number: int, time_: StreamTime) -> StreamData:
-        """
-        Create a StreamData object set to the beginning of the track_number of the playlist.
-        Return an None object if nothing was found.
-        """
-        track_id, pl_track_id = self.get_track_id_pl_track_id_by_number(
-            playlist_id=playlist_id,
-            track_number=track_number
-        )
-
-        if track_id is not None:
-            if path:= self.get_path_by_id(track_id=track_id) is not None:
-                position = StreamData(
-                    pl_track_id=pl_track_id,
-                    track_number=track_number,
-                    playlist_id=playlist_id,
-                    path=path,
-                    position=time_
-                )
-                return position
-        return None
-
-    def save_position(self, pl_track_id: int, playlist_id: int, time_: StreamTime):
+    def save_position(self, position_data: PositionData) -> None:
         """Save player position to the database."""
+        print('#################3 saving')
         with audio_book_tables.DB_CONNECTION.query() as con:
             self.player_position.upsert_row(
                 con=con,
-                pl_track_id=pl_track_id,
-                playlist_id=playlist_id,
-                time=time_.get_time()
+                pl_track_id=position_data.pl_track_id,
+                playlist_id=position_data.playlist_id,
+                time=position_data.time.get_time()
             )
-
-    def get_track_id_pl_track_id_by_number(self, playlist_id: int, track_number: int) -> tuple[int | None, int | None]:
-        """get the track_id and pl_track_id given a track_number and playlist_id as arguments."""
-        with audio_book_tables.DB_CONNECTION.query() as con:
-            rows = self.pl_track.get_rows_by_playlist_id(con=con, playlist_id=playlist_id)
-        if rows is not None:
-            for row in rows:
-                if row['track_number'] == track_number:
-                    return row['track_id'], row['id']
-        return None, None
-
-    def get_path_by_id(self, track_id: int) -> str | pathlib.Path:
-        """
-        Get a track's path based on track_id
-
-        Return: Path or None
-        """
-        with audio_book_tables.DB_CONNECTION.query() as con:
-            if row := self.track.get_row_by_id(con=con, id_=track_id):
-                return row['path']
-        return None
 
 
 class StreamTime:
@@ -216,22 +159,29 @@ class StreamTime:
 
 
 @dataclass
+class PositionData:
+    """Container for a playlist's position information"""
+
+    time: StreamTime | None = None
+    playlist_id: int | None = None
+    pl_track_id: int | None = None
+
+
+@dataclass
 class StreamData:
     """Container for stream data."""
 
     path: str | None = None
-    position: StreamTime | None = None
     duration: StreamTime | None = None
     track_number: int | None = None
-    playlist_id: int | None = None
-    pl_track_id: int | None = None
     last_saved_position: StreamTime = StreamTime(-1)
+    position_data: PositionData | None = None
 
     def mark_saved_position(self):
         """
         Record what the time was when the position was last saved to the database.
         """
-        self.last_saved_position.set_time(self.position.get_time())
+        self.last_saved_position.set_time(self.position_data.time.get_time())
 
 
 class SeekTime(Enum):
@@ -249,6 +199,7 @@ class Player:  # pylint: disable=unused-argument
 
     def __init__(self):
         self.player_dbi = PlayerDBI()
+        self.track_dbi = book.TrackDBI()
 
         self.player_adapter = GstPlayerA()
         self.player_adapter.transmitter.connect('time_updated', self._on_time_updated)
@@ -256,6 +207,7 @@ class Player:  # pylint: disable=unused-argument
         self.player_adapter.transmitter.connect('eos', self._on_eos)
 
         self.stream_data = StreamData()
+        self.book_data = book.BookData(book.PlaylistData())
 
         self.transmitter = signal_.Signal()
         self.transmitter.add_signal('stream_updated',
@@ -374,23 +326,44 @@ class Player:  # pylint: disable=unused-argument
     def _load_playlist(self, playlist_data: book.PlaylistData) -> None:
         """Implementation for self.load_playlist"""
         self.logger.warning('_load_playlist class %s', self.__class__)
-        if (new_stream_data := self.player_dbi.get_saved_position(playlist_data.get_id())) is None:
-            new_stream_data = self.player_dbi.get_new_position(playlist_data.get_id(), 0, StreamTime(0))
-            if new_stream_data is None:
-                raise RuntimeError('Failed to build StreamData object to load the stream.')
-        self.stream_data = new_stream_data
+
+        new_book_data = book.BookData(playlist_data)
+        new_book_data.playlist_data = playlist_data
+        new_book_data.track_list = self.track_dbi.get_track_list_by_pl_id(playlist_data.get_id())
+        if not new_book_data.track_list:
+            raise RuntimeError('track_list is empty, failed to build StreamData object to load the stream.')
+        new_book_data.sort_track_list_by_number()
+
+        position_data = self.player_dbi.get_position(playlist_data.get_id())
+        if position_data is None:
+            position_data = PositionData()
+            position_data.time = StreamTime(0)
+            position_data.playlist_id = playlist_data.get_id()
+            pl_track_id = new_book_data.get_track_by_track_number(0).get_pl_track_id()
+            position_data.pl_track_id = pl_track_id
+
+        current_track = new_book_data.get_track_by_pl_track_id(position_data.pl_track_id)
+
+        self.stream_data.path = current_track.get_file_path()
+        self.stream_data.position_data = position_data
+        self.stream_data.track_number = current_track.get_number()
+        self.book_data = new_book_data
 
     def _set_track(self, track_number: int) -> None:
         """Implementation for self.set_track"""
-        new_stream_data = self.player_dbi.get_new_position(
-            playlist_id=self.stream_data.playlist_id,
-            track_number=track_number,
-            time_=StreamTime(0)
-        )
-        if new_stream_data is not None:
-            self.stream_data = new_stream_data
-        else:
-            raise RuntimeError('Failed to load track.')
+        track = self.book_data.get_track_by_track_number(track_number)
+
+        position_data = PositionData()
+        position_data.time = StreamTime(0)
+        position_data.playlist_id = self.book_data.playlist_data.get_id()
+        position_data.pl_track_id = track.get_pl_track_id()
+
+        new_stream_data = StreamData()
+        new_stream_data.path = track.get_file_path()
+        new_stream_data.position_data = position_data
+        new_stream_data.track_number = track.get_number()
+
+        self.stream_data = new_stream_data
 
     def _set_track_relative(self, track_delta: Literal[-1, 1]):
         """Implementation for self.set_track_relative"""
@@ -417,7 +390,7 @@ class Player:  # pylint: disable=unused-argument
 
         This does not increment self.stream_data.track_number itself.
         """
-        track_count = self.player_dbi.get_number_of_pl_tracks(self.stream_data.playlist_id)
+        track_count = self.book_data.get_n_tracks()
         new_track_number = self.stream_data.track_number + track_delta
         if new_track_number >= track_count:
             new_track_number = 0
@@ -437,16 +410,15 @@ class Player:  # pylint: disable=unused-argument
         """
         The media player backend has updated the playback position.
         """
-        self.stream_data.position = position
+        self.logger.debug('_on_time_updated')
+        self.stream_data.position_data.time = position
         self.transmitter.send('position_updated', position)
         # Save position when 30 seconds elapsed.
         if position.get_time('s') - self.stream_data.last_saved_position.get_time('s') > 29:
             self._save_position()
 
     def _save_position(self) -> None:
-        self.player_dbi.save_position(pl_track_id=self.stream_data.pl_track_id,
-                                      playlist_id=self.stream_data.playlist_id,
-                                      time_=self.stream_data.position)
+        self.player_dbi.save_position(self.stream_data.position_data)
         self.stream_data.mark_saved_position()
 
     def _go_to_position(self, time_: StreamTime) -> bool:
@@ -462,7 +434,7 @@ class Player:  # pylint: disable=unused-argument
         if (position := self.player_adapter.query_position()) is not None:
             position += time_delta.value
         else:
-            position = self.stream_data.position + time_delta.value
+            position = self.stream_data.position_data.time + time_delta.value
 
         return self._go_to_position(time_=position)
 
@@ -878,7 +850,7 @@ class GstPlayer:
             self._set_state(state=Gst.State.PAUSED)
             for task in ('duration_ready', 'load_stream', 'start_position_set'):
                 self.stream_tasks.begin_subtask(task)
-            GLib.idle_add(self._load_stream_controller, stream_data.position)
+            GLib.idle_add(self._load_stream_controller, stream_data.position_data.time)
             return True
         return False
 
@@ -1195,6 +1167,7 @@ class GstPlayerA:
     Adapter to go between Player and GstPlayer.
     Provides queuing services, allowing Player to fire and forget commands to GstPlayer.
     """
+    logger = logging.getLogger(f'{__name__}.GstPlayerA')
 
     def __init__(self):
         self._gst_player = GstPlayer()
@@ -1240,7 +1213,6 @@ class GstPlayerA:
 
         If the called method returns False, then the command remains in the deque.
         """
-        self.logger.debug('pop')
         if self._deque:
             try:
                 cmd = self._deque.pop()

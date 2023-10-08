@@ -328,10 +328,10 @@ class PlayerPositionDisplayVC:
         self.logger.debug('activate')
         print(stream_data.duration.get_time('s'))
         self.duration_label.set_text(str(stream_data.duration.get_time('s')))
-        self.cur_position_label.set_text(str(stream_data.position.get_time('s')))
+        self.cur_position_label.set_text(str(stream_data.position_data.time.get_time('s')))
 
         self.scrollbar.set_range(0, stream_data.duration.get_time('s'))
-        self.scrollbar.set_value(stream_data.position.get_time('s'))
+        self.scrollbar.set_value(stream_data.position_data.time.get_time('s'))
         self.scrollbar.set_sensitive(True)
         self.cur_position_label.set_sensitive(True)
         self.duration_label.set_sensitive(True)

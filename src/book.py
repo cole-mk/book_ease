@@ -84,14 +84,14 @@ class BookData:
 
     def __init__(self, playlist_data: PlaylistData):
         self.playlist_data = playlist_data
-        self.track_list = []
+        self.track_list: list[playlist.Track] = []
         self.saved_playlist = False
 
     def is_saved(self) -> bool:
         """tell if this playlist has already been saved"""
         return self.saved_playlist
 
-    def set_saved(self, bool_: bool):
+    def set_saved(self, bool_: bool) -> None:
         """set this playlist's saved flag"""
         self.saved_playlist = bool_
 
@@ -103,10 +103,40 @@ class BookData:
             track = None
         return track
 
-    def sort_track_list_by_number(self):
+    def sort_track_list_by_number(self) -> None:
         """sort self.track_list in place"""
         self.track_list.sort(key=lambda row: row.number, reverse=True)
 
+    def clear_track_list(self) -> None:
+        """Delete all entries from the track_list."""
+        self.track_list = []
+
+    def get_track_by_pl_track_id(self, pl_track_id: int) -> playlist.Track:
+        """
+        Get the Track object with the matching pl_track_id.
+
+        Raises: RuntimeError if track is not found.
+        """
+        for track in self.track_list:
+            if track.pl_track_id == pl_track_id:
+                return track
+        raise RuntimeError(f'Failed to find Track by pl_track_id: {pl_track_id}')
+
+    def get_track_by_track_number(self, track_number: int) -> playlist.Track:
+        """
+        Get the Track object with the matching track_number.
+
+        Raises: RuntimeError if track is not found.
+        Note: Track numbers are indexed starting from zero.
+        """
+        for track in self.track_list:
+            if track.number == track_number:
+                return track
+        raise RuntimeError(f'Failed to find Track by track_number: {track_number}')
+
+    def get_n_tracks(self) -> int:
+        """Get the number of tracks in the track list."""
+        return len(self.track_list)
 
 class Book(playlist.Playlist, signal_.Signal):
     """Book is the model for a book"""
