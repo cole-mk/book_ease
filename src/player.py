@@ -541,7 +541,7 @@ class  PlayerStatePlaying(Player):
         self._set_state(PlayerStatePaused)
 
     def stop(self) -> None:
-        self.player_adapter.stop()
+        self.player_adapter.pause()
         self._set_state(PlayerStatePaused)
 
     def seek(self, time_delta: SeekTime) -> None:
