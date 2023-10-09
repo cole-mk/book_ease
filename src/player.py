@@ -27,6 +27,9 @@
 # pylint: disable=consider-using-with
 # disabled because the locks need to be released outside the context of where they're acquired.
 #
+# pylint: disable=abstract-method
+# disabled because the locks need to be released outside the context of where they're acquired.
+#
 
 """
 This module controls the playback of playlists.
@@ -323,6 +326,10 @@ class Player:  # pylint: disable=unused-argument
         """
         self.logger.warning('calling seek() not implemented in this state, %s', self.__class__.__name__)
 
+    def activate(self) -> None:
+        """Only used by PlayerStateInitial"""
+        raise NotImplementedError
+
     def _load_playlist(self, playlist_data: book.PlaylistData) -> None:
         """Implementation for self.load_playlist"""
         self.logger.warning('_load_playlist class %s', self.__class__)
@@ -446,8 +453,7 @@ class Player:  # pylint: disable=unused-argument
 class PlayerStateInitial(Player):
     """The initial state for the Player model."""
 
-    def state_entry(self) -> None:
-        self._state_entry()
+    def activate(self) -> None:
         self._set_state(PlayerStateNoPlaylistLoaded)
 
 
@@ -589,7 +595,11 @@ class PlayerC:
     def __init__(self, book_reader: BookReader, builder: Gtk.Builder):
         self.book_reader = book_reader
         self.transmitter = signal_.Signal()
-        self.transmitter.add_signal('activate', 'deactivate', 'stream_updated', 'position_updated')
+        self.transmitter.add_signal('activate',
+                                    'deactivate',
+                                    'stream_updated',
+                                    'position_updated',
+                                    'player_enter_state')
 
         self.component_transmitter = signal_.Signal()
         self.component_transmitter.add_signal('next',
@@ -607,7 +617,6 @@ class PlayerC:
         self.component_transmitter.connect('skip_forward_long', self.on_skip_forward_long)
         self.component_transmitter.connect('skip_reverse_long', self.on_skip_reverse_long)
         self.component_transmitter.connect('stop', self.on_stop)
-        self.player = PlayerStateInitial()
 
         self.player_button_next = player_view.PlayerButtonNextVC(
             component_transmitter=self.component_transmitter,
@@ -645,10 +654,12 @@ class PlayerC:
             builder=builder
         )
 
+        self.player = Player()
         self.player.transmitter.connect('stream_updated', self.on_stream_updated)
         self.player.transmitter.connect('position_updated', self.on_position_updated)
         self.player.transmitter.connect('playlist_finished', self.on_playlist_finished)
-
+        self.player.transmitter.connect('player_enter_state', self.transmitter.send, 'player_enter_state')
+        self.player.activate()
         self.book_reader.transmitter.connect('book_opened', self.on_book_opened)
 
     def on_stop(self) -> None:
