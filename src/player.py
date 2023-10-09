@@ -669,6 +669,7 @@ class PlayerC:
         self.player.transmitter.connect('playlist_loaded', self.transmitter.send, 'playlist_loaded')
         self.player.activate()
         self.book_reader.transmitter.connect('book_opened', self.on_book_opened)
+        self.book_reader.transmitter.connect('book_closed', self.on_book_closed)
 
     def on_stop(self) -> None:
         """
@@ -688,13 +689,23 @@ class PlayerC:
         """
         self.transmitter.send('position_updated', position)
 
-    def on_book_opened(self) -> None:
+    def on_book_opened(self, playlist_id: int) -> None:
         """
         Inform the various control widgits that a playlist has been
         opened and that they need to activate.
         """
         self.logger.debug('on_book_opened')
-        self.transmitter.send('activate')
+        if playlist_id is not None and self.player.get_state() is PlayerStateNoPlaylistLoaded:
+            self.player.load_playlist(book.PlaylistData(id_=playlist_id))
+            self.transmitter.send('activate')
+
+    def on_book_closed(self, playlist_id: int) -> None:
+        """
+        Determine if Player needs to unload its playlist.
+        """
+        if playlist_id is not None and playlist_id == self.player.book_data.playlist_data.get_id():
+            self.player.unload_playlist()
+            self.transmitter.send('deactivate')
 
     def on_playlist_finished(self) -> None:
         """

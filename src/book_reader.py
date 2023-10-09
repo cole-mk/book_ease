@@ -75,13 +75,13 @@ class BookReader:
     def remove_book(self, open_book: OpenBook) -> None:
         """remove a book from the book list"""
         self.books.remove(open_book)
-        self.transmitter.send('book_closed')
+        self.transmitter.send('book_closed', open_book._book.get_playlist_id())
 
     def append_book(self, open_book: OpenBook) -> None:
         """append book to list of opened books"""
         self.books.append(open_book)
         open_book.transmitter.connect_once('close', self.remove_book, open_book)
-        self.transmitter.send('book_opened')
+        self.transmitter.send('book_opened', open_book._book.get_playlist_id())
 
     def open_existing_book(self, pl_data: book.PlaylistData):
         """
@@ -93,10 +93,11 @@ class BookReader:
         note_book_page = NoteBookPage(book_.get_view(), pl_data.get_id(), book_.transmitter)
 
         self.note_book.append_page(note_book_page, br_note_book_tab_vc.get_view())
-        self.append_book(OpenBook(book_, note_book_page, br_note_book_tab_vc))
         book_.transmitter.connect('update', self.existing_book_opener.update_book_list)
         # load the playlist metadata
         book_.open_existing_playlist(pl_data)
+        # This must be not be called until after the playlist has already been opened.
+        self.append_book(OpenBook(book_, note_book_page, br_note_book_tab_vc))
         # load the playlist metadata in background
         # load_book_data_th = Thread(target=bk.book_data_load, args={row})
         # load_book_data_th.setDaemon(True)
