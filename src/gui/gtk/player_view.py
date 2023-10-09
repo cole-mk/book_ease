@@ -355,6 +355,11 @@ class PlayerPositionDisplayVC:
         Set the scrollbar to inactive state
         """
         self.logger.debug('deactivate')
+        self.cur_position_label.set_text('')
+        self.duration_label.set_text('')
+        self.playlist_title_label.set_text('')
+        self.track_file_name_label.set_text('')
+
         self.scrollbar.set_sensitive(False)
         self.cur_position_label.set_sensitive(False)
         self.duration_label.set_sensitive(False)
