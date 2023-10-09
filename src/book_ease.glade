@@ -434,6 +434,7 @@ MA 02110-1301, USA.
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <property name="valign">start</property>
                 <property name="image">image_media_next</property>
               </object>
               <packing>
@@ -476,6 +477,7 @@ MA 02110-1301, USA.
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <property name="valign">start</property>
                 <property name="image">image_medi_stop</property>
               </object>
               <packing>
@@ -489,6 +491,7 @@ MA 02110-1301, USA.
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <property name="valign">start</property>
                 <property name="image">image_media_prev</property>
               </object>
               <packing>
@@ -502,6 +505,7 @@ MA 02110-1301, USA.
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <property name="valign">start</property>
                 <property name="image">image_media_rewind</property>
               </object>
               <packing>
@@ -515,6 +519,7 @@ MA 02110-1301, USA.
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <property name="valign">start</property>
                 <property name="image">image_media_forward</property>
               </object>
               <packing>
@@ -529,6 +534,18 @@ MA 02110-1301, USA.
                 <property name="can_focus">False</property>
                 <property name="orientation">vertical</property>
                 <child>
+                  <object class="GtkLabel" id="player_label_playlist_title">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="valign">start</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
                   <object class="GtkScrollbar" id="player_playback_position_scrollbar">
                     <property name="width_request">200</property>
                     <property name="visible">True</property>
@@ -540,7 +557,7 @@ MA 02110-1301, USA.
                   <packing>
                     <property name="expand">True</property>
                     <property name="fill">True</property>
-                    <property name="position">0</property>
+                    <property name="position">1</property>
                   </packing>
                 </child>
                 <child>
@@ -562,6 +579,18 @@ MA 02110-1301, USA.
                       </packing>
                     </child>
                     <child>
+                      <object class="GtkLabel" id="player_label_track_file_name">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="valign">start</property>
+                      </object>
+                      <packing>
+                        <property name="expand">True</property>
+                        <property name="fill">True</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                    <child>
                       <object class="GtkLabel" id="player_label_duration">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
@@ -573,14 +602,14 @@ MA 02110-1301, USA.
                         <property name="expand">False</property>
                         <property name="fill">True</property>
                         <property name="pack_type">end</property>
-                        <property name="position">1</property>
+                        <property name="position">2</property>
                       </packing>
                     </child>
                   </object>
                   <packing>
                     <property name="expand">False</property>
                     <property name="fill">True</property>
-                    <property name="position">1</property>
+                    <property name="position">2</property>
                   </packing>
                 </child>
               </object>

@@ -203,6 +203,7 @@ class Player:  # pylint: disable=unused-argument
     def __init__(self):
         self.player_dbi = PlayerDBI()
         self.track_dbi = book.TrackDBI()
+        self.playlist_dbi = book.PlaylistDBI()
 
         self.player_adapter = GstPlayerA()
         self.player_adapter.transmitter.connect('time_updated', self._on_time_updated)
@@ -216,6 +217,7 @@ class Player:  # pylint: disable=unused-argument
         self.transmitter.add_signal('stream_updated',
                                     'position_updated',
                                     'playlist_finished',
+                                    'playlist_loaded',
                                     'player_enter_state')
 
         # Set the initial state to Player.
@@ -334,8 +336,11 @@ class Player:  # pylint: disable=unused-argument
         """Implementation for self.load_playlist"""
         self.logger.warning('_load_playlist class %s', self.__class__)
 
-        new_book_data = book.BookData(playlist_data)
-        new_book_data.playlist_data = playlist_data
+        new_playlist_data = self.playlist_dbi.get_by_id(playlist_data.get_id())
+        if new_playlist_data is None:
+            raise RuntimeError('Failed to load playlist')
+
+        new_book_data = book.BookData(new_playlist_data)
         new_book_data.track_list = self.track_dbi.get_track_list_by_pl_id(playlist_data.get_id())
         if not new_book_data.track_list:
             raise RuntimeError('track_list is empty, failed to build StreamData object to load the stream.')
@@ -355,6 +360,7 @@ class Player:  # pylint: disable=unused-argument
         self.stream_data.position_data = position_data
         self.stream_data.track_number = current_track.get_number()
         self.book_data = new_book_data
+        self.transmitter.send('playlist_loaded', self.book_data)
 
     def _set_track(self, track_number: int) -> None:
         """Implementation for self.set_track"""
@@ -598,6 +604,7 @@ class PlayerC:
         self.transmitter.add_signal('activate',
                                     'deactivate',
                                     'stream_updated',
+                                    'playlist_loaded',
                                     'position_updated',
                                     'player_enter_state')
 
@@ -659,6 +666,7 @@ class PlayerC:
         self.player.transmitter.connect('position_updated', self.on_position_updated)
         self.player.transmitter.connect('playlist_finished', self.on_playlist_finished)
         self.player.transmitter.connect('player_enter_state', self.transmitter.send, 'player_enter_state')
+        self.player.transmitter.connect('playlist_loaded', self.transmitter.send, 'playlist_loaded')
         self.player.activate()
         self.book_reader.transmitter.connect('book_opened', self.on_book_opened)
 
