@@ -36,8 +36,10 @@ import gi
 gi.require_version("Gtk", "3.0") # pylint: disable=wrong-import-position
 from gi.repository import Gtk
 import signal_
+import player
 if TYPE_CHECKING:
     from player import StreamData, StreamTime
+
 
 class PlayerButtonNextVC:
     """
@@ -253,6 +255,7 @@ class PlayerButtonPlayPauseVC:
 
         controller_transmitter.connect('activate', self.activate)
         controller_transmitter.connect('deactivate', self.deactivate)
+        controller_transmitter.connect('player_enter_state', self.on_player_state_change)
 
         self.view.connect('button-release-event', self.on_button_released)
         self.deactivate()
@@ -268,12 +271,8 @@ class PlayerButtonPlayPauseVC:
         self.logger.debug('on_button_released')
         if self.button_state == 'play':
             self.transmitter.send('play')
-            self.view.set_image(self.pause_image)
-            self.button_state = 'pause'
         else:
             self.transmitter.send('pause')
-            self.view.set_image(self.play_image)
-            self.button_state = 'play'
 
     def activate(self) -> None:
         """
@@ -289,6 +288,14 @@ class PlayerButtonPlayPauseVC:
         self.logger.debug('deactivate')
         self.view.set_sensitive(False)
 
+    def on_player_state_change(self, state) -> None:
+        """Control weather or not the button is play or pause."""
+        if state == player.PlayerStatePlaying:
+            self.button_state = 'paused'
+            self.view.set_image(self.pause_image)
+        else:
+            self.button_state = 'play'
+            self.view.set_image(self.play_image)
 
 class PlayerPositionDisplayVC:
     """
