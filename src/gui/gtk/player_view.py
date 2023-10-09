@@ -31,6 +31,7 @@ used to control playback.
 """
 from __future__ import annotations
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING
 import gi
 gi.require_version("Gtk", "3.0") # pylint: disable=wrong-import-position
@@ -39,6 +40,7 @@ import signal_
 import player
 if TYPE_CHECKING:
     from player import StreamData, StreamTime
+    from book import BookData, PlaylistData
 
 
 class PlayerButtonNextVC:
@@ -311,11 +313,14 @@ class PlayerPositionDisplayVC:
         self.scrollbar = builder.get_object('player_playback_position_scrollbar')
         self.duration_label = builder.get_object('player_label_duration')
         self.cur_position_label = builder.get_object('player_label_cur_pos')
+        self.playlist_title_label = builder.get_object('player_label_playlist_title')
+        self.track_file_name_label = builder.get_object('player_label_track_file_name')
         self.transmitter = component_transmitter
 
         controller_transmitter.connect('stream_updated', self.activate)
         controller_transmitter.connect('position_updated', self.set_current_position)
         controller_transmitter.connect('deactivate', self.deactivate)
+        controller_transmitter.connect('playlist_loaded', self.on_playlist_loaded)
 
         self.scrollbar.connect('button-release-event', self.on_button_released)
         self.deactivate()
@@ -336,12 +341,14 @@ class PlayerPositionDisplayVC:
         print(stream_data.duration.get_time('s'))
         self.duration_label.set_text(str(stream_data.duration.get_time('s')))
         self.cur_position_label.set_text(str(stream_data.position_data.time.get_time('s')))
-
         self.scrollbar.set_range(0, stream_data.duration.get_time('s'))
         self.scrollbar.set_value(stream_data.position_data.time.get_time('s'))
         self.scrollbar.set_sensitive(True)
         self.cur_position_label.set_sensitive(True)
         self.duration_label.set_sensitive(True)
+
+        self.track_file_name_label.set_text(Path(stream_data.path).name)
+        self.track_file_name_label.set_sensitive(True)
 
     def deactivate(self) -> None:
         """
@@ -359,3 +366,8 @@ class PlayerPositionDisplayVC:
         self.logger.debug('set_current_position')
         self.scrollbar.set_value(position.get_time('s'))
         self.cur_position_label.set_text(str(position.get_time('s')))
+
+    def on_playlist_loaded(self, book_data: BookData) -> None:
+        """Update the playlist title label."""
+        self.playlist_title_label.set_text(book_data.playlist_data.get_title())
+        self.playlist_title_label.set_sensitive(True)

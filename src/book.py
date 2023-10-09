@@ -304,6 +304,15 @@ class PlaylistDBI():
             playlists.append(play_list)
         return playlists
 
+    def get_by_id(self, playlist_id: int) -> PlaylistData:
+        """Get the PlaylistData object associated with playlist_id."""
+        with abt.DB_CONNECTION.query() as con:
+            row = abt.Playlist.get_row(con, playlist_id)
+        if row:
+            return PlaylistData(title=row['title'], path=row['path'], id_=row['id'])
+        else:
+            return None
+
     def save(self, pl_data: PlaylistData) -> int:
         """"
         Insert or update playlist
