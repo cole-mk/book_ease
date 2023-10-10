@@ -218,6 +218,7 @@ class Player:  # pylint: disable=unused-argument
                                     'position_updated',
                                     'playlist_finished',
                                     'playlist_loaded',
+                                    'playlist_unloaded',
                                     'player_enter_state')
 
         # Set the initial state to Player.
@@ -386,6 +387,7 @@ class Player:  # pylint: disable=unused-argument
     def _unload_playlist(self) -> None:
         """Implementation for self.unload_playlist"""
         self.stream_data = StreamData()
+        self.transmitter.send('playlist_unloaded')
 
     def _on_eos(self) -> None:
         """
@@ -605,6 +607,7 @@ class PlayerC:
                                     'deactivate',
                                     'stream_updated',
                                     'playlist_loaded',
+                                    'playlist_unloaded',
                                     'position_updated',
                                     'player_enter_state')
 
@@ -667,6 +670,7 @@ class PlayerC:
         self.player.transmitter.connect('playlist_finished', self.on_playlist_finished)
         self.player.transmitter.connect('player_enter_state', self.transmitter.send, 'player_enter_state')
         self.player.transmitter.connect('playlist_loaded', self.transmitter.send, 'playlist_loaded')
+        self.player.transmitter.connect('playlist_unloaded', self.transmitter.send, 'playlist_unloaded')
         self.player.activate()
         self.book_reader.transmitter.connect('book_opened', self.on_book_opened)
         self.book_reader.transmitter.connect('book_closed', self.on_book_closed)
@@ -691,13 +695,11 @@ class PlayerC:
 
     def on_book_opened(self, playlist_id: int) -> None:
         """
-        Inform the various control widgits that a playlist has been
-        opened and that they need to activate.
+        Determine if Player needs to load its playlist.
         """
         self.logger.debug('on_book_opened')
         if playlist_id is not None and self.player.get_state() is PlayerStateNoPlaylistLoaded:
             self.player.load_playlist(book.PlaylistData(id_=playlist_id))
-            self.transmitter.send('activate')
 
     def on_book_closed(self, playlist_id: int) -> None:
         """
@@ -705,7 +707,6 @@ class PlayerC:
         """
         if playlist_id is not None and playlist_id == self.player.book_data.playlist_data.get_id():
             self.player.unload_playlist()
-            self.transmitter.send('deactivate')
 
     def on_playlist_finished(self) -> None:
         """

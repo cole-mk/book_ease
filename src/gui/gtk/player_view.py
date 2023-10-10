@@ -56,8 +56,8 @@ class PlayerButtonNextVC:
 
         self.view = builder.get_object('player_button_next')
         self.transmitter = component_transmitter
-        controller_transmitter.connect('activate', self.activate)
-        controller_transmitter.connect('deactivate', self.deactivate)
+        controller_transmitter.connect('stream_updated', self.activate)
+        controller_transmitter.connect('playlist_unloaded', self.deactivate)
         self.view.connect('button-release-event', self.on_button_released)
         self.deactivate()
 
@@ -68,7 +68,7 @@ class PlayerButtonNextVC:
         self.logger.debug('on_button_released')
         self.transmitter.send('next')
 
-    def activate(self) -> None:
+    def activate(self, _) -> None:
         """
         Set the button to active state
         """
@@ -96,8 +96,8 @@ class PlayerButtonPreviousVC:
 
         self.view = builder.get_object('player_button_previous')
         self.transmitter = component_transmitter
-        controller_transmitter.connect('activate', self.activate)
-        controller_transmitter.connect('deactivate', self.deactivate)
+        controller_transmitter.connect('stream_updated', self.activate)
+        controller_transmitter.connect('playlist_unloaded', self.deactivate)
         self.view.connect('button-release-event', self.on_button_released)
         self.deactivate()
 
@@ -108,7 +108,7 @@ class PlayerButtonPreviousVC:
         self.logger.debug('on_button_released')
         self.transmitter.send('previous')
 
-    def activate(self) -> None:
+    def activate(self, _) -> None:
         """
         Set the button to active state
         """
@@ -135,8 +135,8 @@ class PlayerButtonForwardVC:
 
         self.view = builder.get_object('player_button_forward')
         self.transmitter = component_transmitter
-        controller_transmitter.connect('activate', self.activate)
-        controller_transmitter.connect('deactivate', self.deactivate)
+        controller_transmitter.connect('stream_updated', self.activate)
+        controller_transmitter.connect('playlist_unloaded', self.deactivate)
         self.view.connect('button-release-event', self.on_button_released)
         self.deactivate()
 
@@ -147,7 +147,7 @@ class PlayerButtonForwardVC:
         self.logger.debug('on_button_released')
         self.transmitter.send('skip_forward_long')
 
-    def activate(self) -> None:
+    def activate(self, _) -> None:
         """
         Set the button to active state
         """
@@ -175,8 +175,8 @@ class PlayerButtonRewindVC:
 
         self.view = builder.get_object('player_button_rewind')
         self.transmitter = component_transmitter
-        controller_transmitter.connect('activate', self.activate)
-        controller_transmitter.connect('deactivate', self.deactivate)
+        controller_transmitter.connect('stream_updated', self.activate)
+        controller_transmitter.connect('playlist_unloaded', self.deactivate)
         self.view.connect('button-release-event', self.on_button_released)
         self.deactivate()
 
@@ -187,7 +187,7 @@ class PlayerButtonRewindVC:
         self.logger.debug('on_button_released')
         self.transmitter.send('skip_reverse_long')
 
-    def activate(self) -> None:
+    def activate(self, _) -> None:
         """
         Set the button to active state
         """
@@ -215,8 +215,8 @@ class PlayerButtonStopVC:
 
         self.view = builder.get_object('player_button_stop')
         self.transmitter = component_transmitter
-        controller_transmitter.connect('activate', self.activate)
-        controller_transmitter.connect('deactivate', self.deactivate)
+        controller_transmitter.connect('stream_updated', self.activate)
+        controller_transmitter.connect('playlist_unloaded', self.deactivate)
         self.view.connect('button-release-event', self.on_button_released)
         self.deactivate()
 
@@ -227,7 +227,7 @@ class PlayerButtonStopVC:
         self.logger.debug('on_button_released')
         self.transmitter.send('stop')
 
-    def activate(self) -> None:
+    def activate(self, _) -> None:
         """
         Set the button to active state
         """
@@ -255,8 +255,8 @@ class PlayerButtonPlayPauseVC:
         self.view = builder.get_object('player_button_play_pause')
         self.transmitter = component_transmitter
 
-        controller_transmitter.connect('activate', self.activate)
-        controller_transmitter.connect('deactivate', self.deactivate)
+        controller_transmitter.connect('stream_updated', self.activate)
+        controller_transmitter.connect('playlist_unloaded', self.deactivate)
         controller_transmitter.connect('player_enter_state', self.on_player_state_change)
 
         self.view.connect('button-release-event', self.on_button_released)
@@ -276,7 +276,7 @@ class PlayerButtonPlayPauseVC:
         else:
             self.transmitter.send('pause')
 
-    def activate(self) -> None:
+    def activate(self, _) -> None:
         """
         Set the button to active state
         """
@@ -310,22 +310,22 @@ class PlayerPositionDisplayVC:
                  component_transmitter: signal_.Signal,
                  controller_transmitter: signal_.Signal,
                  builder: Gtk.Builder):
+
         self.scrollbar = builder.get_object('player_playback_position_scrollbar')
         self.duration_label = builder.get_object('player_label_duration')
         self.cur_position_label = builder.get_object('player_label_cur_pos')
         self.playlist_title_label = builder.get_object('player_label_playlist_title')
         self.track_file_name_label = builder.get_object('player_label_track_file_name')
+
         self.transmitter = component_transmitter
 
-        controller_transmitter.connect('stream_updated', self.activate)
+        controller_transmitter.connect('stream_updated', self.on_stream_updated)
         controller_transmitter.connect('position_updated', self.set_current_position)
-        controller_transmitter.connect('deactivate', self.deactivate)
         controller_transmitter.connect('playlist_loaded', self.on_playlist_loaded)
+        controller_transmitter.connect('playlist_unloaded', self.deactivate)
 
         self.scrollbar.connect('button-release-event', self.on_button_released)
         self.deactivate()
-
-        self.button_state = 'play'
 
     def on_button_released(self, *_) -> None:
         """
@@ -333,11 +333,11 @@ class PlayerPositionDisplayVC:
         """
         self.logger.debug('on_button_released')
 
-    def activate(self, stream_data: StreamData) -> None:
+    def on_stream_updated(self, stream_data: StreamData) -> None:
         """
         Set the scrollbar and other widgits to active state
         """
-        self.logger.debug('activate')
+        self.logger.debug('on_stream_updated')
         print(stream_data.duration.get_time('s'))
         self.duration_label.set_text(str(stream_data.duration.get_time('s')))
         self.cur_position_label.set_text(str(stream_data.position_data.time.get_time('s')))
