@@ -1219,7 +1219,6 @@ class GstPlayerA:
         """
         self._deque.appendleft(command)
         if not self._call_in_progress:
-            self._call_in_progress = True
             self.pop()
 
     def load_stream(self, stream_data: StreamData):
@@ -1246,19 +1245,22 @@ class GstPlayerA:
         """
         if self._deque:
             try:
+                self._gst_player.transmitter.connect_once('stream_ready', self.pop)
+                if not self._call_in_progress:
+                    self._call_in_progress = True
+
                 cmd = self._deque.pop()
                 # cmd[0]  : Callable    post_pop callback
                 # cmd[1]  : Callable    GstPlayer command. These always return False if GstPlayer is busy.
                 # cmd[2:] : Any         GstPlayer command args
                 if cmd[1](*cmd[2:]):
-                    self._gst_player.transmitter.connect_once('stream_ready', self.pop)
                     cmd[0]()
                 else:
                     self._deque.append(cmd)
 
             except GstPlayerError as e:
                 print(e)
-                self._deque.clear()
+                self.pop()
             except Exception as e:
                 print(e)
                 self._deque.clear()
