@@ -511,7 +511,6 @@ class  PlayerStatePlaying(Player):
     """Player State PlayerStatePlaying"""
 
     def load_playlist(self, playlist_data: book.PlaylistData) -> None:
-        self.player_adapter.stop()
         self.player_adapter.unload_stream()
         self._unload_playlist()
         self._load_playlist(playlist_data)
@@ -519,21 +518,18 @@ class  PlayerStatePlaying(Player):
         self._set_state(PlayerStateStopped)
 
     def set_track(self, track_number: int) -> None:
-        self.player_adapter.stop()
         self.player_adapter.unload_stream()
         self._set_track(track_number)
         self.player_adapter.load_stream(self.stream_data)
         self.player_adapter.play()
 
     def set_track_relative(self, track_delta: Literal[-1, 1]) -> None:
-        self.player_adapter.stop()
         self.player_adapter.unload_stream()
         self._set_track_relative(track_delta)
         self.player_adapter.load_stream(self.stream_data)
         self.player_adapter.play()
 
     def unload_playlist(self) -> None:
-        self.player_adapter.stop()
         self.player_adapter.unload_stream()
         self._unload_playlist()
         self._set_state(PlayerStateNoPlaylistLoaded)
@@ -554,7 +550,6 @@ class  PlayerStatePaused(Player):
     """Player State PlayerStatePaused"""
 
     def load_playlist(self, playlist_data: book.PlaylistData) -> None:
-        self.player_adapter.stop()
         self.player_adapter.unload_stream()
         self._unload_playlist()
         self._load_playlist(playlist_data)
@@ -562,21 +557,18 @@ class  PlayerStatePaused(Player):
         self._set_state(PlayerStateStopped)
 
     def set_track(self, track_number: int) -> None:
-        self.player_adapter.stop()
         self.player_adapter.unload_stream()
         self._set_track(track_number)
         self.player_adapter.load_stream(self.stream_data)
         self._set_state(PlayerStateStopped)
 
     def set_track_relative(self, track_delta: Literal[-1, 1]) -> None:
-        self.player_adapter.stop()
         self.player_adapter.unload_stream()
         self._set_track_relative(track_delta)
         self.player_adapter.load_stream(self.stream_data)
         self._set_state(PlayerStateStopped)
 
     def unload_playlist(self) -> None:
-        self.player_adapter.stop()
         self.player_adapter.unload_stream()
         self._unload_playlist()
         self._set_state(PlayerStateNoPlaylistLoaded)
