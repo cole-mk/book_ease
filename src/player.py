@@ -314,6 +314,7 @@ class Player:  # pylint: disable=unused-argument
         Note: PlayerState's should implement this by calling _go_to_position().
         """
         self.logger.warning('calling go_to_position() not implemented in this state, %s.', self.__class__.__name__)
+        return False
 
     def seek(self, time_delta: SeekTime) -> None:
         """
@@ -506,6 +507,13 @@ class  PlayerStateStopped(Player):
     def seek(self, time_delta: SeekTime) -> None:
         self._seek(time_delta)
 
+    def go_to_position(self, time_: StreamTime) -> bool:
+        if self.go_to_position(time_):
+            self._set_state(PlayerStatePaused)
+            return True
+        else:
+            return False
+
 
 class  PlayerStatePlaying(Player):
     """Player State PlayerStatePlaying"""
@@ -545,6 +553,9 @@ class  PlayerStatePlaying(Player):
     def seek(self, time_delta: SeekTime) -> None:
         self._seek(time_delta)
 
+    def go_to_position(self, time_: StreamTime) -> bool:
+        return self.go_to_position(time_)
+
 
 class  PlayerStatePaused(Player):
     """Player State PlayerStatePaused"""
@@ -583,6 +594,9 @@ class  PlayerStatePaused(Player):
 
     def seek(self, time_delta: SeekTime) -> None:
         self._seek(time_delta)
+
+    def go_to_position(self, time_: StreamTime) -> bool:
+        return self.go_to_position(time_)
 
 
 class PlayerC:
