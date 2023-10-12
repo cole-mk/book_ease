@@ -505,7 +505,8 @@ class  PlayerStateStopped(Player):
         self._set_state(PlayerStatePlaying)
 
     def seek(self, time_delta: SeekTime) -> None:
-        self._seek(time_delta)
+        if self._seek(time_delta):
+            self._set_state(PlayerStatePaused)
 
     def go_to_position(self, time_: StreamTime) -> bool:
         if self.go_to_position(time_):
