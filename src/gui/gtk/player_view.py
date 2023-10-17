@@ -320,18 +320,41 @@ class PlayerPositionDisplayVC:
         self.transmitter = component_transmitter
 
         controller_transmitter.connect('stream_updated', self.on_stream_updated)
-        controller_transmitter.connect('position_updated', self.set_current_position)
+        controller_transmitter.connect('position_updated', self.on_position_updated)
         controller_transmitter.connect('playlist_loaded', self.on_playlist_loaded)
-        controller_transmitter.connect('playlist_unloaded', self.deactivate)
+        controller_transmitter.connect('playlist_unloaded', self.on_playlist_unloaded)
 
-        self.scrollbar.connect('button-release-event', self.on_button_released)
-        self.deactivate()
+        self.scrollbar.connect('button-release-event', self.on_g_button_released)
+        self.scrollbar.connect('button-press-event', self.on_g_button_pressed)
+        # This responds to anything that sets the value of the scrollbar.
+        # fires constantly when dragging scrollbar.
+        self.scrollbar.connect('change-value', self.on_g_scrollbar_change_value, 'change-value')
+        # fires when the mouse wheel is used to move the scroll bar.
+        self.scrollbar.connect('scroll-event', self.on_g_scrollwheel_event)
+        # This holds the most recently updated playback position sent from PlayerC.
+        # Used to update the self.cur_position_label without updating the scrollbar itself.
+        self.buffered_scrollbar_value: int = 0
+        self.scrollbar_drag_in_progress: bool = False
 
-    def on_button_released(self, *_) -> None:
+        # new_position_popover is used to display a potential new playback position
+        # when the scrollbar is being drug by the user.
+        self.new_position_popover = builder.get_object('player_playback_position_scrollbar_popover')
+        self.new_position_popover_label = builder.get_object(
+            'player_playback_position_scrollbar_popover_label'
+        )
+        self._deactivate()
+
+    def on_g_button_released(self, *_) -> None:
         """
         Callback for when the gtk scrollbar is released.
         """
         self.logger.debug('on_button_released')
+        self.scrollbar_drag_in_progress = False
+        self.new_position_popover.hide()
+        new_position = int(self.scrollbar.get_value())
+        self.transmitter.send('go_to_position', new_position)
+        self.cur_position_label.set_text(str(new_position))
+
 
     def on_stream_updated(self, stream_data: StreamData) -> None:
         """
@@ -350,7 +373,13 @@ class PlayerPositionDisplayVC:
         self.track_file_name_label.set_text(Path(stream_data.path).name)
         self.track_file_name_label.set_sensitive(True)
 
-    def deactivate(self) -> None:
+    def on_playlist_unloaded(self) -> None:
+        """
+        Callback for when there is no stream to display.
+        """
+        self._deactivate()
+
+    def _deactivate(self) -> None:
         """
         Set the scrollbar to inactive state
         """
@@ -364,15 +393,49 @@ class PlayerPositionDisplayVC:
         self.cur_position_label.set_sensitive(False)
         self.duration_label.set_sensitive(False)
 
-    def set_current_position(self, position: StreamTime) -> None:
+    def on_g_scrollbar_change_value(self, _, __, new_scrollbar_value, *args) -> None:
         """
-        set the scrollbar position to position
+        Sync the new_position_popover_label with a changing scrollbar position
+        as the scrollbar is beng dragged.
+        """
+        if self.scrollbar_drag_in_progress:
+            self.new_position_popover_label.set_text(str(int(new_scrollbar_value)))
+
+    def on_g_scrollwheel_event(self, *args) -> None:
+        """
+        Increment playback position when mouse wheel is used to adjust the scrollbar.
+        """
+        scrollbar_value = int(self.scrollbar.get_value())
+
+        if args[1].delta_y == 1:
+            scrollbar_value -= 1
+        elif args[1].delta_y == -1:
+            scrollbar_value += 1
+
+        self.transmitter.send('go_to_position', scrollbar_value)
+        self.scrollbar.set_value(scrollbar_value)
+        self.cur_position_label.set_text(str(scrollbar_value))
+
+    def on_position_updated(self, position: StreamTime) -> None:
+        """
+        Set the scrollbar position to position
         """
         self.logger.debug('set_current_position')
-        self.scrollbar.set_value(position.get_time('s'))
-        self.cur_position_label.set_text(str(position.get_time('s')))
+        self.buffered_scrollbar_value = position.get_time('s')
+        self.cur_position_label.set_text(str(self.buffered_scrollbar_value))
+        if not self.scrollbar_drag_in_progress:
+            self.scrollbar.set_value(self.buffered_scrollbar_value)
 
     def on_playlist_loaded(self, book_data: BookData) -> None:
         """Update the playlist title label."""
         self.playlist_title_label.set_text(book_data.playlist_data.get_title())
         self.playlist_title_label.set_sensitive(True)
+
+    def on_g_button_pressed(self, *args) -> None:
+        """
+        Popup the popover that displays a potential new playback position
+        as the scrollbar is being drug by the user.
+        """
+        self.scrollbar_drag_in_progress = True
+        self.new_position_popover.popup()
+        self.new_position_popover_label.set_text(str(int(self.scrollbar.get_value())))

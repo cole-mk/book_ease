@@ -509,7 +509,7 @@ class  PlayerStateStopped(Player):
             self._set_state(PlayerStatePaused)
 
     def go_to_position(self, time_: StreamTime) -> bool:
-        if self.go_to_position(time_):
+        if self._go_to_position(time_):
             self._set_state(PlayerStatePaused)
             return True
         else:
@@ -555,7 +555,7 @@ class  PlayerStatePlaying(Player):
         self._seek(time_delta)
 
     def go_to_position(self, time_: StreamTime) -> bool:
-        return self.go_to_position(time_)
+        return self._go_to_position(time_)
 
 
 class  PlayerStatePaused(Player):
@@ -597,7 +597,7 @@ class  PlayerStatePaused(Player):
         self._seek(time_delta)
 
     def go_to_position(self, time_: StreamTime) -> bool:
-        return self.go_to_position(time_)
+        return self._go_to_position(time_)
 
 
 class PlayerC:
@@ -625,6 +625,7 @@ class PlayerC:
                                               'previous',
                                               'skip_forward_long',
                                               'skip_reverse_long',
+                                              'go_to_position',
                                               'stop')
 
         self.component_transmitter.connect('play', self.on_play)
@@ -681,6 +682,18 @@ class PlayerC:
         self.player.activate()
         self.book_reader.transmitter.connect('book_opened', self.on_book_opened)
         self.book_reader.transmitter.connect('book_closed', self.on_book_closed)
+
+        self.component_transmitter.connect('go_to_position', self.component_receiver, pass_sig_data_to_cb=True)
+
+    def component_receiver(self, *args, sig_data) -> None:
+        """
+        Handle signals originating from one of the player control components. eg play button
+        """
+        match sig_data.handle:
+
+            case 'go_to_position':
+                new_position = StreamTime(args[0], 's')
+                self.player.go_to_position(new_position)
 
     def on_stop(self) -> None:
         """
