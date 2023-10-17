@@ -509,7 +509,7 @@ class  PlayerStateStopped(Player):
             self._set_state(PlayerStatePaused)
 
     def go_to_position(self, time_: StreamTime) -> bool:
-        if self.go_to_position(time_):
+        if self._go_to_position(time_):
             self._set_state(PlayerStatePaused)
             return True
         else:
@@ -555,7 +555,7 @@ class  PlayerStatePlaying(Player):
         self._seek(time_delta)
 
     def go_to_position(self, time_: StreamTime) -> bool:
-        return self.go_to_position(time_)
+        return self._go_to_position(time_)
 
 
 class  PlayerStatePaused(Player):
@@ -597,7 +597,7 @@ class  PlayerStatePaused(Player):
         self._seek(time_delta)
 
     def go_to_position(self, time_: StreamTime) -> bool:
-        return self.go_to_position(time_)
+        return self._go_to_position(time_)
 
 
 class PlayerC:
