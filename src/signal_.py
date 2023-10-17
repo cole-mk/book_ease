@@ -44,10 +44,12 @@ class SignalData:
     def __init__(self,
                  callback: Callable,
                  subscriber_died_cb: Callable,
+                 handle: str,
                  *cb_args: tuple,
                  **cb_kwargs: dict) -> None:
 
         self._subscriber_died_cb = subscriber_died_cb
+        self.handle = handle
         self.callback = weakref.WeakMethod(callback, self._cleanup)
         self.cb_args = cb_args
         self.cb_kwargs = cb_kwargs
@@ -121,7 +123,7 @@ class Signal():
 
         Returns a weakref.proxy->SignalData object that is added to the list.
         """
-        sig_data = SignalData(cb_method, self.disconnect_by_signal_data, *cb_args, **cb_kwargs)
+        sig_data = SignalData(cb_method, self.disconnect_by_signal_data, handle, *cb_args, **cb_kwargs)
 
         sig_handler_dict[handle].append(sig_data)
         sig_data_proxy = weakref.proxy(sig_data)
