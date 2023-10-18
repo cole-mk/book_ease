@@ -311,7 +311,7 @@ class PlayerPositionDisplayVC:
                  controller_transmitter: signal_.Signal,
                  builder: Gtk.Builder):
 
-        self.scrollbar = builder.get_object('player_playback_position_scrollbar')
+        self.scale = builder.get_object('player_playback_position_scale')
         self.duration_label = builder.get_object('player_label_duration')
         self.cur_position_label = builder.get_object('player_label_cur_pos')
         self.playlist_title_label = builder.get_object('player_label_playlist_title')
@@ -324,27 +324,18 @@ class PlayerPositionDisplayVC:
         controller_transmitter.connect('playlist_loaded', self.on_playlist_loaded)
         controller_transmitter.connect('playlist_unloaded', self.on_playlist_unloaded)
 
-        self.scrollbar.connect('button-release-event', self.on_g_button_released)
-        self.scrollbar.connect('button-press-event', self.on_g_button_pressed)
-        # This responds to anything that sets the value of the scrollbar.
-        # fires constantly when dragging scrollbar.
-        self.scrollbar.connect('change-value', self.on_g_scrollbar_change_value, 'change-value')
+        self.scale.connect('button-release-event', self.on_g_button_released)
+        self.scale.connect('button-press-event', self.on_g_button_pressed)
         # fires when the mouse wheel is used to move the scroll bar.
-        self.scrollbar.connect('scroll-event', self.on_g_scrollwheel_event)
+        self.scale.connect('scroll-event', self.on_g_scrollwheel_event)
         # Capture escape key to abort position change.
-        self.scrollbar.connect('key-press-event', self.on_g_key_press)
+        self.scale.connect('key-press-event', self.on_g_key_press)
 
         # This holds the most recently updated playback position sent from PlayerC.
         # Used to update the self.cur_position_label without updating the scrollbar itself.
         self.buffered_scrollbar_value: int = 0
-        self.scrollbar_drag_in_progress: bool = False
+        self.scale_drag_in_progress: bool = False
 
-        # new_position_popover is used to display a potential new playback position
-        # when the scrollbar is being drug by the user.
-        self.new_position_popover = builder.get_object('player_playback_position_scrollbar_popover')
-        self.new_position_popover_label = builder.get_object(
-            'player_playback_position_scrollbar_popover_label'
-        )
         self._deactivate()
 
     def on_g_key_press(self, _: Gtk.Scrollbar, event: Gdk.EventKey) -> None:
@@ -354,33 +345,33 @@ class PlayerPositionDisplayVC:
         Allow scrollbar to abort a position change gracefully.
         """
         if event.keyval == Gdk.KEY_Escape:
-            self.scrollbar_drag_in_progress = False
-            self.scrollbar.set_value(self.buffered_scrollbar_value)
-            self.new_position_popover.hide()
+            self.scale_drag_in_progress = False
+            self.scale.set_value(self.buffered_scrollbar_value)
+            self.scale.set_draw_value(False)
 
     def on_g_button_released(self, *_) -> None:
         """
-        Callback for when the gtk scrollbar is released.
+        Callback for when the gtk scale slider is released.
         """
-        self.logger.debug('on_button_released')
-        self.scrollbar_drag_in_progress = False
-        self.new_position_popover.hide()
-        new_position = int(self.scrollbar.get_value())
+        self.logger.debug('on_g_button_released')
+        self.scale_drag_in_progress = False
+        self.scale.set_draw_value(False)
+
+        new_position = self.scale.get_value()
         self.transmitter.send('go_to_position', new_position)
-        self.cur_position_label.set_text(str(new_position))
+        self.cur_position_label.set_text(str(int(new_position)))
 
 
     def on_stream_updated(self, stream_data: StreamData) -> None:
         """
-        Set the scrollbar and other widgits to active state
+        Set the scale and other widgits to active state
         """
         self.logger.debug('on_stream_updated')
-        print(stream_data.duration.get_time('s'))
         self.duration_label.set_text(str(stream_data.duration.get_time('s')))
         self.cur_position_label.set_text(str(stream_data.position_data.time.get_time('s')))
-        self.scrollbar.set_range(0, stream_data.duration.get_time('s'))
-        self.scrollbar.set_value(stream_data.position_data.time.get_time('s'))
-        self.scrollbar.set_sensitive(True)
+        self.scale.set_range(0, stream_data.duration.get_time('s'))
+        self.scale.set_value(stream_data.position_data.time.get_time('ms') / 1000)
+        self.scale.set_sensitive(True)
         self.cur_position_label.set_sensitive(True)
         self.duration_label.set_sensitive(True)
 
@@ -395,7 +386,7 @@ class PlayerPositionDisplayVC:
 
     def _deactivate(self) -> None:
         """
-        Set the scrollbar to inactive state
+        Set the scale to inactive state
         """
         self.logger.debug('deactivate')
         self.cur_position_label.set_text('')
@@ -403,27 +394,15 @@ class PlayerPositionDisplayVC:
         self.playlist_title_label.set_text('')
         self.track_file_name_label.set_text('')
 
-        self.scrollbar.set_sensitive(False)
+        self.scale.set_sensitive(False)
         self.cur_position_label.set_sensitive(False)
         self.duration_label.set_sensitive(False)
-
-    def on_g_scrollbar_change_value(self,
-                                    _: Gtk.Scrollbar,
-                                    __: Gtk.ScrollType,
-                                    ___: float,
-                                    *usr_data) -> None:
-        """
-        Sync the new_position_popover_label with a changing scrollbar position
-        as the scrollbar is beng dragged.
-        """
-        if self.scrollbar_drag_in_progress:
-            self.new_position_popover_label.set_text(str(int(self.scrollbar.get_value())))
 
     def on_g_scrollwheel_event(self, *args) -> None:
         """
         Increment playback position when mouse wheel is used to adjust the scrollbar.
         """
-        scrollbar_value = int(self.scrollbar.get_value())
+        scrollbar_value = int(self.scale.get_value())
 
         if args[1].delta_y == 1:
             scrollbar_value -= 1
@@ -431,18 +410,21 @@ class PlayerPositionDisplayVC:
             scrollbar_value += 1
 
         self.transmitter.send('go_to_position', scrollbar_value)
-        self.scrollbar.set_value(scrollbar_value)
+        self.scale.set_value(scrollbar_value)
         self.cur_position_label.set_text(str(scrollbar_value))
 
     def on_position_updated(self, position: StreamTime) -> None:
         """
-        Set the scrollbar position to position
+        Set the scale position to position
         """
         self.logger.debug('set_current_position')
-        self.buffered_scrollbar_value = position.get_time('s')
-        self.cur_position_label.set_text(str(self.buffered_scrollbar_value))
-        if not self.scrollbar_drag_in_progress:
-            self.scrollbar.set_value(self.buffered_scrollbar_value)
+        # Truncate the position for the label to keep the display clean,
+        # but use ms to set the scale's value. This prevents the slider from
+        # jumping back a couple pixels after dragging the slider.
+        self.buffered_scrollbar_value = position.get_time('ms') / 1000
+        self.cur_position_label.set_text(str(int(self.buffered_scrollbar_value)))
+        if not self.scale_drag_in_progress:
+            self.scale.set_value(self.buffered_scrollbar_value)
 
     def on_playlist_loaded(self, book_data: BookData) -> None:
         """Update the playlist title label."""
@@ -452,8 +434,7 @@ class PlayerPositionDisplayVC:
     def on_g_button_pressed(self, *args) -> None:
         """
         Popup the popover that displays a potential new playback position
-        as the scrollbar is being drug by the user.
+        as the scale slider is being drug by the user.
         """
-        self.scrollbar_drag_in_progress = True
-        self.new_position_popover.popup()
-        self.new_position_popover_label.set_text(str(int(self.scrollbar.get_value())))
+        self.scale_drag_in_progress = True
+        self.scale.set_draw_value(True)
