@@ -407,13 +407,17 @@ class PlayerPositionDisplayVC:
         self.cur_position_label.set_sensitive(False)
         self.duration_label.set_sensitive(False)
 
-    def on_g_scrollbar_change_value(self, _, __, new_scrollbar_value, *args) -> None:
+    def on_g_scrollbar_change_value(self,
+                                    _: Gtk.Scrollbar,
+                                    __: Gtk.ScrollType,
+                                    ___: float,
+                                    *usr_data) -> None:
         """
         Sync the new_position_popover_label with a changing scrollbar position
         as the scrollbar is beng dragged.
         """
         if self.scrollbar_drag_in_progress:
-            self.new_position_popover_label.set_text(str(int(new_scrollbar_value)))
+            self.new_position_popover_label.set_text(str(int(self.scrollbar.get_value())))
 
     def on_g_scrollwheel_event(self, *args) -> None:
         """
