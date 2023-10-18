@@ -367,11 +367,15 @@ class PlayerPositionDisplayVC:
         Set the scale and other widgits to active state
         """
         self.logger.debug('on_stream_updated')
+        self.buffered_scrollbar_value = stream_data.position_data.time.get_time('ms') / 1000
+
         self.duration_label.set_text(str(stream_data.duration.get_time('s')))
-        self.cur_position_label.set_text(str(stream_data.position_data.time.get_time('s')))
+        self.cur_position_label.set_text(str(int(self.buffered_scrollbar_value)))
+
         self.scale.set_range(0, stream_data.duration.get_time('s'))
-        self.scale.set_value(stream_data.position_data.time.get_time('ms') / 1000)
+        self.scale.set_value(self.buffered_scrollbar_value)
         self.scale.set_sensitive(True)
+
         self.cur_position_label.set_sensitive(True)
         self.duration_label.set_sensitive(True)
 
