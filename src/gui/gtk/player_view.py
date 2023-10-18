@@ -35,7 +35,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 import gi
 gi.require_version("Gtk", "3.0") # pylint: disable=wrong-import-position
-from gi.repository import Gtk
+from gi.repository import Gtk, Gdk
 import signal_
 import player
 if TYPE_CHECKING:
@@ -331,6 +331,9 @@ class PlayerPositionDisplayVC:
         self.scrollbar.connect('change-value', self.on_g_scrollbar_change_value, 'change-value')
         # fires when the mouse wheel is used to move the scroll bar.
         self.scrollbar.connect('scroll-event', self.on_g_scrollwheel_event)
+        # Capture escape key to abort position change.
+        self.scrollbar.connect('key-press-event', self.on_g_key_press)
+
         # This holds the most recently updated playback position sent from PlayerC.
         # Used to update the self.cur_position_label without updating the scrollbar itself.
         self.buffered_scrollbar_value: int = 0
@@ -343,6 +346,17 @@ class PlayerPositionDisplayVC:
             'player_playback_position_scrollbar_popover_label'
         )
         self._deactivate()
+
+    def on_g_key_press(self, _: Gtk.Scrollbar, event: Gdk.EventKey) -> None:
+        """
+        Caallback for when the escape key is pressed while dragging the slider.
+
+        Allow scrollbar to abort a position change gracefully.
+        """
+        if event.keyval == Gdk.KEY_Escape:
+            self.scrollbar_drag_in_progress = False
+            self.scrollbar.set_value(self.buffered_scrollbar_value)
+            self.new_position_popover.hide()
 
     def on_g_button_released(self, *_) -> None:
         """
