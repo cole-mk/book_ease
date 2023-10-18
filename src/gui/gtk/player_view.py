@@ -348,6 +348,7 @@ class PlayerPositionDisplayVC:
             self.scale_drag_in_progress = False
             self.scale.set_value(self.buffered_scrollbar_value)
             self.scale.set_draw_value(False)
+            self.scale.clear_marks()
 
     def on_g_button_released(self, *_) -> None:
         """
@@ -356,6 +357,7 @@ class PlayerPositionDisplayVC:
         self.logger.debug('on_g_button_released')
         self.scale_drag_in_progress = False
         self.scale.set_draw_value(False)
+        self.scale.clear_marks()
 
         new_position = self.scale.get_value()
         self.transmitter.send('go_to_position', new_position)
@@ -442,3 +444,4 @@ class PlayerPositionDisplayVC:
         """
         self.scale_drag_in_progress = True
         self.scale.set_draw_value(True)
+        self.scale.add_mark(self.scale.get_value(), Gtk.PositionType.TOP)
