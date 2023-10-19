@@ -858,6 +858,7 @@ class GstPlayerError(Exception):
 
 class GstPlayer:
     """The wrapper for the gstreamer backend"""
+    logger = logging.getLogger(f'{__name__}.GstPlayer')
 
     def __init__(self):
         Gst.init(None)
@@ -1039,6 +1040,11 @@ class GstPlayer:
         if msg_handle is not None and msg_handle == '_on_seek_complete':
             bus.disconnect_by_func(self._on_seek_complete)
             self.stream_tasks.end_subtask('seek')
+            try:
+                cur_position = self.query_position()
+                self.transmitter.send('time_updated', cur_position)
+            except GstPlayerError:
+                self.logger.warning('Failed to query stream position. Pending tasks: %s', self.stream_tasks.get_running_subtasks())
 
     def _init_pipeline(self, stream_data: StreamData):
         """

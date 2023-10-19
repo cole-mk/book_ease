@@ -361,7 +361,6 @@ class PlayerPositionDisplayVC:
 
         new_position = self.scale.get_value()
         self.transmitter.send('go_to_position', new_position)
-        self.cur_position_label.set_text(str(int(new_position)))
 
 
     def on_stream_updated(self, stream_data: StreamData) -> None:
@@ -416,8 +415,6 @@ class PlayerPositionDisplayVC:
             scrollbar_value += 1
 
         self.transmitter.send('go_to_position', scrollbar_value)
-        self.scale.set_value(scrollbar_value)
-        self.cur_position_label.set_text(str(scrollbar_value))
 
     def on_position_updated(self, position: StreamTime) -> None:
         """
