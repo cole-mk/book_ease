@@ -473,47 +473,7 @@ class PlayerStateNoPlaylistLoaded(Player):
         self.logger.warning('PlayerStateNoPlaylistLoaded load_playlist')
         self._load_playlist(playlist_data)
         self.player_adapter.load_stream(self.stream_data)
-        self._set_state(PlayerStateStopped)
-
-
-class  PlayerStateStopped(Player):
-    """Player State PlayerStateNoPlaylistLoaded"""
-
-    def load_playlist(self, playlist_data: book.PlaylistData) -> None:
-        self.player_adapter.unload_stream()
-        self._unload_playlist()
-        self._load_playlist(playlist_data)
-        self.player_adapter.load_stream(self.stream_data)
-
-    def set_track(self, track_number: int) -> None:
-        self.player_adapter.unload_stream()
-        self._set_track(track_number)
-        self.player_adapter.load_stream(self.stream_data)
-
-    def set_track_relative(self, track_delta: Literal[-1, 1]) -> None:
-        self.player_adapter.unload_stream()
-        self._set_track_relative(track_delta)
-        self.player_adapter.load_stream(self.stream_data)
-
-    def unload_playlist(self) -> None:
-        self.player_adapter.unload_stream()
-        self._unload_playlist()
-        self._set_state(PlayerStateNoPlaylistLoaded)
-
-    def play(self) -> None:
-        self.player_adapter.play()
-        self._set_state(PlayerStatePlaying)
-
-    def seek(self, time_delta: SeekTime) -> None:
-        if self._seek(time_delta):
-            self._set_state(PlayerStatePaused)
-
-    def go_to_position(self, time_: StreamTime) -> bool:
-        if self._go_to_position(time_):
-            self._set_state(PlayerStatePaused)
-            return True
-        else:
-            return False
+        self._set_state(PlayerStatePaused)
 
 
 class  PlayerStatePlaying(Player):
@@ -524,7 +484,7 @@ class  PlayerStatePlaying(Player):
         self._unload_playlist()
         self._load_playlist(playlist_data)
         self.player_adapter.load_stream(stream_data=self.stream_data)
-        self._set_state(PlayerStateStopped)
+        self._set_state(PlayerStatePaused)
 
     def set_track(self, track_number: int) -> None:
         self.player_adapter.unload_stream()
@@ -566,19 +526,16 @@ class  PlayerStatePaused(Player):
         self._unload_playlist()
         self._load_playlist(playlist_data)
         self.player_adapter.load_stream(self.stream_data)
-        self._set_state(PlayerStateStopped)
 
     def set_track(self, track_number: int) -> None:
         self.player_adapter.unload_stream()
         self._set_track(track_number)
         self.player_adapter.load_stream(self.stream_data)
-        self._set_state(PlayerStateStopped)
 
     def set_track_relative(self, track_delta: Literal[-1, 1]) -> None:
         self.player_adapter.unload_stream()
         self._set_track_relative(track_delta)
         self.player_adapter.load_stream(self.stream_data)
-        self._set_state(PlayerStateStopped)
 
     def unload_playlist(self) -> None:
         self.player_adapter.unload_stream()
@@ -590,8 +547,7 @@ class  PlayerStatePaused(Player):
         self._set_state(PlayerStatePlaying)
 
     def stop(self) -> None:
-        self.player_adapter.stop()
-        self._set_state(PlayerStateStopped)
+        self.player_adapter.set_position(StreamTime(0))
 
     def seek(self, time_delta: SeekTime) -> None:
         self._seek(time_delta)
@@ -976,17 +932,6 @@ class GstPlayer:
             return True
         return False
 
-    def stop(self):
-        """
-        Place GstPlayer into the stopped state.
-        """
-        if not self.stream_tasks.running() \
-                and self._set_state(state=Gst.State.PAUSED) \
-                and self._set_position(time_=StreamTime(0)):
-            self.playback_state = 'stopped'
-            return True
-        return False
-
     @staticmethod
     def get_uri_from_path(path: str) -> str:
         """
@@ -1306,12 +1251,6 @@ class GstPlayerA:
         """
         self.logger.debug('pause')
         self._appendleft((lambda: None, self._gst_player.pause))
-
-    def stop(self):
-        """
-        Add a stop command to the deque.
-        """
-        self._appendleft((lambda: None, self._gst_player.stop))
 
     def set_position(self, position: StreamTime):
         """
