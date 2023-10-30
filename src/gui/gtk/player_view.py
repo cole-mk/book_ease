@@ -329,15 +329,36 @@ class PlayerPositionDisplayVC:
         self.scale.connect('button-press-event', self.on_g_button_pressed)
         # fires when the mouse wheel is used to move the scroll bar.
         self.scale.connect('scroll-event', self.on_g_scrollwheel_event)
+        self.scale.connect('format-value', self._format_scale_val_func)
         # Capture escape key to abort position change.
         self.scale.connect('key-press-event', self.on_g_key_press)
+        #self.scale.set_format_value_func(self.format_val_func, None, None)
 
         # This holds the most recently updated playback position sent from PlayerC.
         # Used to update the self.cur_position_label without updating the scrollbar itself.
-        self.buffered_scale_value: int = 0
+        self.buffered_position: StreamTime = player.StreamTime(0)
         self.scale_drag_in_progress: bool = False
 
         self._deactivate()
+
+    def _format_scale_val_func(self, _:Gtk.Scale, val: float) -> str:
+        """
+        format the scale value output (only active while dragging the slider) to
+        a suitable clock format.
+
+        Returns: formatted string
+        """
+        time_ = player.StreamTime(val, 's')
+
+        hours = time_.get_clock_value('h')
+        hr_str = f'{hours:02}:' if hours else ''
+
+        min_ = time_.get_clock_value('m')
+        min_str = f'{min_:02}:' if (hours or min_) else ''
+
+        sec = time_.get_clock_value('s')
+        ms_ = int(time_.get_clock_value('ms') / 100)
+        return hr_str + min_str + f'{sec:02}.{ms_}'
 
     def on_g_key_press(self, _: Gtk.Scrollbar, event: Gdk.EventKey) -> None:
         """
@@ -347,7 +368,7 @@ class PlayerPositionDisplayVC:
         """
         if event.keyval == Gdk.KEY_Escape:
             self.scale_drag_in_progress = False
-            self.scale.set_value(self.buffered_scale_value)
+            self.scale.set_value(self.buffered_position.get_time('ms') / 1000)
             self.scale.clear_marks()
             self.scale.set_draw_value(False)
 
@@ -369,13 +390,20 @@ class PlayerPositionDisplayVC:
         Set the scale and other widgits to active state
         """
         self.logger.debug('on_stream_updated')
-        self.buffered_scale_value = stream_data.position_data.time.get_time('ms') / 1000
+        self.buffered_position = stream_data.position_data.time
 
-        self.duration_label.set_text(str(stream_data.duration.get_time('s')))
-        self.cur_position_label.set_text(str(int(self.buffered_scale_value)))
+        hour = stream_data.duration.get_clock_value('h')
+        min_ = stream_data.duration.get_clock_value('m')
+        sec = stream_data.duration.get_clock_value('s')
+        self.duration_label.set_text(f'{hour:02}:{min_:02}:{sec:02}')
+
+        hour = self.buffered_position.get_clock_value('h')
+        min_ = self.buffered_position.get_clock_value('m')
+        sec = self.buffered_position.get_clock_value('s')
+        self.cur_position_label.set_text(f'{hour:02}:{min_:02}:{sec:02}')
 
         self.scale.set_range(0, stream_data.duration.get_time('s'))
-        self.scale.set_value(self.buffered_scale_value)
+        self.scale.set_value(self.buffered_position.get_time("ms") / 1000)
         self.scale.set_sensitive(True)
 
         self.cur_position_label.set_sensitive(True)
@@ -425,12 +453,16 @@ class PlayerPositionDisplayVC:
         # Truncate the position for the label to keep the display clean,
         # but use ms to set the scale's value. This prevents the slider from
         # jumping back a couple pixels after dragging the slider.
-        self.buffered_scale_value = position.get_time('ms') / 1000
-        self.cur_position_label.set_text(str(int(self.buffered_scale_value)))
+        self.buffered_position = position
+        hour = self.buffered_position.get_clock_value('h')
+        min_ = self.buffered_position.get_clock_value('m')
+        sec = self.buffered_position.get_clock_value('s')
+        self.cur_position_label.set_text(f'{hour:02}:{min_:02}:{sec:02}')
+
         if self.scale_drag_in_progress:
-            self.scale.add_mark(self.buffered_scale_value, Gtk.PositionType.TOP)
+            self.scale.add_mark(self.buffered_position.get_time('ms') / 1000, Gtk.PositionType.TOP)
         else:
-            self.scale.set_value(self.buffered_scale_value)
+            self.scale.set_value(self.buffered_position.get_time('ms') / 1000)
 
     def on_playlist_loaded(self, book_data: BookData) -> None:
         """Update the playlist title label."""
