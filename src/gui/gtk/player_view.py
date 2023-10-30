@@ -427,7 +427,9 @@ class PlayerPositionDisplayVC:
         # jumping back a couple pixels after dragging the slider.
         self.buffered_scale_value = position.get_time('ms') / 1000
         self.cur_position_label.set_text(str(int(self.buffered_scale_value)))
-        if not self.scale_drag_in_progress:
+        if self.scale_drag_in_progress:
+            self.scale.add_mark(self.buffered_scale_value, Gtk.PositionType.TOP)
+        else:
             self.scale.set_value(self.buffered_scale_value)
 
     def on_playlist_loaded(self, book_data: BookData) -> None:
@@ -435,7 +437,10 @@ class PlayerPositionDisplayVC:
         self.playlist_title_label.set_text(book_data.playlist_data.get_title())
         self.playlist_title_label.set_sensitive(True)
 
-    def on_g_button_pressed(self, *args) -> None:
+    def on_g_button_pressed(self,
+                            _:Gtk.Scale,
+                            __:Gdk.EventButton,
+                            *___) -> None:
         """
         Popup the popover that displays a potential new playback position
         as the scale slider is being drug by the user.
