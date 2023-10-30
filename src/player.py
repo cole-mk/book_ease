@@ -443,6 +443,7 @@ class Player:  # pylint: disable=unused-argument
         self.set_track_relative(1)
         if old_track_num >= self.stream_data.track_number:
             self.transmitter.send('playlist_finished')
+            self.stop()
 
     def _get_incremented_track_number(self, track_delta: Literal[-1, 1]):
         """
