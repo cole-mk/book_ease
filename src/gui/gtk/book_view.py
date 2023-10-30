@@ -50,13 +50,9 @@ class BookV:
         # the topmost box in the glade file; add it to self
         self.book_v_box = self.book_view_builder.get_object('book_v_box')
 
-        # the components of a book view
-        self.pinned_v_box = self.book_view_builder.get_object('pinned_v_box')
-
     def close(self):
         """close all gui components in preperation for this object to close"""
         self.book_v_box.destroy()
-        #self.pinned_v_box.destroy()
 
     def get_gui_builder(self) -> 'Gtk.builder':
         """return the gtk.builder object"""
