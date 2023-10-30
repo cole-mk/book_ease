@@ -102,10 +102,14 @@ class StreamTime:
     """
 
     # Base unit for time storage is nanoseconds.
+    # The units must be in ascending order of significance for the
+    # get_clock_value() method to operate correctly.
     _time_conversions: ClassVar[dict] = {
         'ns': 1,
         'ms': pow(10, 6),
-        's': pow(10, 9)
+        's': pow(10, 9),
+        'm': pow(10, 9) * 60,
+        'h': pow(10, 9) * 60 * 60
     }
 
     def __init__(self, time_: int | float = None, unit: str = 'ns'):
@@ -148,9 +152,46 @@ class StreamTime:
             return -self
         return self
 
+    def _get_next_larger_time_unit(self, unit) -> str:
+        """
+        Get the next larger unit in the time_conversions dict.
+        """
+        found_current_unit = False
+        next_unit = None
+        for unit_key in self._time_conversions:
+            if found_current_unit:
+                next_unit = unit_key
+                break
+            if unit_key == unit:
+                found_current_unit = True
+        return next_unit
+
+    def get_clock_value(self, unit: str = 'ns') -> int:
+        """
+        Get the stored time in the desired units, truncated to a whole number
+        representing the remainder after stripping all values of larger units
+        from the StreamTime's stored time.
+
+        Returns: The stored time in the desired units
+
+        Ex:
+        * StreamTime(200, 's').get_clock_value('ms') == 0 is True
+        * StreamTime(200, 's').get_clock_value('s') == 20 is True
+        * StreamTime(200, 's').get_clock_value('m') == 3 is True
+        * StreamTime(200, 's').get_clock_value('h') == 0 is True
+        """
+        next_unit = self._get_next_larger_time_unit(unit)
+        if next_unit is None:
+            return self.get_time(unit)
+
+        next_larger_time = StreamTime(self.get_time(next_unit), next_unit)
+        return (self - next_larger_time).get_time(unit)
+
     def get_time(self, unit: str = 'ns'):
         """
         Get the stored time in the desired units, truncated to a whole number.
+
+        param: unit time unit of the return value
         """
         return int(self._time / self._time_conversions[unit])
 
@@ -179,6 +220,7 @@ class StreamData:
     track_number: int | None = None
     last_saved_position: StreamTime = StreamTime(-1)
     position_data: PositionData | None = None
+    stream_info: str | None = None
 
     def mark_saved_position(self):
         """
