@@ -47,41 +47,41 @@ class EditTrackDialog:
         self.dialog: Gtk.Dialog = builder.get_object("edit_row_dialog")
 
         # buttons
-        add_button = builder.get_object("add_button")
+        add_button: Gtk.Button = builder.get_object("add_button")
         add_button.connect('clicked', self.on_button_clicked, 'add')
 
-        remove_button = builder.get_object("remove_button")
+        remove_button: Gtk.Button = builder.get_object("remove_button")
         remove_button.connect('clicked', self.on_button_clicked, 'remove')
 
-        ok_button = builder.get_object("ok_button")
+        ok_button: Gtk.Button = builder.get_object("ok_button")
         ok_button.connect('clicked', self.on_button_clicked, 'ok')
 
-        up_button = builder.get_object("up_button")
+        up_button: Gtk.Button = builder.get_object("up_button")
         up_button.connect('clicked', self.on_button_clicked, 'up')
 
-        down_button = builder.get_object("down_button")
+        down_button: Gtk.Button = builder.get_object("down_button")
         down_button.connect('clicked', self.on_button_clicked, 'down')
 
         # setup treeview with column and renderer.
         # The col_tv_model is used to display a list of metadata tied to a key selected in self.col_combo.
-        self.col_tv_model = builder.get_object("col_value")
+        self.col_tv_model: Gtk.ListStore = builder.get_object("col_value")
         col_tv_r = Gtk.CellRendererText()
         self.col_tv_c = Gtk.TreeViewColumn()
         self.col_tv_c.pack_start(col_tv_r, True)
         self.col_tv_c.add_attribute(col_tv_r, "text", 0)
         self.col_tv_c.set_clickable(False)
         #
-        self.col_treeview = builder.get_object("col_treeview")
+        self.col_treeview: Gtk.TreeView = builder.get_object("col_treeview")
         self.col_treeview.append_column(self.col_tv_c)
         self.col_treeview.unset_rows_drag_dest()
         self.col_treeview.unset_rows_drag_source()
         self.col_treeview.set_reorderable(True)
 
         # entry widget for new user entries. Text entered here is meant to added to a Track's metadata.
-        self.new_value_entry = builder.get_object("new_value_entry")
+        self.new_value_entry: Gtk.Entry = builder.get_object("new_value_entry")
 
         # combo to let user select column to edit. The selections are metadata keys. eg title, author, length, etc
-        col_combo = builder.get_object("col_combo")
+        col_combo: Gtk.ComboBoxText = builder.get_object("col_combo")
         col_combo.set_entry_text_column(0)
         # add list of displayed columns to combo entries (metadata keys).
         for i, column in enumerate(book_view_columns.display_cols):
