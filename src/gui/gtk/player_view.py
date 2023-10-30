@@ -299,6 +299,7 @@ class PlayerButtonPlayPauseVC:
             self.button_state = 'play'
             self.view.set_image(self.play_image)
 
+
 class PlayerPositionDisplayVC:
     """
     Controls the view of a display for showing the current track position
@@ -333,7 +334,7 @@ class PlayerPositionDisplayVC:
 
         # This holds the most recently updated playback position sent from PlayerC.
         # Used to update the self.cur_position_label without updating the scrollbar itself.
-        self.buffered_scrollbar_value: int = 0
+        self.buffered_scale_value: int = 0
         self.scale_drag_in_progress: bool = False
 
         self._deactivate()
@@ -342,39 +343,39 @@ class PlayerPositionDisplayVC:
         """
         Caallback for when the escape key is pressed while dragging the slider.
 
-        Allow scrollbar to abort a position change gracefully.
+        Esc: Allow scrollbar to abort a position change gracefully.
         """
         if event.keyval == Gdk.KEY_Escape:
             self.scale_drag_in_progress = False
-            self.scale.set_value(self.buffered_scrollbar_value)
-            self.scale.set_draw_value(False)
+            self.scale.set_value(self.buffered_scale_value)
             self.scale.clear_marks()
+            self.scale.set_draw_value(False)
 
     def on_g_button_released(self, *_) -> None:
         """
         Callback for when the gtk scale slider is released.
         """
         self.logger.debug('on_g_button_released')
-        self.scale_drag_in_progress = False
-        self.scale.set_draw_value(False)
-        self.scale.clear_marks()
+        if self.scale_drag_in_progress:
+            self.scale_drag_in_progress = False
+            self.scale.set_draw_value(False)
+            self.scale.clear_marks()
 
-        new_position = self.scale.get_value()
-        self.transmitter.send('go_to_position', new_position)
-
+            new_position = self.scale.get_value()
+            self.transmitter.send('go_to_position', new_position)
 
     def on_stream_updated(self, stream_data: StreamData) -> None:
         """
         Set the scale and other widgits to active state
         """
         self.logger.debug('on_stream_updated')
-        self.buffered_scrollbar_value = stream_data.position_data.time.get_time('ms') / 1000
+        self.buffered_scale_value = stream_data.position_data.time.get_time('ms') / 1000
 
         self.duration_label.set_text(str(stream_data.duration.get_time('s')))
-        self.cur_position_label.set_text(str(int(self.buffered_scrollbar_value)))
+        self.cur_position_label.set_text(str(int(self.buffered_scale_value)))
 
         self.scale.set_range(0, stream_data.duration.get_time('s'))
-        self.scale.set_value(self.buffered_scrollbar_value)
+        self.scale.set_value(self.buffered_scale_value)
         self.scale.set_sensitive(True)
 
         self.cur_position_label.set_sensitive(True)
@@ -424,10 +425,10 @@ class PlayerPositionDisplayVC:
         # Truncate the position for the label to keep the display clean,
         # but use ms to set the scale's value. This prevents the slider from
         # jumping back a couple pixels after dragging the slider.
-        self.buffered_scrollbar_value = position.get_time('ms') / 1000
-        self.cur_position_label.set_text(str(int(self.buffered_scrollbar_value)))
+        self.buffered_scale_value = position.get_time('ms') / 1000
+        self.cur_position_label.set_text(str(int(self.buffered_scale_value)))
         if not self.scale_drag_in_progress:
-            self.scale.set_value(self.buffered_scrollbar_value)
+            self.scale.set_value(self.buffered_scale_value)
 
     def on_playlist_loaded(self, book_data: BookData) -> None:
         """Update the playlist title label."""
@@ -441,4 +442,67 @@ class PlayerPositionDisplayVC:
         """
         self.scale_drag_in_progress = True
         self.scale.set_draw_value(True)
-        self.scale.add_mark(self.scale.get_value(), Gtk.PositionType.TOP)
+        value = self.scale.get_value()
+        self.scale.add_mark(value, Gtk.PositionType.TOP)  # , str(value)
+
+
+class PlayerButtonInfoVC:
+    """
+    Controls the view of a button widgit that controls the display of for a track information.
+
+    Includes a stream information dialog that displays the stream's tag information.
+    """
+    _logger = logging.getLogger(f'{__name__}.PlayerButtonInfoVC')
+
+    def __init__(self,
+                 component_transmitter: signal_.Signal,
+                 controller_transmitter: signal_.Signal,
+                 builder: Gtk.Builder):
+        self.transmitter = component_transmitter
+
+        self._view: Gtk.Button = builder.get_object('player_button_stream_info')
+        self._view.connect('button-release-event', self._on_info_button_released)
+
+        self._info_dialog: Gtk.Dialog = builder.get_object('stream_info_dialog')
+        self._info_dialog.connect('delete-event', self._close_dialog)
+
+        self._info_dialog_text_area: Gtk.TextView = builder.get_object('stream_info_dialog_text_view')
+        self._info_dialog_text_buffer: Gtk.TextBuffer = self._info_dialog_text_area.get_buffer()
+
+        self._info_dialog_ok_button: Gtk.Button = builder.get_object('stream_info_dialog_ok_button')
+        self._info_dialog_ok_button.connect('clicked', self._close_dialog)
+
+        controller_transmitter.connect('stream_updated', self._activate)
+        controller_transmitter.connect('playlist_unloaded', self._deactivate)
+
+        self._deactivate()
+
+    def _close_dialog(self, *_) -> None:
+        """
+        Close the stream information dialog.
+        """
+        self._logger.debug('dialog_hide')
+        self._info_dialog.hide()
+
+    def _on_info_button_released(self, *_) -> None:
+        """
+        Callback for when the gtk button is released.
+        """
+        self._logger.debug('on_button_released')
+        self._info_dialog.show_all()
+        self._info_dialog.run()
+
+    def _activate(self, stream_data: player.StreamData) -> None:
+        """
+        Set the button to active state
+        """
+        self._logger.debug('activate')
+        self._info_dialog_text_buffer.set_text(stream_data.stream_info)
+        self._view.set_sensitive(True)
+
+    def _deactivate(self) -> None:
+        """
+        Set the button to inactive state.
+        """
+        self._logger.debug('deactivate')
+        self._view.set_sensitive(False)

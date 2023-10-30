@@ -37,6 +37,8 @@ This module controls the playback of playlists.
 
 from __future__ import annotations
 import pathlib
+import io
+import numbers
 import logging
 from enum import Enum
 from dataclasses import dataclass
@@ -46,10 +48,11 @@ from typing import Literal
 import collections
 import gi
 gi.require_version('Gst', '1.0')
+gi.require_version('GstPbutils', '1.0')
 # gi.require_version('Gtk', '3.0')
 # gi.require_version('GdkX11', '3.0')
 # gi.require_version('GstVideo', '1.0')
-from gi.repository import Gst, GLib
+from gi.repository import Gst, GLib, GstPbutils
 from lock_wrapper import Lock
 import audio_book_tables
 import signal_
@@ -236,7 +239,7 @@ class SeekTime(Enum):
     REVERSE_LONG = StreamTime(-30, 's')
     REVERSE_SHORT = StreamTime(-5, 's')
 
-
+# Disabling because this a base class and the args are used in the implementation classes.
 class Player:  # pylint: disable=unused-argument
     """The base class for the media player model."""
 
@@ -462,6 +465,7 @@ class Player:  # pylint: disable=unused-argument
         """
         self.logger.debug('_on_stream_loaded')
         self.stream_data.duration = self.player_adapter.query_duration()
+        self.stream_data.stream_info = self.player_adapter.query_stream_info()
         self.transmitter.send('stream_updated')
 
     def _on_time_updated(self, position: StreamTime) -> None:
@@ -669,6 +673,11 @@ class PlayerC:
             controller_transmitter=self.transmitter,
             builder=builder
         )
+        self.player_button_info = player_view.PlayerButtonInfoVC(
+            component_transmitter=self.component_transmitter,
+            controller_transmitter=self.transmitter,
+            builder=builder
+        )
 
         self.player = Player()
         self.player.transmitter.connect('stream_updated', self.on_stream_updated)
@@ -872,7 +881,14 @@ class GstPlayer:
         self.stream_tasks.add_subtask('seek')
         self.stream_tasks.add_subtask('state_change')
         self.stream_tasks.add_subtask('load_stream')
+        self.stream_tasks.add_subtask('gather_stream_info')
         self.stream_tasks.transmitter.connect('meta_task_complete', self.transmitter.send, 'stream_ready')
+
+        self._stream_info = GstStreamInfo()
+        self._stream_info.transmitter.connect('stream_info_ready',
+                                             self.stream_tasks.end_subtask,
+                                             'gather_stream_info')
+
 
     @staticmethod
     def _g_idle_add_once(callback, *cb_args, **g_kwargs):
@@ -898,7 +914,8 @@ class GstPlayer:
             self._init_pipeline(stream_data)
             self._init_message_bus()
             self._set_state(state=Gst.State.PAUSED)
-            for task in ('duration_ready', 'load_stream', 'start_position_set'):
+            self._stream_info.gather(self.get_uri_from_path(stream_data.path))
+            for task in ('duration_ready', 'load_stream', 'start_position_set', 'gather_stream_info'):
                 self.stream_tasks.begin_subtask(task)
             GLib.idle_add(self._load_stream_controller, stream_data.position_data.time)
             return True
@@ -1178,6 +1195,19 @@ class GstPlayer:
                 bus.disconnect_by_func(self._on_state_change_complete)
                 self.stream_tasks.end_subtask('state_change')
 
+    def query_stream_info(self) -> str | None:
+        """
+        Get GstPlayer's GstStreamInfo string that is
+        generated during the loading of a stream.
+
+        Returns string containing stream metadata.
+
+        Raises: GstPlayerError if GstPlayer is busy.
+        """
+        if not self.stream_tasks.running():
+            return self._stream_info.get_stream_info()
+        raise GstPlayerError('Failed to query stream info.')
+
     def query_position(self) -> StreamTime:
         """
         Attempt to query the pipeline's position in the stream.
@@ -1307,6 +1337,14 @@ class GstPlayerA:
         else:
             self._queued_position[2].set_time(position.get_time())
 
+    def query_stream_info(self) -> str | None:
+        """
+        Query the stream info stream from GstPlayer.
+
+        Returns string containing stream metadata.
+        """
+        return self._gst_player.query_stream_info()
+
     def query_duration(self) -> StreamTime:
         """
         Query the duration from GstPlayer.
@@ -1331,3 +1369,164 @@ class GstPlayerA:
                     current_position
                 )
         return current_position
+
+
+class GstStreamInfoError(Exception):
+    """Exception raised by GstStreamInfo"""
+
+
+class GstStreamInfo:
+    """
+    Note: The way that this class collects stream information is taken directly from the Gstreamer tutorial:
+        Basic tutorial 9: Media information gathering
+
+        https://gstreamer.freedesktop.org/documentation/tutorials/basic/media-information-gathering.html
+    """
+    logger = logging.getLogger(f'{__name__}.GstStreamInfo')
+
+    def __init__(self) -> None:
+        self.transmitter = signal_.Signal()
+        self.transmitter.add_signal('stream_info_ready')
+
+        self._discoverer: GstPbutils.Discoverer  = GstPbutils.Discoverer.new(5 * Gst.SECOND)
+        self._discoverer.connect('finished', self._on_discovery_finished)
+        self._discoverer.connect('discovered', self._on_discovered)
+
+        self._stream_info: io.StringIO | None = None
+        self._n_discovered_streams = 0
+
+    def _on_discovery_finished(self, *_) -> None:
+        """
+        All metadata has been processed. Stop the discoverer.
+        """
+        self._n_discovered_streams = 0
+        self._discoverer.stop()
+        self.transmitter.send('stream_info_ready')
+
+    def _on_discovered(self,
+                       _: GstPbutils.Discoverer,
+                       info: GstPbutils.DiscovererInfo,
+                       __: GLib.Error,
+                       *___) -> None:
+        """
+        Begin aggregating the discovered metadata.
+        """
+        result = info.get_result()
+        if result != GstPbutils.DiscovererResult.OK:
+            match result:
+                case GstPbutils.DiscovererResult.URI_INVALID:
+                    self._stream_info.write('URI INVALID')
+                case GstPbutils.DiscovererResult.ERROR:
+                    self._stream_info.write('ERROR')
+                case GstPbutils.DiscovererResult.TIMEOUT:
+                    self._stream_info.write('TIMEOUT')
+                case GstPbutils.DiscovererResult.BUSY:
+                    self._stream_info.write('GstStreamer BUSY')
+                case GstPbutils.DiscovererResult.MISSING_PLUGINS:
+                    self._stream_info.write('GstStreamer BUSYMISSING PLUGINS')
+            return
+
+        self._n_discovered_streams += 1
+        self._stream_info.write(f'Stream {self._n_discovered_streams}:\n')
+        self._stream_info.write(f'    uri: {info.get_uri()}\n')
+
+        tags: Gst.TagList = info.get_tags()
+        tags.foreach(self._parse_tags, 1)
+
+        stream_info: GstPbutils.DiscovererStreamInfo = info.get_stream_info()
+        if stream_info is not None:
+            self._parse_topology(stream_info, depth=1)
+
+    def _parse_tags(self,
+                    tag_list_pointer: Gst.TagList,
+                    key: str,
+                    depth: int) -> None:
+        """
+        Format the metadata tags before writing them to the info string buffer.
+        """
+        success, gval = tag_list_pointer.copy_value(tag_list_pointer, key)
+        if not success:
+            raise GstStreamInfoError(f'Tag does not exist in the given list, {tag_list_pointer}')
+
+        tag_string = None
+        if isinstance(gval, str):
+            tag_string = f'{"    " * depth}{key}: {gval}\n'
+
+        elif isinstance(gval, Gst.Sample):
+            # The tutorial says to do Gst.value_serialize(gval),
+            # buts it's just binary data not appropriate for display
+            if key == 'image':
+                self.logger.info('Images embedded in tags not supported')
+            elif key == 'private-id3v2-frame':
+                self.logger.info('private-id3v2-frame in tags not supported')
+
+        elif isinstance(gval, numbers.Number):
+            if key == 'duration':
+                duration = StreamTime(gval, 'ns')
+                hours = duration.get_clock_value('h')
+                minutes = duration.get_clock_value('m')
+                seconds = duration.get_clock_value('s')
+                tag_string = f'{"    " * depth}{key}: {hours:02}:{minutes:02}:{seconds:02}\n'
+            else:
+                tag_string = f'{"    " * depth}{key}: {gval}\n'
+
+        elif isinstance(gval, Gst.DateTime):
+            tag_string = f'{"    " * depth}{key}: {gval.to_iso8601_string()}\n'
+
+        else:
+            self.logger.info('_parse_tags: No handler for tag %s: %s', key, gval)
+
+        if tag_string is not None:
+            self._stream_info.write(tag_string)
+
+    def _parse_topology(self, info: GstPbutils.DiscovererStreamInfo, depth: int) -> None:
+        """
+        Gather information regarding a stream and its substreams, if any
+        """
+        if info is None:
+            return
+        self._parse_stream_info(info, depth)
+        nxt = info.get_next()
+        if nxt is not None:
+            self._parse_topology(nxt, depth + 1)
+        elif isinstance(info, GstPbutils.DiscovererContainerInfo):
+            streams = info.get_streams()
+            for stream in streams:
+                self._parse_topology(stream, depth + 1)
+
+    def _parse_stream_info(self, info: GstPbutils.DiscovererStreamInfo, depth: int) -> None:
+        """
+        Get the stream/codec information.
+        """
+        codec_description = ""
+        stream_type = info.get_stream_type_nick()
+        tags: Gst.TagList = info.get_tags()
+        caps: Gst.Caps = info.get_caps()
+
+        if caps is not None:
+            if caps.is_fixed():
+                codec_description = GstPbutils.pb_utils_get_codec_description(caps)
+            else:
+                codec_description = caps.to_string()
+
+        self._stream_info.write(f'{"    " * depth}{stream_type}: {codec_description}\n')
+
+        if tags is not None:
+            tags.foreach(self._parse_tags, depth + 1)
+
+    def gather(self, stream_uri: str) -> None:
+        """
+        Start the stream discovery process.
+        """
+        self._stream_info = io.StringIO()
+        self._discoverer.start()
+        self._discoverer.discover_uri_async(stream_uri)
+
+    def get_stream_info(self) -> str | None:
+        """
+        Get the stream info string gathered by GstStreamInfo.
+
+        Returns: stream info string or None if the stream information
+                has not been gathered to build the string.
+        """
+        return self._stream_info.getvalue() if self._stream_info is not None else None
