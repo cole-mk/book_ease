@@ -54,7 +54,7 @@ class PlayerButtonNextVC:
                  controller_transmitter: signal_.Signal,
                  builder: Gtk.Builder):
 
-        self.view = builder.get_object('player_button_next')
+        self.view: Gtk.Button = builder.get_object('player_button_next')
         self.transmitter = component_transmitter
         controller_transmitter.connect('stream_updated', self.activate)
         controller_transmitter.connect('playlist_unloaded', self.deactivate)
@@ -94,7 +94,7 @@ class PlayerButtonPreviousVC:
                  controller_transmitter: signal_.Signal,
                  builder: Gtk.Builder):
 
-        self.view = builder.get_object('player_button_previous')
+        self.view: Gtk.Button = builder.get_object('player_button_previous')
         self.transmitter = component_transmitter
         controller_transmitter.connect('stream_updated', self.activate)
         controller_transmitter.connect('playlist_unloaded', self.deactivate)
@@ -133,7 +133,7 @@ class PlayerButtonForwardVC:
                  controller_transmitter: signal_.Signal,
                  builder: Gtk.Builder):
 
-        self.view = builder.get_object('player_button_forward')
+        self.view: Gtk.Button = builder.get_object('player_button_forward')
         self.transmitter = component_transmitter
         controller_transmitter.connect('stream_updated', self.activate)
         controller_transmitter.connect('playlist_unloaded', self.deactivate)
@@ -173,7 +173,7 @@ class PlayerButtonRewindVC:
                  controller_transmitter: signal_.Signal,
                  builder: Gtk.Builder):
 
-        self.view = builder.get_object('player_button_rewind')
+        self.view: Gtk.Button = builder.get_object('player_button_rewind')
         self.transmitter = component_transmitter
         controller_transmitter.connect('stream_updated', self.activate)
         controller_transmitter.connect('playlist_unloaded', self.deactivate)
@@ -213,7 +213,7 @@ class PlayerButtonStopVC:
                  controller_transmitter: signal_.Signal,
                  builder: Gtk.Builder):
 
-        self.view = builder.get_object('player_button_stop')
+        self.view: Gtk.Button = builder.get_object('player_button_stop')
         self.transmitter = component_transmitter
         controller_transmitter.connect('stream_updated', self.activate)
         controller_transmitter.connect('playlist_unloaded', self.deactivate)
@@ -252,7 +252,7 @@ class PlayerButtonPlayPauseVC:
                  component_transmitter: signal_.Signal,
                  controller_transmitter: signal_.Signal,
                  builder: Gtk.Builder):
-        self.view = builder.get_object('player_button_play_pause')
+        self.view: Gtk.Button = builder.get_object('player_button_play_pause')
         self.transmitter = component_transmitter
 
         controller_transmitter.connect('stream_updated', self.activate)
@@ -262,8 +262,8 @@ class PlayerButtonPlayPauseVC:
         self.view.connect('button-release-event', self.on_button_released)
         self.deactivate()
 
-        self.play_image = builder.get_object('image_media_play')
-        self.pause_image = builder.get_object('image_media_pause')
+        self.play_image: Gtk.Image = builder.get_object('image_media_play')
+        self.pause_image: Gtk.Image = builder.get_object('image_media_pause')
         self.button_state = 'play'
 
     def on_button_released(self, *_) -> None:
@@ -312,11 +312,11 @@ class PlayerPositionDisplayVC:
                  controller_transmitter: signal_.Signal,
                  builder: Gtk.Builder):
 
-        self.scale = builder.get_object('player_playback_position_scale')
-        self.duration_label = builder.get_object('player_label_duration')
-        self.cur_position_label = builder.get_object('player_label_cur_pos')
-        self.playlist_title_label = builder.get_object('player_label_playlist_title')
-        self.track_file_name_label = builder.get_object('player_label_track_file_name')
+        self.scale: Gtk.Scale = builder.get_object('player_playback_position_scale')
+        self.duration_label: Gtk.Label = builder.get_object('player_label_duration')
+        self.cur_position_label: Gtk.Label = builder.get_object('player_label_cur_pos')
+        self.playlist_title_label: Gtk.Label = builder.get_object('player_label_playlist_title')
+        self.track_file_name_label: Gtk.Label = builder.get_object('player_label_track_file_name')
 
         self.transmitter = component_transmitter
 

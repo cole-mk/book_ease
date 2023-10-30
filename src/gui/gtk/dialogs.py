@@ -44,7 +44,7 @@ class EditTrackDialog:
 
         builder = Gtk.Builder()
         builder.add_from_file("gui/gtk/BookViewDialogs.glade")
-        self.dialog = builder.get_object("edit_row_dialog")
+        self.dialog: Gtk.Dialog = builder.get_object("edit_row_dialog")
 
         # buttons
         add_button = builder.get_object("add_button")

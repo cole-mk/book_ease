@@ -54,11 +54,11 @@ class PinnedBooksV(Gtk.Box):  # pylint: disable=too-few-public-methods
         # the topmost box in the glade file; add it to self
         self.pack_start(builder.get_object('pinned_view'), expand=True, fill=True, padding=0)
         # create the view
-        self.pinned_list_tree_view = builder.get_object('pinned_list_tree_view')
+        self.pinned_list_tree_view: Gtk.TreeView = builder.get_object('pinned_list_tree_view')
         self.init_tree_view_columns(pinned_cols)
         # Create the control buttons and connect to their clicked signals.
-        self.open_button = builder.get_object('open_button')
-        self.remove_button = builder.get_object('remove_button')
+        self.open_button: Gtk.Button = builder.get_object('open_button')
+        self.remove_button: Gtk.Button = builder.get_object('remove_button')
 
     def init_tree_view_columns(self, pinned_cols: pinned_books.PinnedCols):
         """Initialize the treeview columns to be used by the treeview"""
@@ -185,12 +185,12 @@ class PinnedButtonV:  # pylint: disable=too-few-public-methods
     display a Gtk.CheckButton to control wether or not a book is pinned
     """
 
-    def __init__(self, book_view_builder):
+    def __init__(self, book_view_builder: Gtk.Builder):
         """
         Initialize a Gtk.CheckButton and encapsulate it in a Gtk.Box
         playlist_id: the id of the book that this button is associated with
         """
-        self.pinned_button = book_view_builder.get_object('pinned_button')
+        self.pinned_button: Gtk.CheckButton = book_view_builder.get_object('pinned_button')
 
 
 class PinnedButtonVC:

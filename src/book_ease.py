@@ -379,12 +379,12 @@ class Image_View:
         suffix = '.*.\\' + suffix.strip() + '$'
         f_type_regexes.append(re.compile(suffix))
 
-    def __init__(self, files, builder):
+    def __init__(self, files, builder: Gtk.Builder):
         self.image_view_section = 'image_view'
         self.files = files
         self.builder = builder
-        self.image_view = builder.get_object("image_view")
-        self.image_view_da = builder.get_object("image_view_da")
+        self.image_view: Gtk.Box = builder.get_object("image_view")
+        self.image_view_da: Gtk.DrawingArea = builder.get_object("image_view_da")
         self.image_view_da.connect("draw", self.on_draw)
         self.image_view_da.connect('configure-event', self.on_configure)
         self.pixbuf = Pixbuf.new_from_file("python.jpg")
@@ -778,7 +778,7 @@ class MainWindow(Gtk.Window):
     """The main display window"""
     SettingsNumericDBI = book_ease_tables.SettingsNumericDBI
 
-    def __init__(self, book_reader_window, window_pane, builder):
+    def __init__(self, book_reader_window, window_pane, builder: Gtk.Builder):
         self.book_reader_window = book_reader_window
         self.window_pane = window_pane
 
@@ -787,31 +787,31 @@ class MainWindow(Gtk.Window):
         # put the visibility switches in a set, so they can be iterated over when saving and retrieving values
         # from the database.
         self.visibility_switches = set()
-        show_files_switch1 = builder.get_object("show_files_switch1")
+        show_files_switch1: Gtk.Switch = builder.get_object("show_files_switch1")
         show_files_switch1.connect('state-set', self.on_visibility_switch_changed)
         self.visibility_switches.add(show_files_switch1)
-        self.file_manager1 = builder.get_object("file_manager1")
+        self.file_manager1: Gtk.Paned = builder.get_object("file_manager1")
         #
-        show_files_switch2 = builder.get_object("show_files_switch2")
+        show_files_switch2: Gtk.Switch = builder.get_object("show_files_switch2")
         show_files_switch2.connect('state-set', self.on_visibility_switch_changed)
         self.visibility_switches.add(show_files_switch2)
-        self.file_manager2 = builder.get_object("file_manager2")
+        self.file_manager2: Gtk.Paned = builder.get_object("file_manager2")
         #
-        show_playlist_switch = builder.get_object("show_playlist_switch")
+        show_playlist_switch: Gtk.Switch = builder.get_object("show_playlist_switch")
         show_playlist_switch.connect('state-set', self.on_visibility_switch_changed)
         self.visibility_switches.add(show_playlist_switch)
-        self.book_reader_view = builder.get_object("book_reader_view")
+        self.book_reader_view: Gtk.Box = builder.get_object("book_reader_view")
         #
-        self.image_view = builder.get_object("image_view")
-        show_image_switch = builder.get_object("show_image_switch")
+        self.image_view: Gtk.Box = builder.get_object("image_view")
+        show_image_switch: Gtk.Switch = builder.get_object("show_image_switch")
         show_image_switch.connect('state-set', self.on_visibility_switch_changed)
         self.visibility_switches.add(show_image_switch)
         # file_manager_pane
-        self.file_manager_pane = builder.get_object("file_manager_pane")
+        self.file_manager_pane: Gtk.Paned = builder.get_object("file_manager_pane")
         if file_manager_pane_pos := self.SettingsNumericDBI.get('book_reader_window', 'file_manager_pane_pos'):
             self.file_manager_pane.set_position(file_manager_pane_pos)
         # book_reader_pane
-        self.book_reader_pane = builder.get_object("book_reader_pane")
+        self.book_reader_pane: Gtk.Paned = builder.get_object("book_reader_pane")
         # set saved state
         if book_reader_pane_pos := self.SettingsNumericDBI.get('book_reader_window', 'book_reader_pane_pos'):
             self.book_reader_pane.set_position(book_reader_pane_pos)
