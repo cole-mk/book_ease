@@ -435,7 +435,10 @@ class PlayerPositionDisplayVC:
         self.playlist_title_label.set_text(book_data.playlist_data.get_title())
         self.playlist_title_label.set_sensitive(True)
 
-    def on_g_button_pressed(self, *args) -> None:
+    def on_g_button_pressed(self,
+                            _:Gtk.Scale,
+                            __:Gdk.EventButton,
+                            *___) -> None:
         """
         Popup the popover that displays a potential new playback position
         as the scale slider is being drug by the user.
