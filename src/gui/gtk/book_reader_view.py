@@ -72,9 +72,9 @@ class BookReaderV:  # pylint: disable=too-few-public-methods
         self.builder = Gtk.Builder()
         glade_path = pathlib.Path.cwd() / 'gui' / 'gtk' / 'book_reader.glade'
         self.builder.add_from_file(str(glade_path))
-        book_reader_view = self.builder.get_object('book_reader_view')
+        book_reader_view: Gtk.Box = self.builder.get_object('book_reader_view')
         # Load the container from the book_view_builder into which the BookReader view will be displayed.
-        book_view_container = book_view_builder.get_object('book_reader_view')
+        book_view_container: Gtk.Box = book_view_builder.get_object('book_reader_view')
         book_view_container.pack_start(book_reader_view, expand=True, fill=True, padding=0)
 
 
@@ -92,10 +92,10 @@ class ExistingBookOpenerV:
         self.transmitter = signal_.Signal()
         self.transmitter.add_signal('open_book')
         # has_book_box notification
-        self.has_book_box = gui_builder.get_object('has_book_box')
+        self.has_book_box: Gtk.Box = gui_builder.get_object('has_book_box')
         self.has_book_box.set_no_show_all(True)
-        self.open_book_btn = gui_builder.get_object('open_book_btn')
-        self.has_book_combo = gui_builder.get_object('has_book_combo')
+        self.open_book_btn: Gtk.Button = gui_builder.get_object('open_book_btn')
+        self.has_book_combo: Gtk.ComboBox = gui_builder.get_object('has_book_combo')
         renderer_text = Gtk.CellRendererText()
         self.has_book_combo.pack_start(renderer_text, True)
         self.has_book_combo.add_attribute(renderer_text, "text", ExistingBookOpenerM.pl_title['g_col'])
@@ -165,7 +165,7 @@ class NewBookOpenerV:
         self.transmitter = signal_.Signal()
         self.transmitter.add_signal('open_book')
 
-        self.has_new_media_box = gui_builder.get_object('has_new_media_box')
+        self.has_new_media_box: Gtk.Box = gui_builder.get_object('has_new_media_box')
         self.has_new_media_box.set_no_show_all(True)
 
         self.create_book_btn = gui_builder.get_object('create_book_btn')
@@ -188,7 +188,7 @@ class StartPageV:
     """Gtk view of the start page"""
 
     def __init__(self, gui_builder: Gtk.Builder):
-        self.view = gui_builder.get_object('start_page')
+        self.view: Gtk.Box = gui_builder.get_object('start_page')
         self.tab_label = Gtk.Label()
 
     def add_view(self, view: Gtk.Widget):
@@ -212,7 +212,7 @@ class NoteBookV:  # pylint: disable=too-few-public-methods
     """Gtk view of the book_reader.NoteBook"""
 
     def __init__(self, gui_builder: Gtk.Builder):
-        self.note_book = gui_builder.get_object('note_book')
+        self.note_book: Gtk.Notebook = gui_builder.get_object('note_book')
 
     def append_page(self,
                     view: Gtk.Widget,

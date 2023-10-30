@@ -48,17 +48,13 @@ class BookV:
         self.book_view_builder = Gtk.Builder()
         self.book_view_builder.add_from_file(str(self.glade_path))
         # the topmost box in the glade file; add it to self
-        self.book_v_box = self.book_view_builder.get_object('book_v_box')
-
-        # the components of a book view
-        self.pinned_v_box = self.book_view_builder.get_object('pinned_v_box')
+        self.book_v_box: Gtk.Box = self.book_view_builder.get_object('book_v_box')
 
     def close(self):
         """close all gui components in preperation for this object to close"""
         self.book_v_box.destroy()
-        #self.pinned_v_box.destroy()
 
-    def get_gui_builder(self) -> 'Gtk.builder':
+    def get_gui_builder(self) -> Gtk.Builder:
         """return the gtk.builder object"""
         return self.book_view_builder
 
@@ -86,14 +82,14 @@ class BookVC:
 class TitleV:
     """display the book title"""
 
-    def __init__(self, book_view_builder):
+    def __init__(self, book_view_builder: Gtk.Builder):
         # the topmost box in the glade file; add it to self
-        self.title_view = book_view_builder.get_object('title_v_box')
+        self.title_view: Gtk.Box = book_view_builder.get_object('title_v_box')
         # The label used to display the title of the book
-        self.title_label = book_view_builder.get_object('title_label')
+        self.title_label: Gtk.Label = book_view_builder.get_object('title_label')
         self.title_label.set_max_width_chars(40)
         # The entry that allows the user to change the title of the book
-        self.title_entry = book_view_builder.get_object('title_entry')
+        self.title_entry: Gtk.Entry = book_view_builder.get_object('title_entry')
         self.title_entry.set_max_width_chars(40)
 
     def close(self):
@@ -160,9 +156,9 @@ class ControlBtnV:
     """display the control buttons"""
 
     def __init__(self, book_view_builder):
-        self.save_button = book_view_builder.get_object('save_button')
-        self.cancel_button = book_view_builder.get_object('cancel_button')
-        self.edit_button = book_view_builder.get_object('edit_button')
+        self.save_button: Gtk.Button = book_view_builder.get_object('save_button')
+        self.cancel_button: Gtk.Button = book_view_builder.get_object('cancel_button')
+        self.edit_button: Gtk.Button = book_view_builder.get_object('edit_button')
 
     def get_save_button(self):
         """get the save button object"""
@@ -244,7 +240,7 @@ class ControlBtnVC:
 class  PlaylistV:
     """dislay the playlist in a Gtk.Treeview"""
 
-    def __init__(self, display_columns, book_view_builder):
+    def __init__(self, display_columns, book_view_builder: Gtk.Builder):
         # Relay Gtk signals back to a controller
         self.transmitter = signal_.Signal()
         self.transmitter.add_signal('col_header_clicked')
@@ -253,7 +249,7 @@ class  PlaylistV:
         self.transmitter.add_signal('edited')
         self.transmitter.add_signal('editing-canceled')
         # display the playlist in a gtk treeview
-        self.playlist_view = book_view_builder.get_object('playlist_view')
+        self.playlist_view: Gtk.TreeView = book_view_builder.get_object('playlist_view')
         self.playlist_view.set_reorderable(True)
         self.playlist_view.connect('button-release-event', self.on_button_release)
 
@@ -382,7 +378,7 @@ class PlaylistSortable:
 class PlaylistVC:
     """Controller for the treeview that displays a playlist"""
 
-    def __init__(self, book_, book_transmitter, component_transmitter, book_view_builder):
+    def __init__(self, book_, book_transmitter, component_transmitter, book_view_builder: Gtk.Builder):
         # save a reference to the transmitter that this class uses to send messages bak to BookC
         self.transmitter = component_transmitter
         # subscribe to the signals relevant to this class
