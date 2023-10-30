@@ -448,7 +448,7 @@ class PlayerPositionDisplayVC:
         self.scale_drag_in_progress = True
         self.scale.set_draw_value(True)
         value = self.scale.get_value()
-        self.scale.add_mark(value, Gtk.PositionType.TOP)  # , str(value)
+        self.scale.add_mark(value, Gtk.PositionType.TOP)
 
 
 class PlayerButtonInfoVC:
