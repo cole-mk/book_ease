@@ -393,14 +393,16 @@ class PlayerPositionDisplayVC:
         self.buffered_position = stream_data.position_data.time
 
         hour = stream_data.duration.get_clock_value('h')
+        hour_str = f'{hour:02}:' if hour else ''
         min_ = stream_data.duration.get_clock_value('m')
         sec = stream_data.duration.get_clock_value('s')
-        self.duration_label.set_text(f'{hour:02}:{min_:02}:{sec:02}')
+        self.duration_label.set_text(hour_str + f'{min_:02}:{sec:02}')
 
         hour = self.buffered_position.get_clock_value('h')
+        hour_str = f'{hour:02}:' if hour else ''
         min_ = self.buffered_position.get_clock_value('m')
         sec = self.buffered_position.get_clock_value('s')
-        self.cur_position_label.set_text(f'{hour:02}:{min_:02}:{sec:02}')
+        self.cur_position_label.set_text(hour_str + f'{min_:02}:{sec:02}')
 
         self.scale.set_range(0, stream_data.duration.get_time('s'))
         self.scale.set_value(self.buffered_position.get_time("ms") / 1000)
@@ -410,6 +412,7 @@ class PlayerPositionDisplayVC:
         self.duration_label.set_sensitive(True)
 
         self.track_file_name_label.set_text(Path(stream_data.path).name)
+        self.track_file_name_label.set_tooltip_text(Path(stream_data.path).name)
         self.track_file_name_label.set_sensitive(True)
 
     def on_playlist_unloaded(self) -> None:
@@ -426,7 +429,9 @@ class PlayerPositionDisplayVC:
         self.cur_position_label.set_text('')
         self.duration_label.set_text('')
         self.playlist_title_label.set_text('')
+        self.playlist_title_label.set_has_tooltip(False)
         self.track_file_name_label.set_text('')
+        self.track_file_name_label.set_has_tooltip(False)
 
         self.scale.set_sensitive(False)
         self.cur_position_label.set_sensitive(False)
@@ -455,9 +460,10 @@ class PlayerPositionDisplayVC:
         # jumping back a couple pixels after dragging the slider.
         self.buffered_position = position
         hour = self.buffered_position.get_clock_value('h')
+        hour_str = f'{hour:02}:' if hour else ''
         min_ = self.buffered_position.get_clock_value('m')
         sec = self.buffered_position.get_clock_value('s')
-        self.cur_position_label.set_text(f'{hour:02}:{min_:02}:{sec:02}')
+        self.cur_position_label.set_text(hour_str + f'{min_:02}:{sec:02}')
 
         if self.scale_drag_in_progress:
             self.scale.add_mark(self.buffered_position.get_time('ms') / 1000, Gtk.PositionType.TOP)
@@ -467,6 +473,7 @@ class PlayerPositionDisplayVC:
     def on_playlist_loaded(self, book_data: BookData) -> None:
         """Update the playlist title label."""
         self.playlist_title_label.set_text(book_data.playlist_data.get_title())
+        self.playlist_title_label.set_tooltip_text(book_data.playlist_data.get_title())
         self.playlist_title_label.set_sensitive(True)
 
     def on_g_button_pressed(self,
