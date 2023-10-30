@@ -253,48 +253,6 @@ MA 02110-1301, USA.
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <child>
-                  <object class="GtkSwitch" id="show_image_switch">
-                    <property name="name">show_image_switch</property>
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="valign">center</property>
-                    <property name="active">True</property>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">False</property>
-                    <property name="padding">4</property>
-                    <property name="pack_type">end</property>
-                    <property name="position">0</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkLabel">
-                    <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <property name="label" translatable="yes">Image</property>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">True</property>
-                    <property name="pack_type">end</property>
-                    <property name="position">1</property>
-                  </packing>
-                </child>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="padding">4</property>
-                <property name="pack_type">end</property>
-                <property name="position">1</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkBox">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <child>
                   <object class="GtkSwitch" id="show_playlist_switch">
                     <property name="name">show_playlist_switch</property>
                     <property name="visible">True</property>
@@ -319,6 +277,48 @@ MA 02110-1301, USA.
                   <packing>
                     <property name="expand">False</property>
                     <property name="fill">False</property>
+                    <property name="pack_type">end</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="padding">4</property>
+                <property name="pack_type">end</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkBox">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <child>
+                  <object class="GtkSwitch" id="show_image_switch">
+                    <property name="name">show_image_switch</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="valign">center</property>
+                    <property name="active">True</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
+                    <property name="padding">4</property>
+                    <property name="pack_type">end</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="label" translatable="yes">Image</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
                     <property name="pack_type">end</property>
                     <property name="position">1</property>
                   </packing>
@@ -434,7 +434,8 @@ MA 02110-1301, USA.
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
-                <property name="valign">end</property>
+                <property name="tooltip_text" translatable="yes">Go to next track.</property>
+                <property name="valign">center</property>
                 <property name="image">image_media_next</property>
               </object>
               <packing>
@@ -449,6 +450,7 @@ MA 02110-1301, USA.
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
                 <property name="tooltip_text" translatable="yes">Stream Information</property>
+                <property name="valign">center</property>
                 <property name="image">image_media_info</property>
               </object>
               <packing>
@@ -463,7 +465,8 @@ MA 02110-1301, USA.
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
-                <property name="valign">end</property>
+                <property name="tooltip_text" translatable="yes">Play Track.</property>
+                <property name="valign">center</property>
                 <property name="image">image_media_play</property>
                 <property name="always_show_image">True</property>
               </object>
@@ -478,7 +481,8 @@ MA 02110-1301, USA.
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
-                <property name="valign">end</property>
+                <property name="tooltip_text" translatable="yes">Stop Playback.</property>
+                <property name="valign">center</property>
                 <property name="image">image_medi_stop</property>
               </object>
               <packing>
@@ -492,7 +496,8 @@ MA 02110-1301, USA.
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
-                <property name="valign">end</property>
+                <property name="tooltip_text" translatable="yes">Go to previous track.</property>
+                <property name="valign">center</property>
                 <property name="image">image_media_prev</property>
               </object>
               <packing>
@@ -506,7 +511,8 @@ MA 02110-1301, USA.
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
-                <property name="valign">end</property>
+                <property name="tooltip_text" translatable="yes">Skip backwards in a track.</property>
+                <property name="valign">center</property>
                 <property name="image">image_media_rewind</property>
               </object>
               <packing>
@@ -520,7 +526,8 @@ MA 02110-1301, USA.
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
-                <property name="valign">end</property>
+                <property name="tooltip_text" translatable="yes">Skip forward in a track.</property>
+                <property name="valign">center</property>
                 <property name="image">image_media_forward</property>
               </object>
               <packing>
@@ -535,7 +542,23 @@ MA 02110-1301, USA.
                 <property name="can_focus">False</property>
                 <property name="orientation">vertical</property>
                 <child>
-                  <placeholder/>
+                  <object class="GtkLabel" id="player_label_playlist_title">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="valign">start</property>
+                    <property name="margin_left">6</property>
+                    <property name="margin_right">6</property>
+                    <property name="ellipsize">end</property>
+                    <property name="max_width_chars">12</property>
+                    <attributes>
+                      <attribute name="font-desc" value="Sans 8"/>
+                    </attributes>
+                  </object>
+                  <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
                 </child>
                 <child>
                   <object class="GtkScale" id="player_playback_position_scale">
@@ -559,6 +582,7 @@ MA 02110-1301, USA.
                       <object class="GtkLabel" id="player_label_cur_pos">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
+                        <property name="margin_right">12</property>
                         <attributes>
                           <attribute name="font-desc" value="Sans 8"/>
                         </attributes>
@@ -570,22 +594,16 @@ MA 02110-1301, USA.
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkLabel" id="player_label_playlist_title">
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="valign">start</property>
-                      </object>
-                      <packing>
-                        <property name="expand">True</property>
-                        <property name="fill">True</property>
-                        <property name="position">1</property>
-                      </packing>
-                    </child>
-                    <child>
                       <object class="GtkLabel" id="player_label_track_file_name">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
                         <property name="valign">start</property>
+                        <property name="margin_left">6</property>
+                        <property name="margin_right">6</property>
+                        <property name="ellipsize">end</property>
+                        <attributes>
+                          <attribute name="font-desc" value="Sans 8"/>
+                        </attributes>
                       </object>
                       <packing>
                         <property name="expand">True</property>
@@ -597,6 +615,7 @@ MA 02110-1301, USA.
                       <object class="GtkLabel" id="player_label_duration">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
+                        <property name="margin_left">12</property>
                         <attributes>
                           <attribute name="font-desc" value="Sans 8"/>
                         </attributes>
