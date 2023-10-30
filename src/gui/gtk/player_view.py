@@ -427,7 +427,9 @@ class PlayerPositionDisplayVC:
         # jumping back a couple pixels after dragging the slider.
         self.buffered_scale_value = position.get_time('ms') / 1000
         self.cur_position_label.set_text(str(int(self.buffered_scale_value)))
-        if not self.scale_drag_in_progress:
+        if self.scale_drag_in_progress:
+            self.scale.add_mark(self.buffered_scale_value, Gtk.PositionType.TOP)
+        else:
             self.scale.set_value(self.buffered_scale_value)
 
     def on_playlist_loaded(self, book_data: BookData) -> None:
