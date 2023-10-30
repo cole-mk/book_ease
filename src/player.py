@@ -135,6 +135,20 @@ class StreamTime:
             return False
         raise TypeError(f'Cannot compare {StreamTime} and {type(other)}')
 
+    def __ge__(self, other):
+        if isinstance(other, StreamTime):
+            if self._time >= other._time:
+                return True
+            return False
+        raise TypeError(f'Cannot compare {StreamTime} and {type(other)}')
+
+    def __le__(self, other):
+        if isinstance(other, StreamTime):
+            if self._time <= other._time:
+                return True
+            return False
+        raise TypeError(f'Cannot compare {StreamTime} and {type(other)}')
+
     def __add__(self, other):
         if isinstance(other, StreamTime):
             sum_ = self.get_time() + other.get_time()
@@ -486,7 +500,7 @@ class Player:  # pylint: disable=unused-argument
 
     def _go_to_position(self, time_: StreamTime) -> bool:
         """Implementation for self.go_to_position"""
-        if(time_ > StreamTime(0) and time_ < self.stream_data.duration):
+        if(time_ >= StreamTime(0) and time_ < self.stream_data.duration):
             self.player_adapter.set_position(position=time_)
             return True
         else:
