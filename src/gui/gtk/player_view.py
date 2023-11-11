@@ -437,18 +437,17 @@ class PlayerPositionDisplayVC:
         self.cur_position_label.set_sensitive(False)
         self.duration_label.set_sensitive(False)
 
-    def on_g_scrollwheel_event(self, *args) -> None:
+    def on_g_scrollwheel_event(self, _: Gtk.Scale, event: Gdk.EventScroll) -> None:
         """
         Increment playback position when mouse wheel is used to adjust the scrollbar.
         """
-        scrollbar_value = int(self.scale.get_value())
+        scale_value = int(self.scale.get_value())
+        if event.delta_y == 1:
+            scale_value -= 1
+        elif event.delta_y == -1:
+            scale_value += 1
 
-        if args[1].delta_y == 1:
-            scrollbar_value -= 1
-        elif args[1].delta_y == -1:
-            scrollbar_value += 1
-
-        self.transmitter.send('go_to_position', scrollbar_value)
+        self.transmitter.send('go_to_position', scale_value)
 
     def on_position_updated(self, position: StreamTime) -> None:
         """
