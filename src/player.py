@@ -481,7 +481,7 @@ class Player:  # pylint: disable=unused-argument
         self.logger.debug('_on_stream_loaded')
         self.stream_data.duration = self.player_adapter.query_duration()
         self.stream_data.stream_info = self.player_adapter.query_stream_info()
-        self.transmitter.send('stream_updated')
+        self.transmitter.send('stream_updated', self.stream_data)
 
     def _on_time_updated(self, position: StreamTime) -> None:
         """
@@ -645,13 +645,29 @@ class PlayerC:
                                               'go_to_position',
                                               'stop')
 
-        self.component_transmitter.connect('play', self.on_play)
-        self.component_transmitter.connect('pause', self.on_pause)
-        self.component_transmitter.connect('next', self.on_next)
-        self.component_transmitter.connect('previous', self.on_previous)
-        self.component_transmitter.connect('skip_forward_long', self.on_skip_forward_long)
-        self.component_transmitter.connect('skip_reverse_long', self.on_skip_reverse_long)
-        self.component_transmitter.connect('stop', self.on_stop)
+        self.component_transmitter.connect('play', self.component_receiver, pass_sig_data_to_cb=True)
+        self.component_transmitter.connect('pause', self.component_receiver, pass_sig_data_to_cb=True)
+        self.component_transmitter.connect('next', self.component_receiver, pass_sig_data_to_cb=True)
+        self.component_transmitter.connect('previous', self.component_receiver, pass_sig_data_to_cb=True)
+        self.component_transmitter.connect('skip_forward_long', self.component_receiver, pass_sig_data_to_cb=True)
+        self.component_transmitter.connect('skip_reverse_long', self.component_receiver, pass_sig_data_to_cb=True)
+        self.component_transmitter.connect('stop', self.component_receiver, pass_sig_data_to_cb=True)
+        self.component_transmitter.connect('go_to_position', self.component_receiver, pass_sig_data_to_cb=True)
+
+        # The only thing PlayerC does with Player's signals is relay them without any other action,
+        # so a dedicated receiver method would be redundant. Let the transmitter relay the signal.
+        self.player = Player()
+        self.player.transmitter.connect('stream_updated', self.transmitter.send, 'stream_updated')
+        self.player.transmitter.connect('position_updated', self.transmitter.send, 'position_updated')
+        self.player.transmitter.connect('playlist_finished', self.transmitter.send, 'deactivate')
+        self.player.transmitter.connect('player_enter_state', self.transmitter.send, 'player_enter_state')
+        self.player.transmitter.connect('playlist_loaded', self.transmitter.send, 'playlist_loaded')
+        self.player.transmitter.connect('playlist_unloaded', self.transmitter.send, 'playlist_unloaded')
+        self.player.activate()
+
+        self.book_reader.transmitter.connect('book_opened', self.book_reader_receiver, pass_sig_data_to_cb=True)
+        self.book_reader.transmitter.connect('book_closed', self.book_reader_receiver, pass_sig_data_to_cb=True)
+
 
         self.player_button_next = player_view.PlayerButtonNextVC(
             component_transmitter=self.component_transmitter,
@@ -694,19 +710,6 @@ class PlayerC:
             builder=builder
         )
 
-        self.player = Player()
-        self.player.transmitter.connect('stream_updated', self.on_stream_updated)
-        self.player.transmitter.connect('position_updated', self.on_position_updated)
-        self.player.transmitter.connect('playlist_finished', self.on_playlist_finished)
-        self.player.transmitter.connect('player_enter_state', self.transmitter.send, 'player_enter_state')
-        self.player.transmitter.connect('playlist_loaded', self.transmitter.send, 'playlist_loaded')
-        self.player.transmitter.connect('playlist_unloaded', self.transmitter.send, 'playlist_unloaded')
-        self.player.activate()
-        self.book_reader.transmitter.connect('book_opened', self.on_book_opened)
-        self.book_reader.transmitter.connect('book_closed', self.on_book_closed)
-
-        self.component_transmitter.connect('go_to_position', self.component_receiver, pass_sig_data_to_cb=True)
-
     def component_receiver(self, *args, sig_data) -> None:
         """
         Handle signals originating from one of the player control components. eg play button
@@ -717,90 +720,43 @@ class PlayerC:
                 new_position = StreamTime(args[0], 's')
                 self.player.go_to_position(new_position)
 
-    def on_stop(self) -> None:
-        """
-        callback that stops a playlist from playing
-        """
-        self.player.stop()
+            case 'play':
+                if self.player.get_state() is PlayerStateNoPlaylistLoaded:
+                    playlist_data = book.PlaylistData(id_=self.book_reader.get_active_book())
+                    self.player.load_playlist(playlist_data)
+                self.player.play()
 
-    def on_stream_updated(self) -> None:
-        """
-        Relay the signal 'stream_updated'
-        """
-        self.transmitter.send('stream_updated', self.player.stream_data)
+            case 'pause':
+                self.player.pause()
 
-    def on_position_updated(self, position: StreamTime) -> None:
-        """
-        Relay the signal 'position_updated'
-        """
-        self.transmitter.send('position_updated', position)
+            case 'next':
+                self.player.set_track_relative(1)
 
-    def on_book_opened(self, playlist_id: int) -> None:
-        """
-        Determine if Player needs to load its playlist.
-        """
-        self.logger.debug('on_book_opened')
-        if playlist_id is not None and self.player.get_state() is PlayerStateNoPlaylistLoaded:
-            self.player.load_playlist(book.PlaylistData(id_=playlist_id))
+            case 'previous':
+                self.player.set_track_relative(-1)
 
-    def on_book_closed(self, playlist_id: int) -> None:
-        """
-        Determine if Player needs to unload its playlist.
-        """
-        if playlist_id is not None and playlist_id == self.player.book_data.playlist_data.get_id():
-            self.player.unload_playlist()
+            case 'skip_forward_long':
+                self.player.seek(SeekTime.FORWARD_LONG)
 
-    def on_playlist_finished(self) -> None:
-        """
-        Respond to the end of a playlist by sending the signal 'deactivate'.
-        """
-        self.logger.debug('on_playlist_finished')
-        self.transmitter.send('deactivate')
+            case 'skip_reverse_long':
+                self.player.seek(SeekTime.REVERSE_LONG)
 
-    def on_play(self) -> None:
-        """
-        callback that starts a playlist playing
-        """
-        self.logger.debug('on_play')
-        if self.player.get_state() is PlayerStateNoPlaylistLoaded:
-            playlist_data = book.PlaylistData(id_=self.book_reader.get_active_book())
-            self.player.load_playlist(playlist_data)
-        self.player.play()
+            case 'stop':
+                self.player.stop()
 
-    def on_pause(self) -> None:
+    def book_reader_receiver(self, *args, sig_data) -> None:
         """
-        pause player
+        Handle signls originating from book_reader.BookReader
         """
-        self.logger.debug('on_pause')
-        self.player.pause()
+        match sig_data.handle:
 
-    def on_next(self) -> None:
-        """
-        Skip to the next track in the playlist.
-        """
-        self.logger.debug('on_next')
-        self.player.set_track_relative(1)
+            case 'book_opened':
+                if (playlist_id := args[0]) is not None and self.player.get_state() is PlayerStateNoPlaylistLoaded:
+                    self.player.load_playlist(book.PlaylistData(id_=playlist_id))
 
-    def on_previous(self) -> None:
-        """
-        Skip to the previous track in the playlist.
-        """
-        self.logger.debug('on_previous')
-        self.player.set_track_relative(-1)
-
-    def on_skip_forward_long(self) -> None:
-        """
-        Skip ahead in a track by calling Player.skip_forward_long()
-        """
-        self.logger.debug('on_skip_forward_long')
-        self.player.seek(SeekTime.FORWARD_LONG)
-
-    def on_skip_reverse_long(self) -> None:
-        """
-        Skip backward in a track by calling Player.skip_reverse_long()
-        """
-        self.logger.debug('on_skip_reverse_long')
-        self.player.seek(SeekTime.REVERSE_LONG)
+            case 'book_closed':
+                if (playlist_id := args[0]) is not None and playlist_id == self.player.book_data.playlist_data.get_id():
+                    self.player.unload_playlist()
 
 
 class MetaTask:
