@@ -840,7 +840,6 @@ class GstPlayer:
 
     def __init__(self):
         Gst.init(None)
-        self.playback_state = None
         self.pipeline = None
         self.update_time_period = StreamTime(1, 's')
         self.update_time_id = None
@@ -964,9 +963,8 @@ class GstPlayer:
 
         Returns: True if GstPlayer successfuly sets the stream's state to play.
         """
-        if not self.stream_tasks.running() and self._set_state(state=Gst.State.PLAYING):
-            self.playback_state = 'playing'
-            return True
+        if not self.stream_tasks.running():
+            return self._set_state(state=Gst.State.PLAYING)
         return False
 
     def pause(self) -> bool:
@@ -975,9 +973,8 @@ class GstPlayer:
 
         Returns: True if GstPlayer successfuly sets the stream's state to paused.
         """
-        if not self.stream_tasks.running() and self._set_state(state=Gst.State.PAUSED):
-            self.playback_state = 'paused'
-            return True
+        if not self.stream_tasks.running():
+            return self._set_state(state=Gst.State.PAUSED)
         return False
 
     @staticmethod
@@ -998,12 +995,11 @@ class GstPlayer:
         if self.pipeline is not assigned_pipeline:
             # returning False stops this from being called again
             return False
-        if self.playback_state != 'stopped':
-            if not self.stream_tasks.running():
-                time_ = self.query_position()
-                self._g_idle_add_once(
-                    self.transmitter.send, 'time_updated', time_, priority=GLib.PRIORITY_DEFAULT
-                )
+        if not self.stream_tasks.running():
+            time_ = self.query_position()
+            self._g_idle_add_once(
+                self.transmitter.send, 'time_updated', time_, priority=GLib.PRIORITY_DEFAULT
+            )
         # Returning True allows this method to continue being called.
         return True
 
@@ -1068,7 +1064,6 @@ class GstPlayer:
         Start cleanup.
         """
         self._close_pipeline()
-        self.playback_state = None
         self.transmitter.send('eos')
 
     def set_position(self, time_: StreamTime):
