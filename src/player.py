@@ -842,6 +842,8 @@ class GstPlayer:
         Gst.init(None)
         self.playback_state = None
         self.pipeline = None
+        self.update_time_period = StreamTime(1, 's')
+        self.update_time_id = None
         self.transmitter = signal_.Signal()
         self.transmitter.add_signal('time_updated', 'stream_ready', 'eos', 'seek_complete')
 
@@ -900,6 +902,29 @@ class GstPlayer:
             return True
         return False
 
+    def _finalize_state_change(self, state: Gst.State) -> None:
+        """
+        Manage the _update_time periodic callback.
+        End the 'state-change' subtask.
+        """
+        if state == Gst.State.PLAYING:
+            self.update_time_id = GLib.timeout_add(self.update_time_period.get_time('ms'),
+                                                   self._update_time,
+                                                   self.pipeline)
+            self._update_time(self.pipeline)
+
+        elif state == Gst.State.PAUSED:
+            if self.update_time_id is not None:
+                GLib.Source.remove(self.update_time_id)
+                self.update_time_id = None
+            self._update_time(self.pipeline)
+
+        elif state == Gst.State.NULL and self.update_time_id is not None:
+            GLib.Source.remove(self.update_time_id)
+            self.update_time_id = None
+
+        self.stream_tasks.end_subtask('state_change')
+
     def _set_state(self, state: Gst.State) -> bool:
         """
         Change the playback state (play, paused, ready) of the gstreamer pipeline.
@@ -912,26 +937,24 @@ class GstPlayer:
         sets the state synchronously. This is to simplify any methods that call
         _set_state(), allowing them to finish their execution and wait for the
         ready signal. The calling methods don't have to account for both types of
-        behavior-- unless explicitly requesting synchronous behavior.
-
-        Note: the 'ready' signal is not called when blocking=True or if an exception is raised.
+        behavior.
         """
         if self.stream_tasks.begin_subtask('state_change'):
             state_change_return = self.pipeline.set_state(state=state)
 
-            if state_change_return in (Gst.StateChangeReturn.ASYNC, Gst.StateChangeReturn.SUCCESS):
-                # state-changed never gets triggered when new_state==old_state.
-                # End the state_change task anyway.
-                success, cur, pen = self.pipeline.get_state(0)
-                if success and cur == state and pen == Gst.State.VOID_PENDING:
-                    self._g_idle_add_once(self.stream_tasks.end_subtask, 'state_change')
-                else:
-                    bus = self.pipeline.get_bus()
-                    bus.connect("message::state-changed", self._on_state_change_complete, state)
+            if state_change_return == Gst.StateChangeReturn.SUCCESS:
+                # state-change was synchronous.
+                self._g_idle_add_once(self._finalize_state_change, state)
+
+            elif state_change_return == Gst.StateChangeReturn.ASYNC:
+                bus = self.pipeline.get_bus()
+                bus.connect("message::state-changed", self._on_async_state_change_complete, state)
+
             else:
                 # state_change_return == FAILURE, or NO_PREROLL
                 self.stream_tasks.end_subtask('state_change', abort=True)
                 raise GstPlayerError(f'Failed to set pipeline state to {state}')
+
             return True
         return False
 
@@ -999,7 +1022,6 @@ class GstPlayer:
         bus.add_signal_watch()
         bus.connect("message::error", self._on_error)
         bus.connect("message::eos", self._on_eos)
-        bus.connect("message::state-changed", self._start_update_time)
         bus.connect("message::duration-changed", self._on_duration_ready)
         # bus.connect("message::application", self.on_application_message)
 
@@ -1105,17 +1127,6 @@ class GstPlayer:
             return True
         return False
 
-    def _start_update_time(self, bus: Gst.Bus, msg: Gst.Message):
-        """
-        Start the periodic calling of self._update_time once 'self.pipeline' is in the playing state.
-        This is a state-changed callback.
-        """
-        if msg.src == self.pipeline:
-            _, new, pending = msg.parse_state_changed()
-            if new == Gst.State.PLAYING and pending == Gst.State.VOID_PENDING:
-                GLib.timeout_add_seconds(1, self._update_time, self.pipeline)
-                bus.disconnect_by_func(self._start_update_time)
-
     def _on_duration_ready(self, bus: Gst.Bus, _):
         """Simply mark duration_ready subtask as complete."""
         bus.disconnect_by_func(self._on_duration_ready)
@@ -1149,7 +1160,7 @@ class GstPlayer:
             return False
         return True
 
-    def _on_state_change_complete(self, bus: Gst.Bus, msg: Gst.Message, target_state: Gst.State):
+    def _on_async_state_change_complete(self, bus: Gst.Bus, msg: Gst.Message, target_state: Gst.State):
         """
         Clear the lock and disconnect this callback.
 
@@ -1158,8 +1169,8 @@ class GstPlayer:
         if msg.src == self.pipeline:
             _, new_state, pen_state = msg.parse_state_changed()
             if new_state == target_state and pen_state == Gst.State.VOID_PENDING:
-                bus.disconnect_by_func(self._on_state_change_complete)
-                self.stream_tasks.end_subtask('state_change')
+                bus.disconnect_by_func(self._on_async_state_change_complete)
+                self._finalize_state_change(new_state)
 
     def query_stream_info(self) -> str | None:
         """
