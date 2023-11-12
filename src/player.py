@@ -900,7 +900,7 @@ class GstPlayer:
             return True
         return False
 
-    def _set_state(self, state: Gst.State, blocking: bool = False) -> bool:
+    def _set_state(self, state: Gst.State) -> bool:
         """
         Change the playback state (play, paused, ready) of the gstreamer pipeline.
 
@@ -908,7 +908,7 @@ class GstPlayer:
         returns False if state_change subtask was locked.
         raises GstPlayerError if the state change return is FAILURE or NO_PREROLL.
 
-        If blocking is not set, _set_state() is asynchronous even if Gstreamer
+        _set_state() is asynchronous even if Gstreamer
         sets the state synchronously. This is to simplify any methods that call
         _set_state(), allowing them to finish their execution and wait for the
         ready signal. The calling methods don't have to account for both types of
@@ -920,19 +920,14 @@ class GstPlayer:
             state_change_return = self.pipeline.set_state(state=state)
 
             if state_change_return in (Gst.StateChangeReturn.ASYNC, Gst.StateChangeReturn.SUCCESS):
-                if blocking:
-                    # get_state() blocks until gstreamer has finished the state change.
-                    self.pipeline.get_state(Gst.CLOCK_TIME_NONE)
-                    self.stream_tasks.end_subtask('state_change')
+                # state-changed never gets triggered when new_state==old_state.
+                # End the state_change task anyway.
+                success, cur, pen = self.pipeline.get_state(0)
+                if success and cur == state and pen == Gst.State.VOID_PENDING:
+                    self._g_idle_add_once(self.stream_tasks.end_subtask, 'state_change')
                 else:
-                    # state-changed never gets triggered when new_state==old_state.
-                    # End the state_change task anyway.
-                    success, cur, pen = self.pipeline.get_state(0)
-                    if success and cur == state and pen == Gst.State.VOID_PENDING:
-                        self._g_idle_add_once(self.stream_tasks.end_subtask, 'state_change')
-                    else:
-                        bus = self.pipeline.get_bus()
-                        bus.connect("message::state-changed", self._on_state_change_complete, state)
+                    bus = self.pipeline.get_bus()
+                    bus.connect("message::state-changed", self._on_state_change_complete, state)
             else:
                 # state_change_return == FAILURE, or NO_PREROLL
                 self.stream_tasks.end_subtask('state_change', abort=True)
