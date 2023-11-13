@@ -1111,7 +1111,7 @@ class GstPlayer:
             if seek_success:
                 bus = self.pipeline.get_bus()
                 bus.connect("message::async-done", self._on_seek_complete, '_on_seek_complete')
-            if not seek_success:
+            else:
                 self.stream_tasks.end_subtask('seek', abort=True)
                 raise GstPlayerError('Failed to set stream playback position.')
             return True
