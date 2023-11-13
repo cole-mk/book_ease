@@ -906,21 +906,22 @@ class GstPlayer:
         Manage the _update_time periodic callback.
         End the 'state-change' subtask.
         """
-        if state == Gst.State.PLAYING:
-            self.update_time_id = GLib.timeout_add(self.update_time_period.get_time('ms'),
-                                                   self._update_time,
-                                                   self.pipeline)
-            self._update_time(self.pipeline)
+        match state:
+            case Gst.State.PLAYING:
+                self.update_time_id = GLib.timeout_add(self.update_time_period.get_time('ms'),
+                                                       self._update_time,
+                                                       self.pipeline)
+                self._update_time(self.pipeline)
 
-        elif state == Gst.State.PAUSED:
-            if self.update_time_id is not None:
+            case Gst.State.PAUSED:
+                if self.update_time_id is not None:
+                    GLib.Source.remove(self.update_time_id)
+                    self.update_time_id = None
+                self._update_time(self.pipeline)
+
+            case Gst.State.NULL if self.update_time_id is not None:
                 GLib.Source.remove(self.update_time_id)
                 self.update_time_id = None
-            self._update_time(self.pipeline)
-
-        elif state == Gst.State.NULL and self.update_time_id is not None:
-            GLib.Source.remove(self.update_time_id)
-            self.update_time_id = None
 
         self.stream_tasks.end_subtask('state_change')
 
@@ -939,21 +940,20 @@ class GstPlayer:
         behavior.
         """
         if self.stream_tasks.begin_subtask('state_change'):
-            state_change_return = self.pipeline.set_state(state=state)
+            match self.pipeline.set_state(state=state):
 
-            if state_change_return == Gst.StateChangeReturn.SUCCESS:
-                # state-change was synchronous.
-                self._g_idle_add_once(self._finalize_state_change, state)
+                case Gst.StateChangeReturn.SUCCESS:
+                    # state-change was synchronous.
+                    self._g_idle_add_once(self._finalize_state_change, state)
 
-            elif state_change_return == Gst.StateChangeReturn.ASYNC:
-                bus = self.pipeline.get_bus()
-                bus.connect("message::state-changed", self._on_async_state_change_complete, state)
+                case Gst.StateChangeReturn.ASYNC:
+                    bus = self.pipeline.get_bus()
+                    bus.connect("message::state-changed", self._on_async_state_change_complete, state)
 
-            else:
-                # state_change_return == FAILURE, or NO_PREROLL
-                self.stream_tasks.end_subtask('state_change', abort=True)
-                raise GstPlayerError(f'Failed to set pipeline state to {state}')
-
+                case _:
+                    # state change return value == FAILURE, or NO_PREROLL
+                    self.stream_tasks.end_subtask('state_change', abort=True)
+                    raise GstPlayerError(f'Failed to set pipeline state to {state}')
             return True
         return False
 
