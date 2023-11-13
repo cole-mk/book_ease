@@ -908,16 +908,14 @@ class GstPlayer:
         """
         match state:
             case Gst.State.PLAYING:
-                self.update_time_id = GLib.timeout_add(self.update_time_period.get_time('ms'),
-                                                       self._update_time,
-                                                       self.pipeline)
-                self._update_time(self.pipeline)
+                self.update_time_id = GLib.timeout_add(self.update_time_period.get_time('ms'), self._update_time)
+                self._update_time()
 
             case Gst.State.PAUSED:
                 if self.update_time_id is not None:
                     GLib.Source.remove(self.update_time_id)
                     self.update_time_id = None
-                self._update_time(self.pipeline)
+                self._update_time()
 
             case Gst.State.NULL if self.update_time_id is not None:
                 GLib.Source.remove(self.update_time_id)
@@ -988,13 +986,10 @@ class GstPlayer:
             uri = Gst.filename_to_uri(path)
         return uri
 
-    def _update_time(self, assigned_pipeline):
+    def _update_time(self):
         """
         Set self.stream_data.time to the stream's current stream_data.
         """
-        if self.pipeline is not assigned_pipeline:
-            # returning False stops this from being called again
-            return False
         if not self.stream_tasks.running():
             time_ = self.query_position()
             self._g_idle_add_once(
