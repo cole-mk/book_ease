@@ -137,15 +137,50 @@ class PlayerButtonForwardVC:
         self.transmitter = component_transmitter
         controller_transmitter.connect('stream_updated', self.activate)
         controller_transmitter.connect('playlist_unloaded', self.deactivate)
-        self.view.connect('button-release-event', self.on_button_released)
+
+        self.gesture = Gtk.GestureMultiPress.new(self.view)
+        self.gesture.connect('released', self.on_gesture_released)
+        self.gesture.connect('stopped', self.on_gesture_stopped)
+        self.gesture.connect('pressed', self.on_gesture_pressed)
+        self.button_press_sequence = (None, 0)
+
+        tooltip_text_lines = [
+            "Skip forward in a track",
+            f"Single click: {abs(player.SeekTime.FORWARD_SHORT.value.get_time('s'))} seconds",
+            f"Double click: {abs(player.SeekTime.FORWARD_LONG.value.get_time('s'))} seconds"
+        ]
+        tooltip_text = "\n".join(tooltip_text_lines)
+        self.view.set_tooltip_text(tooltip_text)
+
         self.deactivate()
 
-    def on_button_released(self, *_) -> None:
+    def on_gesture_pressed(self, _: Gtk.GestureMultiPress, count: int, __:float, ___: float) -> None:
         """
-        Callback for when the gtk button is release
+        Handle button press gesture.
+
+        count: the number of times the button has been pressed.
         """
-        self.logger.debug('on_button_released')
-        self.transmitter.send('skip_forward_long')
+        self.button_press_sequence = ('pressed', count)
+
+    def on_gesture_stopped(self, _: Gtk.GestureMultiPress) -> None:
+        """
+        Take action on a completed button gesture.
+        """
+        match self.button_press_sequence:
+            case ('released', 1):
+                self.transmitter.send('skip_forward_short')
+            case ('released', 2):
+                self.transmitter.send('skip_forward_long')
+            case _:
+                self.view.released()
+
+    def on_gesture_released(self, _: Gtk.GestureMultiPress, count: int, __:float, ___: float) -> None:
+        """
+        Handle button release gesture.
+
+        count: the number of times the button has been pressed.
+        """
+        self.button_press_sequence = ('released',count)
 
     def activate(self, _) -> None:
         """
@@ -177,15 +212,50 @@ class PlayerButtonRewindVC:
         self.transmitter = component_transmitter
         controller_transmitter.connect('stream_updated', self.activate)
         controller_transmitter.connect('playlist_unloaded', self.deactivate)
-        self.view.connect('button-release-event', self.on_button_released)
+
+        self.gesture = Gtk.GestureMultiPress.new(self.view)
+        self.gesture.connect('released', self.on_gesture_released)
+        self.gesture.connect('stopped', self.on_gesture_stopped)
+        self.gesture.connect('pressed', self.on_gesture_pressed)
+        self.button_press_sequence = (None, 0)
+
+        tooltip_text_lines = [
+            "Skip backward in a track",
+            f"Single click: {abs(player.SeekTime.REVERSE_SHORT.value.get_time('s'))} seconds",
+            f"Double click: {abs(player.SeekTime.REVERSE_LONG.value.get_time('s'))} seconds"
+        ]
+        tooltip_text = "\n".join(tooltip_text_lines)
+        self.view.set_tooltip_text(tooltip_text)
+
         self.deactivate()
 
-    def on_button_released(self, *_) -> None:
+    def on_gesture_pressed(self, _: Gtk.GestureMultiPress, count: int, __:float, ___: float) -> None:
         """
-        Callback for when the gtk button is release
+        Handle button press gesture.
+
+        count: the number of times the button has been pressed.
         """
-        self.logger.debug('on_button_released')
-        self.transmitter.send('skip_reverse_long')
+        self.button_press_sequence = ('pressed', count)
+
+    def on_gesture_stopped(self, _: Gtk.GestureMultiPress) -> None:
+        """
+        Take action on a completed button gesture.
+        """
+        match self.button_press_sequence:
+            case ('released', 1):
+                self.transmitter.send('skip_reverse_short')
+            case ('released', 2):
+                self.transmitter.send('skip_reverse_long')
+            case _:
+                self.view.released()
+
+    def on_gesture_released(self, _: Gtk.GestureMultiPress, count: int, __:float, ___: float) -> None:
+        """
+        Handle button release gesture.
+
+        count: the number of times the button has been pressed.
+        """
+        self.button_press_sequence = ('released',count)
 
     def activate(self, _) -> None:
         """

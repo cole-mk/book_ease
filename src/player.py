@@ -642,6 +642,8 @@ class PlayerC:
                                               'previous',
                                               'skip_forward_long',
                                               'skip_reverse_long',
+                                              'skip_forward_short',
+                                              'skip_reverse_short',
                                               'go_to_position',
                                               'stop')
 
@@ -651,6 +653,8 @@ class PlayerC:
         self.component_transmitter.connect('previous', self.component_receiver, pass_sig_data_to_cb=True)
         self.component_transmitter.connect('skip_forward_long', self.component_receiver, pass_sig_data_to_cb=True)
         self.component_transmitter.connect('skip_reverse_long', self.component_receiver, pass_sig_data_to_cb=True)
+        self.component_transmitter.connect('skip_forward_short', self.component_receiver, pass_sig_data_to_cb=True)
+        self.component_transmitter.connect('skip_reverse_short', self.component_receiver, pass_sig_data_to_cb=True)
         self.component_transmitter.connect('stop', self.component_receiver, pass_sig_data_to_cb=True)
         self.component_transmitter.connect('go_to_position', self.component_receiver, pass_sig_data_to_cb=True)
 
@@ -740,6 +744,12 @@ class PlayerC:
 
             case 'skip_reverse_long':
                 self.player.seek(SeekTime.REVERSE_LONG)
+
+            case 'skip_forward_short':
+                self.player.seek(SeekTime.FORWARD_SHORT)
+
+            case 'skip_reverse_short':
+                self.player.seek(SeekTime.REVERSE_SHORT)
 
             case 'stop':
                 self.player.stop()
