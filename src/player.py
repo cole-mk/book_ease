@@ -502,6 +502,7 @@ class Player:  # pylint: disable=unused-argument
         self.logger.debug('_on_stream_loaded')
         self.stream_data.duration = self.player_adapter.query_duration()
         self.stream_data.stream_info = self.player_adapter.query_stream_info()
+        self.stream_data.volume = self.player_adapter.query_volume()
         self.transmitter.send('stream_updated', self.stream_data)
 
     def _on_time_updated(self, position: StreamTime) -> None:
@@ -1036,7 +1037,25 @@ class GstPlayer:
             return self._set_volume(volume)
         return False
 
+    def query_volume(self) -> float:
+        """
+        Retrieve the current volume from the Gstreamer pipeline.
 
+        Returns the volume normalized to 0 <= volume <= 1
+        """
+        if not self.stream_tasks.running():
+            return self._query_volume()
+        raise GstPlayerError('Failed to retrieve the volume: GstPlayer is busy')
+
+    def _query_volume(self) -> float:
+        """
+        Retrieve the current volume from the Gstreamer pipeline.
+
+        Returns the volume normalized to 0 <= volume <= 1
+        """
+        if self.pipeline is not None:
+            return self.pipeline.get_volume(GstAudio.StreamVolumeFormat.CUBIC)
+        raise GstPlayerError('Failed to retrieve the volume: pipeline does not exist')
 
     def pause(self) -> bool:
         """
@@ -1399,6 +1418,12 @@ class GstPlayerA:
         Query the duration from GstPlayer.
         """
         return self._gst_player.query_duration()
+
+    def query_volume(self) -> float:
+        """
+        Retrieve the current volume from the player backend.
+        """
+        return self._gst_player._query_volume()
 
     def query_position(self) -> StreamTime:
         """
