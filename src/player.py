@@ -48,11 +48,13 @@ from typing import Literal
 import collections
 import gi
 gi.require_version('Gst', '1.0')
+gi.require_version('GstAudio', '1.0')
 gi.require_version('GstPbutils', '1.0')
+gi.require_version('Gdk', '3.0')
 # gi.require_version('Gtk', '3.0')
 # gi.require_version('GdkX11', '3.0')
 # gi.require_version('GstVideo', '1.0')
-from gi.repository import Gst, GLib, GstPbutils
+from gi.repository import Gst, GLib, GstPbutils, GstAudio, Gdk
 from lock_wrapper import Lock
 import audio_book_tables
 import signal_
@@ -238,6 +240,7 @@ class StreamData:
     last_saved_position: StreamTime = StreamTime(-1)
     position_data: PositionData | None = None
     stream_info: str | None = None
+    volume: float | None = None
 
     def mark_saved_position(self):
         """
@@ -260,6 +263,15 @@ class Player:  # pylint: disable=unused-argument
     logger = logging.getLogger(f'{__name__}.PlayerState')
 
     def __init__(self):
+        self.transmitter = signal_.Signal()
+        self.transmitter.add_signal('stream_updated',
+                                    'position_updated',
+                                    'playlist_finished',
+                                    'playlist_loaded',
+                                    'playlist_unloaded',
+                                    'volume_change',
+                                    'player_enter_state')
+
         self.player_dbi = PlayerDBI()
         self.track_dbi = book.TrackDBI()
         self.playlist_dbi = book.PlaylistDBI()
@@ -268,17 +280,10 @@ class Player:  # pylint: disable=unused-argument
         self.player_adapter.transmitter.connect('time_updated', self._on_time_updated)
         self.player_adapter.transmitter.connect('stream_loaded', self._on_stream_loaded)
         self.player_adapter.transmitter.connect('eos', self._on_eos)
+        self.player_adapter.transmitter.connect('volume_change', self.transmitter.send, 'volume_change')
 
         self.stream_data = StreamData()
         self.book_data = book.BookData(book.PlaylistData())
-
-        self.transmitter = signal_.Signal()
-        self.transmitter.add_signal('stream_updated',
-                                    'position_updated',
-                                    'playlist_finished',
-                                    'playlist_loaded',
-                                    'playlist_unloaded',
-                                    'player_enter_state')
 
         # Set the initial state to Player.
         self._set_state(PlayerStateInitial)
@@ -310,6 +315,22 @@ class Player:  # pylint: disable=unused-argument
         Note: PlayerState's should implement this by calling _load_playlist().
         """
         self.logger.warning('calling load_playlist() not implemented in this state, %s.', self.__class__.__name__)
+
+    def set_volume(self, volume: float) -> None:
+        """
+        Set the volume of an audio stream.
+
+        volume: value <= 1
+        Note: PlayerState's should implement this by calling _set_volume().
+        """
+        self.logger.warning('calling set_volume() not implemented in this state, %s.', self.__class__.__name__)
+
+    def _set_volume(self, volume: float):
+        """
+        Implementation for set_volume.
+        volume: value <= 1
+        """
+        self.player_adapter.set_volume(volume)
 
     def set_track(self, track_number: int) -> None:
         """
@@ -578,6 +599,9 @@ class  PlayerStatePlaying(Player):
     def go_to_position(self, time_: StreamTime) -> bool:
         return self._go_to_position(time_)
 
+    def set_volume(self, volume: float) -> None:
+        self._set_volume(volume)
+
 
 class  PlayerStatePaused(Player):
     """Player State PlayerStatePaused"""
@@ -616,6 +640,8 @@ class  PlayerStatePaused(Player):
     def go_to_position(self, time_: StreamTime) -> bool:
         return self._go_to_position(time_)
 
+    def set_volume(self, volume: float) -> None:
+        self._set_volume(volume)
 
 class PlayerC:
     """
@@ -633,6 +659,7 @@ class PlayerC:
                                     'playlist_loaded',
                                     'playlist_unloaded',
                                     'position_updated',
+                                    'volume_change',
                                     'player_enter_state')
 
         self.component_transmitter = signal_.Signal()
@@ -645,6 +672,7 @@ class PlayerC:
                                               'skip_forward_short',
                                               'skip_reverse_short',
                                               'go_to_position',
+                                              'volume_change',
                                               'stop')
 
         self.component_transmitter.connect('play', self.component_receiver, pass_sig_data_to_cb=True)
@@ -657,6 +685,7 @@ class PlayerC:
         self.component_transmitter.connect('skip_reverse_short', self.component_receiver, pass_sig_data_to_cb=True)
         self.component_transmitter.connect('stop', self.component_receiver, pass_sig_data_to_cb=True)
         self.component_transmitter.connect('go_to_position', self.component_receiver, pass_sig_data_to_cb=True)
+        self.component_transmitter.connect('volume_change', self.component_receiver, pass_sig_data_to_cb=True)
 
         # The only thing PlayerC does with Player's signals is relay them without any other action,
         # so a dedicated receiver method would be redundant. Let the transmitter relay the signal.
@@ -667,6 +696,7 @@ class PlayerC:
         self.player.transmitter.connect('player_enter_state', self.transmitter.send, 'player_enter_state')
         self.player.transmitter.connect('playlist_loaded', self.transmitter.send, 'playlist_loaded')
         self.player.transmitter.connect('playlist_unloaded', self.transmitter.send, 'playlist_unloaded')
+        self.player.transmitter.connect('volume_change', self.transmitter.send, 'volume_change')
         self.player.activate()
 
         self.book_reader.transmitter.connect('book_opened', self.book_reader_receiver, pass_sig_data_to_cb=True)
@@ -714,6 +744,12 @@ class PlayerC:
             builder=builder
         )
 
+        self.player_button_volume = player_view.PlayerButtonVolumeVC(
+            component_transmitter=self.component_transmitter,
+            controller_transmitter=self.transmitter,
+            builder=builder
+        )
+
     def component_receiver(self, *args, sig_data) -> None:
         """
         Handle signals originating from one of the player control components. eg play button
@@ -750,6 +786,10 @@ class PlayerC:
 
             case 'skip_reverse_short':
                 self.player.seek(SeekTime.REVERSE_SHORT)
+
+            case 'volume_change':
+                volume: float = args[0]
+                self.player.set_volume(volume)
 
             case 'stop':
                 self.player.stop()
@@ -850,11 +890,11 @@ class GstPlayer:
 
     def __init__(self):
         Gst.init(None)
-        self.pipeline = None
+        self.pipeline: Gst.Pipeline | None = None
         self.update_time_period = StreamTime(1, 's')
         self.update_time_id = None
         self.transmitter = signal_.Signal()
-        self.transmitter.add_signal('time_updated', 'stream_ready', 'eos', 'seek_complete')
+        self.transmitter.add_signal('time_updated', 'stream_ready', 'eos', 'seek_complete', 'volume_change')
 
         self.stream_tasks = MetaTask()
         self.stream_tasks.add_subtask('unload_stream')
@@ -864,6 +904,7 @@ class GstPlayer:
         self.stream_tasks.add_subtask('state_change')
         self.stream_tasks.add_subtask('load_stream')
         self.stream_tasks.add_subtask('gather_stream_info')
+        self.stream_tasks.add_subtask('set_volume')
         self.stream_tasks.transmitter.connect('meta_task_complete', self.transmitter.send, 'stream_ready')
 
         self._stream_info = GstStreamInfo()
@@ -975,6 +1016,28 @@ class GstPlayer:
             return self._set_state(state=Gst.State.PLAYING)
         return False
 
+    def _set_volume(self, volume) -> bool:
+        """
+        Set the playback volume of the playbin.
+        """
+        if self.stream_tasks.begin_subtask('set_volume'):
+            if self.pipeline is not None:
+               self.pipeline.set_volume(GstAudio.StreamVolumeFormat.CUBIC, volume)
+               self._g_idle_add_once(self.stream_tasks.end_subtask, 'set_volume')
+               return True
+            raise GstPlayerError('Failed to set volume')
+        return False
+
+    def set_volume(self, volume: float) -> bool:
+        """
+        Set the playback volume of the playbin.
+        """
+        if not self.stream_tasks.running():
+            return self._set_volume(volume)
+        return False
+
+
+
     def pause(self) -> bool:
         """
         Place GstPlayer into the paused state
@@ -1017,6 +1080,13 @@ class GstPlayer:
             return True
         return False
 
+    def _on_volume_changed(self, _, __) -> None:
+        """
+        Notify that the stream's volume was changed outside of book_ease.
+        """
+        volume = self.pipeline.get_volume(GstAudio.StreamVolumeFormat.CUBIC)
+        self._g_idle_add_once(self.transmitter.send, 'volume_change', volume)
+
     def _init_message_bus(self):
         """Set up the Gst messages that will be handled"""
         bus = self.pipeline.get_bus()
@@ -1024,6 +1094,7 @@ class GstPlayer:
         bus.connect("message::error", self._on_error)
         bus.connect("message::eos", self._on_eos)
         bus.connect("message::duration-changed", self._on_duration_ready)
+        self.pipeline.connect("notify::volume", self._on_volume_changed)
         # bus.connect("message::application", self.on_application_message)
 
     def _on_seek_complete(self, bus, _, msg_handle=None):
@@ -1226,10 +1297,11 @@ class GstPlayerA:
         self._queued_position = None
 
         self.transmitter = signal_.Signal()
-        self.transmitter.add_signal('stream_loaded', 'time_updated', 'eos')
+        self.transmitter.add_signal('stream_loaded', 'time_updated', 'eos', 'volume_change')
         # 'stream_loaded' gets a connect_once called during load_stream() so don't connect here.
         self._gst_player.transmitter.connect('time_updated', self.transmitter.send, 'time_updated')
         self._gst_player.transmitter.connect('eos', self.transmitter.send, 'eos')
+        self._gst_player.transmitter.connect('volume_change', self.transmitter.send, 'volume_change')
         self._call_in_progress = False
 
     def _appendleft(self, command: tuple):
@@ -1346,6 +1418,12 @@ class GstPlayerA:
                     current_position
                 )
         return current_position
+
+    def set_volume(self, volume: float) -> None:
+        """
+        Add a set volume command to the deque.
+        """
+        self._appendleft((lambda: None, self._gst_player.set_volume, volume))
 
 
 class GstStreamInfoError(Exception):

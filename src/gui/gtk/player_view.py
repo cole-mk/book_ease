@@ -83,6 +83,71 @@ class PlayerButtonNextVC:
         self.view.set_sensitive(False)
 
 
+class PlayerButtonVolumeVC:
+    """
+    Controls the view of a button widgit that skips to the next track in a playlist.
+    """
+    logger = logging.getLogger(f'{__name__}.PlayerButtonVolumeVC')
+
+    def __init__(self,
+                 component_transmitter: signal_.Signal,
+                 controller_transmitter: signal_.Signal,
+                 builder: Gtk.Builder):
+
+        self.view: Gtk.VolumeButton = builder.get_object('player_button_volume')
+        self.transmitter = component_transmitter
+
+        self.controller_transmitter = controller_transmitter
+        self.controller_transmitter.connect('stream_updated', self.activate)
+        self.controller_transmitter.connect('playlist_unloaded', self.deactivate)
+        self.volume_change_signal = controller_transmitter.connect('volume_change', self.on_backend_volume_change)
+
+        self.view.connect('value-changed', self.on_value_changed)
+        self.view.connect('clicked', self.on_button_clicked)
+        self.popup = self.view.get_popup()
+        self.popup.connect('closed', self.on_popover_closed)
+
+        self.deactivate()
+
+    def on_backend_volume_change(self, volume: float) -> None:
+        """
+        The volume was changed in the backend.
+        """
+        self.view.set_value(volume)
+
+    def on_popover_closed(self, *args) -> None:
+        """
+        Reconnect on_backend_volume_change callback now that the volume is no longer being modified by this app.
+        """
+        self.volume_change_signal = self.controller_transmitter.connect('volume_change', self.on_backend_volume_change)
+
+    def on_button_clicked(self, _: Gtk.VolumeButton):
+        """
+        Silence the on_backend_volume_change callback while the volume being changed by this app.
+        """
+        self.controller_transmitter.disconnect_by_signal_data(self.volume_change_signal)
+
+    def on_value_changed(self, _: Gtk.VolumeButton, volume: float) -> None:
+        """
+        Tell the controller to change the volume.
+        """
+        self.transmitter.send('volume_change', volume)
+
+    def activate(self, stream_data: StreamData) -> None:
+        """
+        Set the button to active state
+        """
+        self.logger.debug('activate')
+        self.view.set_sensitive(True)
+
+    def deactivate(self) -> None:
+        """
+        Set the button to inactive state
+        """
+        self.logger.debug('deactivate')
+        self.view.set_sensitive(False)
+
+
 class PlayerButtonPreviousVC:
     """
     Controls the view of a button widgit that skips to the previous track in a playlist.
