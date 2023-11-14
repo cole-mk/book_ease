@@ -646,154 +646,29 @@ class  PlayerStatePaused(Player):
 
 class PlayerC:
     """
-    PlayerC routes the various signals between Player and the various player control widgits
-    as well as come commands that come from Book_Reader.
+    PlayerC routes signals between Player and Book_Reader
+    as well as instantiates the player view.
     """
     logger = logging.getLogger(f'{__name__}.PlayerC')
 
     def __init__(self, book_reader: BookReader, builder: Gtk.Builder):
         self.book_reader = book_reader
-        self.transmitter = signal_.Signal()
-        self.transmitter.add_signal('activate',
-                                    'deactivate',
-                                    'stream_updated',
-                                    'playlist_loaded',
-                                    'playlist_unloaded',
-                                    'position_updated',
-                                    'volume_change',
-                                    'player_enter_state')
-
-        self.component_transmitter = signal_.Signal()
-        self.component_transmitter.add_signal('next',
-                                              'play',
-                                              'pause',
-                                              'previous',
-                                              'skip_forward_long',
-                                              'skip_reverse_long',
-                                              'skip_forward_short',
-                                              'skip_reverse_short',
-                                              'go_to_position',
-                                              'volume_change',
-                                              'stop')
-
-        self.component_transmitter.connect('play', self.component_receiver, pass_sig_data_to_cb=True)
-        self.component_transmitter.connect('pause', self.component_receiver, pass_sig_data_to_cb=True)
-        self.component_transmitter.connect('next', self.component_receiver, pass_sig_data_to_cb=True)
-        self.component_transmitter.connect('previous', self.component_receiver, pass_sig_data_to_cb=True)
-        self.component_transmitter.connect('skip_forward_long', self.component_receiver, pass_sig_data_to_cb=True)
-        self.component_transmitter.connect('skip_reverse_long', self.component_receiver, pass_sig_data_to_cb=True)
-        self.component_transmitter.connect('skip_forward_short', self.component_receiver, pass_sig_data_to_cb=True)
-        self.component_transmitter.connect('skip_reverse_short', self.component_receiver, pass_sig_data_to_cb=True)
-        self.component_transmitter.connect('stop', self.component_receiver, pass_sig_data_to_cb=True)
-        self.component_transmitter.connect('go_to_position', self.component_receiver, pass_sig_data_to_cb=True)
-        self.component_transmitter.connect('volume_change', self.component_receiver, pass_sig_data_to_cb=True)
-
-        # The only thing PlayerC does with Player's signals is relay them without any other action,
-        # so a dedicated receiver method would be redundant. Let the transmitter relay the signal.
-        self.player = Player()
-        self.player.transmitter.connect('stream_updated', self.transmitter.send, 'stream_updated')
-        self.player.transmitter.connect('position_updated', self.transmitter.send, 'position_updated')
-        self.player.transmitter.connect('playlist_finished', self.transmitter.send, 'deactivate')
-        self.player.transmitter.connect('player_enter_state', self.transmitter.send, 'player_enter_state')
-        self.player.transmitter.connect('playlist_loaded', self.transmitter.send, 'playlist_loaded')
-        self.player.transmitter.connect('playlist_unloaded', self.transmitter.send, 'playlist_unloaded')
-        self.player.transmitter.connect('volume_change', self.transmitter.send, 'volume_change')
-        self.player.activate()
-
         self.book_reader.transmitter.connect('book_opened', self.book_reader_receiver, pass_sig_data_to_cb=True)
         self.book_reader.transmitter.connect('book_closed', self.book_reader_receiver, pass_sig_data_to_cb=True)
 
-
-        self.player_button_next = player_view.PlayerButtonNextVC(
-            component_transmitter=self.component_transmitter,
-            controller_transmitter=self.transmitter,
-            builder=builder
+        self.player = Player()
+        self.player_view_components = (
+            player_view.PlayerButtonNextVC(self.player, builder),
+            player_view.PlayerButtonPreviousVC(self.player, builder),
+            player_view.PlayerButtonPlayPauseVC(self.player, builder),
+            player_view.PlayerButtonForwardVC(self.player, builder),
+            player_view.PlayerButtonRewindVC(self.player, builder),
+            player_view.PlayerPositionDisplayVC(self.player, builder),
+            player_view.PlayerButtonStopVC(self.player, builder),
+            player_view.PlayerButtonInfoVC(self.player, builder),
+            player_view.PlayerButtonVolumeVC(self.player, builder)
         )
-        self.player_button_previous = player_view.PlayerButtonPreviousVC(
-            component_transmitter=self.component_transmitter,
-            controller_transmitter=self.transmitter,
-            builder=builder
-        )
-        self.player_button_play_pause = player_view.PlayerButtonPlayPauseVC(
-            component_transmitter=self.component_transmitter,
-            controller_transmitter=self.transmitter,
-            builder=builder
-        )
-        self.player_button_forward = player_view.PlayerButtonForwardVC(
-            component_transmitter=self.component_transmitter,
-            controller_transmitter=self.transmitter,
-            builder=builder
-        )
-        self.player_button_rewind = player_view.PlayerButtonRewindVC(
-            component_transmitter=self.component_transmitter,
-            controller_transmitter=self.transmitter,
-            builder=builder
-        )
-        self.player_position_display = player_view.PlayerPositionDisplayVC(
-            component_transmitter=self.component_transmitter,
-            controller_transmitter=self.transmitter,
-            builder=builder
-        )
-        self.player_button_stop = player_view.PlayerButtonStopVC(
-            component_transmitter=self.component_transmitter,
-            controller_transmitter=self.transmitter,
-            builder=builder
-        )
-        self.player_button_info = player_view.PlayerButtonInfoVC(
-            component_transmitter=self.component_transmitter,
-            controller_transmitter=self.transmitter,
-            builder=builder
-        )
-
-        self.player_button_volume = player_view.PlayerButtonVolumeVC(
-            component_transmitter=self.component_transmitter,
-            controller_transmitter=self.transmitter,
-            builder=builder
-        )
-
-    def component_receiver(self, *args, sig_data) -> None:
-        """
-        Handle signals originating from one of the player control components. eg play button
-        """
-        match sig_data.handle:
-
-            case 'go_to_position':
-                new_position = StreamTime(args[0], 's')
-                self.player.go_to_position(new_position)
-
-            case 'play':
-                if self.player.get_state() is PlayerStateNoPlaylistLoaded:
-                    playlist_data = book.PlaylistData(id_=self.book_reader.get_active_book())
-                    self.player.load_playlist(playlist_data)
-                self.player.play()
-
-            case 'pause':
-                self.player.pause()
-
-            case 'next':
-                self.player.set_track_relative(1)
-
-            case 'previous':
-                self.player.set_track_relative(-1)
-
-            case 'skip_forward_long':
-                self.player.seek(SeekTime.FORWARD_LONG)
-
-            case 'skip_reverse_long':
-                self.player.seek(SeekTime.REVERSE_LONG)
-
-            case 'skip_forward_short':
-                self.player.seek(SeekTime.FORWARD_SHORT)
-
-            case 'skip_reverse_short':
-                self.player.seek(SeekTime.REVERSE_SHORT)
-
-            case 'volume_change':
-                volume: float = args[0]
-                self.player.set_volume(volume)
-
-            case 'stop':
-                self.player.stop()
+        self.player.activate()
 
     def book_reader_receiver(self, *args, sig_data) -> None:
         """

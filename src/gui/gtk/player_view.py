@@ -49,16 +49,15 @@ class PlayerButtonNextVC:
     """
     logger = logging.getLogger(f'{__name__}.PlayerButtonNextVC')
 
-    def __init__(self,
-                 component_transmitter: signal_.Signal,
-                 controller_transmitter: signal_.Signal,
-                 builder: Gtk.Builder):
+    def __init__(self, player_: player.Player, builder: Gtk.Builder):
 
         self.view: Gtk.Button = builder.get_object('player_button_next')
-        self.transmitter = component_transmitter
-        controller_transmitter.connect('stream_updated', self.activate)
-        controller_transmitter.connect('playlist_unloaded', self.deactivate)
         self.view.connect('button-release-event', self.on_button_released)
+
+        self._player = player_
+        self._player.transmitter.connect('stream_updated', self.activate)
+        self._player.transmitter.connect('playlist_unloaded', self.deactivate)
+
         self.deactivate()
 
     def on_button_released(self, *_) -> None:
@@ -66,7 +65,7 @@ class PlayerButtonNextVC:
         Callback for when the gtk button is release
         """
         self.logger.debug('on_button_released')
-        self.transmitter.send('next')
+        self._player.set_track_relative(1)
 
     def activate(self, _) -> None:
         """
@@ -89,18 +88,16 @@ class PlayerButtonVolumeVC:
     """
     logger = logging.getLogger(f'{__name__}.PlayerButtonVolumeVC')
 
-    def __init__(self,
-                 component_transmitter: signal_.Signal,
-                 controller_transmitter: signal_.Signal,
-                 builder: Gtk.Builder):
+    def __init__(self, player_: player.Player, builder: Gtk.Builder):
 
         self.view: Gtk.VolumeButton = builder.get_object('player_button_volume')
-        self.transmitter = component_transmitter
 
-        self.controller_transmitter = controller_transmitter
-        self.controller_transmitter.connect('stream_updated', self.activate)
-        self.controller_transmitter.connect('playlist_unloaded', self.deactivate)
-        self.volume_change_signal = controller_transmitter.connect('volume_change', self.on_backend_volume_change)
+        self._player = player_
+        self._player.transmitter.connect('stream_updated', self.activate)
+        self._player.transmitter.connect('playlist_unloaded', self.deactivate)
+        self.volume_change_signal = self._player.transmitter.connect(
+            'volume_change', self.on_backend_volume_change
+        )
 
         self.view.connect('value-changed', self.on_value_changed)
         self.view.connect('clicked', self.on_button_clicked)
@@ -119,19 +116,21 @@ class PlayerButtonVolumeVC:
         """
         Reconnect on_backend_volume_change callback now that the volume is no longer being modified by this app.
         """
-        self.volume_change_signal = self.controller_transmitter.connect('volume_change', self.on_backend_volume_change)
+        self.volume_change_signal = self._player.transmitter.connect(
+            'volume_change', self.on_backend_volume_change
+        )
 
     def on_button_clicked(self, _: Gtk.VolumeButton):
         """
         Silence the on_backend_volume_change callback while the volume being changed by this app.
         """
-        self.controller_transmitter.disconnect_by_signal_data(self.volume_change_signal)
+        self._player.transmitter.disconnect_by_signal_data(self.volume_change_signal)
 
     def on_value_changed(self, _: Gtk.VolumeButton, volume: float) -> None:
         """
         Tell the controller to change the volume.
         """
-        self.transmitter.send('volume_change', volume)
+        self._player.set_volume(volume)
 
     def activate(self, stream_data: StreamData) -> None:
         """
@@ -155,16 +154,14 @@ class PlayerButtonPreviousVC:
     """
     logger = logging.getLogger(f'{__name__}.PlayerButtonPreviousVC')
 
-    def __init__(self,
-                 component_transmitter: signal_.Signal,
-                 controller_transmitter: signal_.Signal,
-                 builder: Gtk.Builder):
+    def __init__(self, player_: player.Player, builder: Gtk.Builder):
 
         self.view: Gtk.Button = builder.get_object('player_button_previous')
-        self.transmitter = component_transmitter
-        controller_transmitter.connect('stream_updated', self.activate)
-        controller_transmitter.connect('playlist_unloaded', self.deactivate)
         self.view.connect('button-release-event', self.on_button_released)
+
+        self._player = player_
+        self._player.transmitter.connect('stream_updated', self.activate)
+        self._player.transmitter.connect('playlist_unloaded', self.deactivate)
         self.deactivate()
 
     def on_button_released(self, *_) -> None:
@@ -172,7 +169,7 @@ class PlayerButtonPreviousVC:
         Callback for when the gtk button is release
         """
         self.logger.debug('on_button_released')
-        self.transmitter.send('previous')
+        self._player.set_track_relative(-1)
 
     def activate(self, _) -> None:
         """
@@ -194,15 +191,13 @@ class PlayerButtonForwardVC:
     """
     logger = logging.getLogger(f'{__name__}.PlayerButtonForwardVC')
 
-    def __init__(self,
-                 component_transmitter: signal_.Signal,
-                 controller_transmitter: signal_.Signal,
-                 builder: Gtk.Builder):
+    def __init__(self, player_: player.Player, builder: Gtk.Builder):
 
         self.view: Gtk.Button = builder.get_object('player_button_forward')
-        self.transmitter = component_transmitter
-        controller_transmitter.connect('stream_updated', self.activate)
-        controller_transmitter.connect('playlist_unloaded', self.deactivate)
+
+        self._player = player_
+        self._player.transmitter.connect('stream_updated', self.activate)
+        self._player.transmitter.connect('playlist_unloaded', self.deactivate)
 
         self.gesture = Gtk.GestureMultiPress.new(self.view)
         self.gesture.connect('released', self.on_gesture_released)
@@ -234,9 +229,9 @@ class PlayerButtonForwardVC:
         """
         match self.button_press_sequence:
             case ('released', 1):
-                self.transmitter.send('skip_forward_short')
+                self._player.seek(player.SeekTime.FORWARD_SHORT)
             case ('released', 2):
-                self.transmitter.send('skip_forward_long')
+                self._player.seek(player.SeekTime.FORWARD_LONG)
             case _:
                 self.view.released()
 
@@ -269,15 +264,13 @@ class PlayerButtonRewindVC:
     """
     logger = logging.getLogger(f'{__name__}.PlayerButtonRewindVC')
 
-    def __init__(self,
-                 component_transmitter: signal_.Signal,
-                 controller_transmitter: signal_.Signal,
-                 builder: Gtk.Builder):
+    def __init__(self, player_: player.Player, builder: Gtk.Builder):
 
         self.view: Gtk.Button = builder.get_object('player_button_rewind')
-        self.transmitter = component_transmitter
-        controller_transmitter.connect('stream_updated', self.activate)
-        controller_transmitter.connect('playlist_unloaded', self.deactivate)
+
+        self._player = player_
+        self._player.transmitter.connect('stream_updated', self.activate)
+        self._player.transmitter.connect('playlist_unloaded', self.deactivate)
 
         self.gesture = Gtk.GestureMultiPress.new(self.view)
         self.gesture.connect('released', self.on_gesture_released)
@@ -309,9 +302,9 @@ class PlayerButtonRewindVC:
         """
         match self.button_press_sequence:
             case ('released', 1):
-                self.transmitter.send('skip_reverse_short')
+                self._player.seek(player.SeekTime.REVERSE_SHORT)
             case ('released', 2):
-                self.transmitter.send('skip_reverse_long')
+                self._player.seek(player.SeekTime.REVERSE_LONG)
             case _:
                 self.view.released()
 
@@ -344,16 +337,14 @@ class PlayerButtonStopVC:
     """
     logger = logging.getLogger(f'{__name__}.PlayerButtonStopVC')
 
-    def __init__(self,
-                 component_transmitter: signal_.Signal,
-                 controller_transmitter: signal_.Signal,
-                 builder: Gtk.Builder):
+    def __init__(self, player_: player.Player, builder: Gtk.Builder):
 
         self.view: Gtk.Button = builder.get_object('player_button_stop')
-        self.transmitter = component_transmitter
-        controller_transmitter.connect('stream_updated', self.activate)
-        controller_transmitter.connect('playlist_unloaded', self.deactivate)
         self.view.connect('button-release-event', self.on_button_released)
+
+        self._player = player_
+        self._player.transmitter.connect('stream_updated', self.activate)
+        self._player.transmitter.connect('playlist_unloaded', self.deactivate)
         self.deactivate()
 
     def on_button_released(self, *_) -> None:
@@ -361,7 +352,7 @@ class PlayerButtonStopVC:
         Callback for when the gtk button is released
         """
         self.logger.debug('on_button_released')
-        self.transmitter.send('stop')
+        self._player.stop()
 
     def activate(self, _) -> None:
         """
@@ -384,23 +375,20 @@ class PlayerButtonPlayPauseVC:
     """
     logger = logging.getLogger(f'{__name__}.PlayerButtonPlayPauseVC')
 
-    def __init__(self,
-                 component_transmitter: signal_.Signal,
-                 controller_transmitter: signal_.Signal,
-                 builder: Gtk.Builder):
+    def __init__(self, player_: player.Player, builder: Gtk.Builder):
+
         self.view: Gtk.Button = builder.get_object('player_button_play_pause')
-        self.transmitter = component_transmitter
-
-        controller_transmitter.connect('stream_updated', self.activate)
-        controller_transmitter.connect('playlist_unloaded', self.deactivate)
-        controller_transmitter.connect('player_enter_state', self.on_player_state_change)
-
         self.view.connect('button-release-event', self.on_button_released)
-        self.deactivate()
+
+        self._player = player_
+        self._player.transmitter.connect('stream_updated', self.activate)
+        self._player.transmitter.connect('playlist_unloaded', self.deactivate)
+        self._player.transmitter.connect('player_enter_state', self.on_player_state_change)
 
         self.play_image: Gtk.Image = builder.get_object('image_media_play')
         self.pause_image: Gtk.Image = builder.get_object('image_media_pause')
         self.button_state = 'play'
+        self.deactivate()
 
     def on_button_released(self, *_) -> None:
         """
@@ -408,9 +396,9 @@ class PlayerButtonPlayPauseVC:
         """
         self.logger.debug('on_button_released')
         if self.button_state == 'play':
-            self.transmitter.send('play')
+            self._player.play()
         else:
-            self.transmitter.send('pause')
+            self._player.pause()
 
     def activate(self, _) -> None:
         """
@@ -443,10 +431,7 @@ class PlayerPositionDisplayVC:
     """
     logger = logging.getLogger(f'{__name__}.PlayerPositionDisplayVC')
 
-    def __init__(self,
-                 component_transmitter: signal_.Signal,
-                 controller_transmitter: signal_.Signal,
-                 builder: Gtk.Builder):
+    def __init__(self, player_: player.Player, builder: Gtk.Builder):
 
         self.scale: Gtk.Scale = builder.get_object('player_playback_position_scale')
         self.duration_label: Gtk.Label = builder.get_object('player_label_duration')
@@ -454,12 +439,11 @@ class PlayerPositionDisplayVC:
         self.playlist_title_label: Gtk.Label = builder.get_object('player_label_playlist_title')
         self.track_file_name_label: Gtk.Label = builder.get_object('player_label_track_file_name')
 
-        self.transmitter = component_transmitter
-
-        controller_transmitter.connect('stream_updated', self.on_stream_updated)
-        controller_transmitter.connect('position_updated', self.on_position_updated)
-        controller_transmitter.connect('playlist_loaded', self.on_playlist_loaded)
-        controller_transmitter.connect('playlist_unloaded', self.on_playlist_unloaded)
+        self._player = player_
+        self._player.transmitter.connect('stream_updated', self.on_stream_updated)
+        self._player.transmitter.connect('position_updated', self.on_position_updated)
+        self._player.transmitter.connect('playlist_loaded', self.on_playlist_loaded)
+        self._player.transmitter.connect('playlist_unloaded', self.on_playlist_unloaded)
 
         self.scale.connect('button-release-event', self.on_g_button_released)
         self.scale.connect('button-press-event', self.on_g_button_pressed)
@@ -468,7 +452,6 @@ class PlayerPositionDisplayVC:
         self.scale.connect('format-value', self._format_scale_val_func)
         # Capture escape key to abort position change.
         self.scale.connect('key-press-event', self.on_g_key_press)
-        #self.scale.set_format_value_func(self.format_val_func, None, None)
 
         # This holds the most recently updated playback position sent from PlayerC.
         # Used to update the self.cur_position_label without updating the scrollbar itself.
@@ -519,7 +502,7 @@ class PlayerPositionDisplayVC:
             self.scale.clear_marks()
 
             new_position = self.scale.get_value()
-            self.transmitter.send('go_to_position', new_position)
+            self._player.go_to_position(player.StreamTime(new_position, 's'))
 
     def on_stream_updated(self, stream_data: StreamData) -> None:
         """
@@ -583,7 +566,7 @@ class PlayerPositionDisplayVC:
         elif event.delta_y == -1:
             scale_value += 1
 
-        self.transmitter.send('go_to_position', scale_value)
+        self._player.go_to_position(player.StreamTime(scale_value, 's'))
 
     def on_position_updated(self, position: StreamTime) -> None:
         """
@@ -633,11 +616,7 @@ class PlayerButtonInfoVC:
     """
     _logger = logging.getLogger(f'{__name__}.PlayerButtonInfoVC')
 
-    def __init__(self,
-                 component_transmitter: signal_.Signal,
-                 controller_transmitter: signal_.Signal,
-                 builder: Gtk.Builder):
-        self.transmitter = component_transmitter
+    def __init__(self, player_: player.Player, builder: Gtk.Builder):
 
         self._view: Gtk.Button = builder.get_object('player_button_stream_info')
         self._view.connect('button-release-event', self._on_info_button_released)
@@ -651,8 +630,9 @@ class PlayerButtonInfoVC:
         self._info_dialog_ok_button: Gtk.Button = builder.get_object('stream_info_dialog_ok_button')
         self._info_dialog_ok_button.connect('clicked', self._close_dialog)
 
-        controller_transmitter.connect('stream_updated', self._activate)
-        controller_transmitter.connect('playlist_unloaded', self._deactivate)
+        self._player = player_
+        self._player.transmitter.connect('stream_updated', self._activate)
+        self._player.transmitter.connect('playlist_unloaded', self._deactivate)
 
         self._deactivate()
 
