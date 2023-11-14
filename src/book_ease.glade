@@ -253,48 +253,6 @@ MA 02110-1301, USA.
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <child>
-                  <object class="GtkSwitch" id="show_playlist_switch">
-                    <property name="name">show_playlist_switch</property>
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="valign">center</property>
-                    <property name="active">True</property>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">True</property>
-                    <property name="padding">4</property>
-                    <property name="pack_type">end</property>
-                    <property name="position">0</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkLabel">
-                    <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <property name="label" translatable="yes">Playlist</property>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">False</property>
-                    <property name="pack_type">end</property>
-                    <property name="position">1</property>
-                  </packing>
-                </child>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="padding">4</property>
-                <property name="pack_type">end</property>
-                <property name="position">1</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkBox">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <child>
                   <object class="GtkSwitch" id="show_image_switch">
                     <property name="name">show_image_switch</property>
                     <property name="visible">True</property>
@@ -319,6 +277,48 @@ MA 02110-1301, USA.
                   <packing>
                     <property name="expand">False</property>
                     <property name="fill">True</property>
+                    <property name="pack_type">end</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="padding">4</property>
+                <property name="pack_type">end</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkBox">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <child>
+                  <object class="GtkSwitch" id="show_playlist_switch">
+                    <property name="name">show_playlist_switch</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="valign">center</property>
+                    <property name="active">True</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="padding">4</property>
+                    <property name="pack_type">end</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="label" translatable="yes">Playlist</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
                     <property name="pack_type">end</property>
                     <property name="position">1</property>
                   </packing>
@@ -491,13 +491,13 @@ MA 02110-1301, USA.
               </packing>
             </child>
             <child>
-              <object class="GtkButton" id="player_button_next">
+              <object class="GtkButton" id="player_button_forward">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
-                <property name="tooltip_text" translatable="yes">Go to next track.</property>
+                <property name="tooltip_text" translatable="yes">Skip forward in a track.</property>
                 <property name="valign">center</property>
-                <property name="image">image_media_next</property>
+                <property name="image">image_media_forward</property>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -506,13 +506,13 @@ MA 02110-1301, USA.
               </packing>
             </child>
             <child>
-              <object class="GtkButton" id="player_button_forward">
+              <object class="GtkButton" id="player_button_next">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
-                <property name="tooltip_text" translatable="yes">Skip forward in a track.</property>
+                <property name="tooltip_text" translatable="yes">Go to next track.</property>
                 <property name="valign">center</property>
-                <property name="image">image_media_forward</property>
+                <property name="image">image_media_next</property>
               </object>
               <packing>
                 <property name="expand">False</property>
