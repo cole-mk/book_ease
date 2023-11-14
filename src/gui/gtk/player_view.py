@@ -138,6 +138,7 @@ class PlayerButtonVolumeVC:
         Set the button to active state
         """
         self.logger.debug('activate')
+        self.view.set_value(stream_data.volume)
         self.view.set_sensitive(True)
 
     def deactivate(self) -> None:
