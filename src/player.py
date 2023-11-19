@@ -980,7 +980,7 @@ class GstPlayer:
 
     def _update_time(self):
         """
-        Set self.stream_data.time to the stream's current stream_data.
+        Send notification that the stream's position has changed.
         """
         if not self.stream_tasks.running():
             if self.update_time_period != self.update_time_period_pending:
@@ -1122,7 +1122,7 @@ class GstPlayer:
         return False
 
     def _on_duration_ready(self, bus: Gst.Bus, _):
-        """Simply mark duration_ready subtask as complete."""
+        """End the duration_ready subtask."""
         bus.disconnect_by_func(self._on_duration_ready)
         self.stream_tasks.end_subtask('duration_ready')
 
