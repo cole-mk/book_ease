@@ -457,6 +457,7 @@ class PlayerPositionDisplayVC:
         # Used to update the self.cur_position_label without updating the scrollbar itself.
         self.buffered_position: StreamTime = player.StreamTime(0)
         self.scale_drag_in_progress: bool = False
+        self.previous_mark_time: player.StreamTime | None = None
 
         self._deactivate()
 
@@ -534,6 +535,16 @@ class PlayerPositionDisplayVC:
         self.track_file_name_label.set_tooltip_text(Path(stream_data.path).name)
         self.track_file_name_label.set_sensitive(True)
 
+        # Make short streams scroll a little more smoothly.
+        if stream_data.duration.get_time('m') > 2:
+            self._player.set_update_time_period(player.StreamTime(500, 'ms'))
+        elif stream_data.duration.get_time('s') > 90:
+            self._player.set_update_time_period(player.StreamTime(200, 'ms'))
+        elif stream_data.duration.get_time('s') > 30:
+            self._player.set_update_time_period(player.StreamTime(100, 'ms'))
+        else:
+            self._player.set_update_time_period(player.StreamTime(50, 'ms'))
+
     def on_playlist_unloaded(self) -> None:
         """
         Callback for when there is no stream to display.
@@ -572,7 +583,6 @@ class PlayerPositionDisplayVC:
         """
         Set the scale position to position
         """
-        self.logger.debug('set_current_position')
         # Truncate the position for the label to keep the display clean,
         # but use ms to set the scale's value. This prevents the slider from
         # jumping back a couple pixels after dragging the slider.
@@ -584,7 +594,9 @@ class PlayerPositionDisplayVC:
         self.cur_position_label.set_text(hour_str + f'{min_:02}:{sec:02}')
 
         if self.scale_drag_in_progress:
-            self.scale.add_mark(self.buffered_position.get_time('ms') / 1000, Gtk.PositionType.TOP)
+            if  self.buffered_position - self.previous_mark_time > player.StreamTime(1, 's'):
+                self.scale.add_mark(self.buffered_position.get_time('ms') / 1000, Gtk.PositionType.TOP)
+                self.previous_mark_time.set_time(self.buffered_position.get_time())
         else:
             self.scale.set_value(self.buffered_position.get_time('ms') / 1000)
 
@@ -606,6 +618,7 @@ class PlayerPositionDisplayVC:
         self.scale.set_draw_value(True)
         value = self.scale.get_value()
         self.scale.add_mark(value, Gtk.PositionType.TOP)
+        self.previous_mark_time = player.StreamTime(value, 'ms')
 
 
 class PlayerButtonInfoVC:

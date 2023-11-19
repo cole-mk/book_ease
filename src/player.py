@@ -414,6 +414,17 @@ class Player:  # pylint: disable=unused-argument
         """Only used by PlayerStateInitial"""
         raise NotImplementedError
 
+    def set_update_time_period(self, period_length: StreamTime) -> bool:
+        """
+        Tell Player backend to set the period length for sending 'update_time' signals.
+        period_length: amount of time to wait between each sending of 'update_time'.
+
+        Note: This is valid to call in all states. On the backend it's just setting
+        an instance vaiable.
+        """
+        self.player_adapter.set_update_time_period(period_length)
+
+
     def _load_playlist(self, playlist_data: book.PlaylistData) -> None:
         """Implementation for self.load_playlist"""
         self.logger.warning('_load_playlist class %s', self.__class__)
@@ -768,6 +779,7 @@ class GstPlayer:
         Gst.init(None)
         self.pipeline: Gst.Pipeline | None = None
         self.update_time_period = StreamTime(1, 's')
+        self.update_time_period_pending = StreamTime(1, 's')
         self.update_time_id = None
         self.transmitter = signal_.Signal()
         self.transmitter.add_signal('time_updated', 'stream_ready', 'eos', 'seek_complete', 'volume_change')
@@ -781,6 +793,7 @@ class GstPlayer:
         self.stream_tasks.add_subtask('load_stream')
         self.stream_tasks.add_subtask('gather_stream_info')
         self.stream_tasks.add_subtask('set_volume')
+        self.stream_tasks.add_subtask('set_update_time_period')
         self.stream_tasks.transmitter.connect('meta_task_complete', self.transmitter.send, 'stream_ready')
 
         self._stream_info = GstStreamInfo()
@@ -835,6 +848,7 @@ class GstPlayer:
         """
         match state:
             case Gst.State.PLAYING:
+                self.update_time_period = self.update_time_period_pending
                 self.update_time_id = GLib.timeout_add(self.update_time_period.get_time('ms'), self._update_time)
                 self._update_time()
 
@@ -942,6 +956,17 @@ class GstPlayer:
             return self._set_state(state=Gst.State.PAUSED)
         return False
 
+    def set_update_time_period(self, period_length: StreamTime) -> bool:
+        """
+        Set the period length for sending 'update_time' signals.
+        period_length: amount of time to wait between each sending of 'update_time'
+        """
+        if not self.stream_tasks.running() and self.stream_tasks.begin_subtask('set_update_time_period'):
+            self.update_time_period_pending = period_length
+            self._g_idle_add_once(self.stream_tasks.end_subtask, 'set_update_time_period')
+            return True
+        return False
+
     @staticmethod
     def get_uri_from_path(path: str) -> str:
         """
@@ -958,6 +983,10 @@ class GstPlayer:
         Set self.stream_data.time to the stream's current stream_data.
         """
         if not self.stream_tasks.running():
+            if self.update_time_period != self.update_time_period_pending:
+                self.update_time_period = self.update_time_period_pending
+                GLib.Source.remove(self.update_time_id)
+                self.update_time_id = GLib.timeout_add(self.update_time_period.get_time('ms'), self._update_time)
             time_ = self.query_position()
             self._g_idle_add_once(
                 self.transmitter.send, 'time_updated', time_, priority=GLib.PRIORITY_DEFAULT
@@ -1325,6 +1354,12 @@ class GstPlayerA:
         """
         self._appendleft((lambda: None, self._gst_player.set_volume, volume))
 
+    def set_update_time_period(self, period_length: StreamTime) -> bool:
+        """
+        Tell GstPlayer to set the period length for sending 'update_time' signals.
+        period_length: amount of time to wait between each sending of 'update_time'
+        """
+        self._appendleft((lambda: None, self._gst_player.set_update_time_period, period_length))
 
 class GstStreamInfoError(Exception):
     """Exception raised by GstStreamInfo"""
