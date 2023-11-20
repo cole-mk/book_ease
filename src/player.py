@@ -912,7 +912,7 @@ class GstPlayer:
         """
         if self.stream_tasks.begin_subtask('set_volume'):
             if self.pipeline is not None:
-               self.pipeline.set_volume(GstAudio.StreamVolumeFormat.CUBIC, volume)
+               self.pipeline.set_volume(GstAudio.StreamVolumeFormat.CUBIC, volume)  # pylint: disable=all: crashes pylint
                self._g_idle_add_once(self.stream_tasks.end_subtask, 'set_volume')
                return True
             raise GstPlayerError('Failed to set volume')
@@ -943,7 +943,7 @@ class GstPlayer:
         Returns the volume normalized to 0 <= volume <= 1
         """
         if self.pipeline is not None:
-            return self.pipeline.get_volume(GstAudio.StreamVolumeFormat.CUBIC)
+            return self.pipeline.get_volume(GstAudio.StreamVolumeFormat.CUBIC)  # pylint: disable=all: crashes pylint
         raise GstPlayerError('Failed to retrieve the volume: pipeline does not exist')
 
     def pause(self) -> bool:
@@ -1007,7 +1007,7 @@ class GstPlayer:
         """
         Notify that the stream's volume was changed outside of book_ease.
         """
-        volume = self.pipeline.get_volume(GstAudio.StreamVolumeFormat.CUBIC)
+        volume = self.pipeline.get_volume(GstAudio.StreamVolumeFormat.CUBIC)  # pylint: disable=all: crashes pylint
         self._g_idle_add_once(self.transmitter.send, 'volume_change', volume)
 
     def _init_message_bus(self):
