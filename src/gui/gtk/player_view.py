@@ -36,7 +36,6 @@ from typing import TYPE_CHECKING
 import gi
 gi.require_version("Gtk", "3.0") # pylint: disable=wrong-import-position
 from gi.repository import Gtk, Gdk
-import signal_
 import player
 if TYPE_CHECKING:
     from player import StreamData, StreamTime
@@ -112,7 +111,7 @@ class PlayerButtonVolumeVC:
         """
         self.view.set_value(volume)
 
-    def on_popover_closed(self, *args) -> None:
+    def on_popover_closed(self, *_) -> None:
         """
         Reconnect on_backend_volume_change callback now that the volume is no longer being modified by this app.
         """
