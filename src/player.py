@@ -711,13 +711,14 @@ class MetaTask:
         self._meta_task = Lock()
         self._tasks = {}
 
-    def add_subtask(self, task_name: str):
+    def add_subtask(self, *task_names: list[str]) -> None:
         """
-        Add a sub-task to the MetaTask
+        Add a number of sub-tasks to the MetaTask.
         """
-        if task_name in self._tasks:
-            raise ValueError(f'Can\'t add duplicate task: {task_name}')
-        self._tasks[task_name] = Lock()
+        if duplicate_subtasks := task_names & self._tasks.keys():
+            raise ValueError(f'Can\'t add duplicate task: {duplicate_subtasks}')
+        for task in task_names:
+            self._tasks[task] = Lock()
 
     def begin_subtask(self, subtask_name: str) -> bool:
         """
@@ -785,15 +786,9 @@ class GstPlayer:
         self.transmitter.add_signal('time_updated', 'stream_ready', 'eos', 'seek_complete', 'volume_change')
 
         self.stream_tasks = MetaTask()
-        self.stream_tasks.add_subtask('unload_stream')
-        self.stream_tasks.add_subtask('duration_ready')
-        self.stream_tasks.add_subtask('start_position_set')
-        self.stream_tasks.add_subtask('seek')
-        self.stream_tasks.add_subtask('state_change')
-        self.stream_tasks.add_subtask('load_stream')
-        self.stream_tasks.add_subtask('gather_stream_info')
-        self.stream_tasks.add_subtask('set_volume')
-        self.stream_tasks.add_subtask('set_update_time_period')
+        self.stream_tasks.add_subtask('unload_stream', 'duration_ready', 'start_position_set', 'seek', 'state_change',
+                                      'load_stream', 'gather_stream_info', 'set_volume', 'set_update_time_period')
+
         self.stream_tasks.transmitter.connect('meta_task_complete', self.transmitter.send, 'stream_ready')
 
         self._stream_info = GstStreamInfo()
