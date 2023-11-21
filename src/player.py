@@ -792,9 +792,7 @@ class GstPlayer:
         self.stream_tasks.transmitter.connect('meta_task_complete', self.transmitter.send, 'stream_ready')
 
         self._stream_info = GstStreamInfo()
-        self._stream_info.transmitter.connect('stream_info_ready',
-                                             self.stream_tasks.end_subtask,
-                                             'gather_stream_info')
+        self._stream_info.transmitter.connect('stream_info_ready', self.stream_tasks.end_subtask, 'gather_stream_info')
 
 
     @staticmethod
