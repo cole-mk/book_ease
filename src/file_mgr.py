@@ -32,6 +32,7 @@ import re
 import os
 from datetime import datetime
 from pathlib import Path
+from typing import Literal
 import gi
 gi.require_version("Gtk", "3.0")  # pylint: disable=wrong-import-position
 from gi.repository import Gtk
@@ -39,15 +40,14 @@ from gi.repository.GdkPixbuf import Pixbuf
 import book_ease_tables
 import signal_
 
-
-class Files_(signal_.Signal):
+class FileMgr(signal_.Signal):
     """class to manage the file management features of book_ease"""
     default_library_path = str(Path.home())
 
-    def __init__(self):
+    def __init__(self) -> None:
         signal_.Signal.__init__(self)
-        files_dbi = FilesDBI()
-        self.current_path = files_dbi.get_library_path() or self.default_library_path
+        file_mgr_dbi = FileMgrDBI()
+        self.current_path: str = file_mgr_dbi.get_library_path() or self.default_library_path
         self.path_back_max_len = 10
         self.path_ahead_max_len = 10
         self.path_back = []
@@ -66,19 +66,19 @@ class Files_(signal_.Signal):
         # populate the file_list
         self.__update_file_list()
 
-    def __update_file_list(self):
+    def __update_file_list(self) -> None:
         """repopulate the files list gtk model with the files in cwd"""
         self.file_list.clear()
         self.populate_file_list(self.file_list, self.current_path)
         # notify subscribers that the file list has been updated
         self.send('cwd_changed')
 
-    def get_file_list_new(self):
+    def get_file_list_new(self) -> Gtk.ListStore:
         """create a new file list model for the files view"""
         f_list = Gtk.ListStore(Pixbuf, str, bool, str, str, str)
         return f_list
 
-    def populate_file_list(self, file_list, path):
+    def populate_file_list(self, file_list: Gtk.ListStore, path: str) -> None:
         """Determine if files in path, directory, are suitable to be displayed and add them to the file_list"""
         files = os.scandir(path)
         # populate liststore
@@ -101,12 +101,12 @@ class Files_(signal_.Signal):
             file_list.append((icon, i.name, i.is_dir(), size_f, units, str(timestamp_formatted)))
 
 
-    def get_file_list(self):
+    def get_file_list(self) -> Gtk.ListStore:
         """retrieve self.file_list"""
         return self.file_list
 
     # callback signaled by Files_View
-    def cmp_f_list_dir_fst(self, model, row1, row2):
+    def cmp_f_list_dir_fst(self, model, row1, row2) -> Literal[1] | Literal[-1] | Literal[0]:
         """
         compare method for sorting sort columns in the file view
         returns gt:1 lt:-1 or eq:0
@@ -138,7 +138,7 @@ class Files_(signal_.Signal):
             return 0
         return 1
 
-    def format_f_size(self, size):
+    def format_f_size(self, size) -> tuple[str, Literal['b', 'kb', 'mb', 'gb', 'tb']]:
         """
         convert filesize to string with appropriate units
         This includes generating a units suffix thats returned with the formatted size as a tuple.
@@ -161,24 +161,24 @@ class Files_(signal_.Signal):
             units = 'tb'
         return (val, units)
 
-    def append_to_path_back(self):
+    def append_to_path_back(self) -> None:
         """track file change history"""
         if len(self.path_back) >= self.path_back_max_len:
             self.path_back.pop(0)
         self.path_back.append(self.current_path)
 
-    def append_to_path_ahead(self):
+    def append_to_path_ahead(self) -> None:
         """track file change history"""
         if len(self.path_ahead) >= self.path_ahead_max_len:
             self.path_ahead.pop(0)
         self.path_ahead.append(self.current_path)
 
 
-    def get_path_current(self):
+    def get_path_current(self) -> str:
         """get the current path"""
         return self.current_path
 
-    def cd(self, path):
+    def cd(self, path: str) -> None:
         """move to a new working directory determined by path"""
         if os.path.isdir(path):
             self.append_to_path_back()
@@ -197,14 +197,14 @@ class Files_(signal_.Signal):
             else:
                 self.path_ahead.append(path)
 
-    def cd_up(self, path):
+    def cd_up(self, path: str) -> None:
         """move up one level in the directory tree"""
         if os.path.isdir(path):
             self.append_to_path_back()
             self.cd(os.path.split(self.get_path_current())[0])
             self.__update_file_list()
 
-    def cd_previous(self):
+    def cd_previous(self) -> None:
         """move back to directory in the file change history"""
         if len(self.path_back) > 0:
             path = self.path_back.pop()
@@ -215,7 +215,7 @@ class Files_(signal_.Signal):
             else:
                 self.path_back.append(path)
 
-    def is_hidden_file(self, file_name):
+    def is_hidden_file(self, file_name: str) -> bool:
         """determine if a file is a hidden file"""
         valid = re.compile(r"^[\.]")
         if valid.match(file_name):
@@ -223,10 +223,10 @@ class Files_(signal_.Signal):
         return False
 
 
-class FilesDBI:
+class FileMgrDBI:
     """Adapter to help Files interface with book_ease.db"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.settings_string = book_ease_tables.SettingsString()
 
     def get_library_path(self) -> str | None:
@@ -235,7 +235,7 @@ class FilesDBI:
             library_path_list = self.settings_string.get(con, 'Files', 'library_path')
         return library_path_list[0]['value'] if library_path_list else None
 
-    def set_library_path(self, library_path: str):
+    def set_library_path(self, library_path: str) -> None:
         """
         Save the path to the root directory of the book library
         Not yet Implemented.

@@ -44,7 +44,7 @@ logging.getLogger().setLevel(logging.WARNING)
 class RenameTvEntryDialog(Gtk.Dialog):
     """Dialog for renaming a bookmark"""
 
-    def __init__(self, title="My Dialog"):
+    def __init__(self, title: str="My Dialog") -> None:
         self.title=title
         super().__init__(title=self.title, transient_for=None, flags=0)
 
@@ -68,12 +68,12 @@ class RenameTvEntryDialog(Gtk.Dialog):
         box.pack_start(self.entry_2, True, True, 0)
         self.show_all()
 
-    def add_filechooser_dialog(self, file_chooser_method=None):
+    def add_filechooser_dialog(self, file_chooser_method=None) -> None:
         """Allow Bookmark to assign a file choser diaog for this dialog to use"""
         self.entry_2.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY, 'folder')
         self.entry_2.connect('icon-press', self.on_file_chooser_icon_pressed, file_chooser_method)
 
-    def on_file_chooser_icon_pressed(self, unused_1, unused_2, unused_3, file_chooser_method=None):
+    def on_file_chooser_icon_pressed(self, unused_1, unused_2, unused_3, file_chooser_method=None) -> None:
         """callback to start the filechooser dialof that was assigned to this class in add_filechooser_dialog"""
         name, path = file_chooser_method()
         if name and path:
@@ -84,7 +84,7 @@ class BookMarkData:
     """DTO for bookmark data"""
     __slots__ = ['id_', 'name', 'target', 'index']
 
-    def __init__(self, id_, name, target, index):
+    def __init__(self, id_: int, name: str, target: str, index: int) -> None:
         self.id_ = id_
         self.name = name
         self.target = target
@@ -94,7 +94,7 @@ class BookMarkData:
 class BookMarkDBI:
     """Adapter to help BookMark interface with the book_ease.db database"""
 
-    def __init__(self, column_map):
+    def __init__(self, column_map: dict) -> None:
         self.column_map = column_map
         self.settings_string = book_ease_tables.SettingsString()
         self.book_marks_table = book_ease_tables.BookMarks()
@@ -104,13 +104,13 @@ class BookMarkDBI:
         with book_ease_tables.DB_CONNECTION_MANAGER.query() as con:
             book_mark_db_rows = self.book_marks_table.get_all_rows_sorted_by_index_asc(con)
         return tuple(BookMarkData(
-            id_=row[self.column_map['id']['title']],
-            name=row[self.column_map['name']['title']],
-            target=row[self.column_map['target']['title']],
-            index=row[self.column_map['index']['title']]
+            id_ = row[self.column_map['id']['title']],
+            name = row[self.column_map['name']['title']],
+            target = row[self.column_map['target']['title']],
+            index = row[self.column_map['index']['title']]
         )for row in book_mark_db_rows)
 
-    def set_book_marks(self, book_marks: tuple[BookMarkData]):
+    def set_book_marks(self, book_marks: tuple[BookMarkData]) -> None:
         """Save the bookmarks to the database"""
         with book_ease_tables.DB_CONNECTION_MANAGER.query() as con:
             id_set = set()
@@ -145,10 +145,14 @@ class BookMark:
         'index': {'title': 'index_'}
     }
 
-    def __init__(self, bookmark_view, f_view, files):
-        self.files = files
+    def __init__(self,
+                 bookmark_view: Gtk.TreeView,
+                 file_mgr_view_: file_mgr_view.FileMgrView,
+                 file_mgr_: file_mgr.FileMgr) -> None:
+
+        self.file_mgr = file_mgr_
         self.book_mark_dbi = BookMarkDBI(self.column_map)
-        self.f_view = f_view
+        self.file_mgr_view = file_mgr_view_
 
         self.bookmark_model = Gtk.ListStore(Pixbuf, int, str, str)
         self.bookmark_model.connect('row-deleted', self.on_row_deleted)
@@ -177,24 +181,24 @@ class BookMark:
         self.reload_bookmarks()
 
         # right click context menu
-        self.cmenu = Gtk.Menu.new()
+        self.cmenu: Gtk.Menu  = Gtk.Menu.new()
         self.cmenu.connect('deactivate', self.cm_on_deactivate)
 
-        self.cm_add_bm = Gtk.MenuItem.new_with_label('add bookmark')
+        self.cm_add_bm: Gtk.MenuItem = Gtk.MenuItem.new_with_label('add bookmark')
         self.cm_add_bm.connect('button-release-event', self.cm_on_item_button_release, 'add bookmark')
         self.cmenu.append(self.cm_add_bm)
 
-        self.cm_remove_bm = Gtk.MenuItem.new_with_label('remove bookmark')
+        self.cm_remove_bm: Gtk.MenuItem = Gtk.MenuItem.new_with_label('remove bookmark')
         self.cm_remove_bm.connect('button-release-event', self.cm_on_item_button_release, 'remove bookmark')
         self.cmenu.append(self.cm_remove_bm)
 
-        self.cm_rename_bm = Gtk.MenuItem.new_with_label('rename bookmark')
+        self.cm_rename_bm: Gtk.MenuItem = Gtk.MenuItem.new_with_label('rename bookmark')
         self.cm_rename_bm.connect('button-release-event', self.cm_on_item_button_release, 'rename bookmark')
         self.cmenu.append(self.cm_rename_bm)
 
         self.cmenu.show_all()
 
-    def remove_selected_bookmark(self):
+    def remove_selected_bookmark(self) -> None:
         """delete the selected bookmark and remove it from the view"""
         sel = self.bookmark_view.get_selection()
         model, paths = sel.get_selected_rows()
@@ -204,7 +208,7 @@ class BookMark:
             itr = model.get_iter(pth)
             model.remove(itr)
 
-    def rename_selected_bookmark(self):
+    def rename_selected_bookmark(self) -> None:
         """
         rename the selected bookmark
         by creating a user input dialog to set the name
@@ -237,7 +241,7 @@ class BookMark:
                 self.update_bookmark_config()
             dialog.destroy()
 
-    def select_dir_dialog(self):
+    def select_dir_dialog(self) -> tuple[str, str] | tuple[None, None]:
         """
         File choser dialog used by BookMark class
         needs to be moved to its own class
@@ -252,7 +256,7 @@ class BookMark:
             Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, "Select", Gtk.ResponseType.OK
         )
         dialog.set_default_size(800, 400)
-        dialog.set_current_folder(self.files.get_path_current())
+        dialog.set_current_folder(self.file_mgr.get_path_current())
         response = dialog.run()
         if response == Gtk.ResponseType.OK:
             target = dialog.get_filename()
@@ -260,7 +264,7 @@ class BookMark:
         dialog.destroy()
         return  name, target
 
-    def add_bookmark(self, name, path):
+    def add_bookmark(self, name: str, path: str) -> None:
         """
         add bookmark, defined by name and path, by adding it
         to the bookmark model and saving it to file
@@ -273,7 +277,7 @@ class BookMark:
             self.bookmark_model.append([icon, new_id, name, path])
 
 
-    def cm_on_deactivate(self, __):
+    def cm_on_deactivate(self, __) -> None:
         """
         callback to cleanup after a context menu is closed
         unselects any entries in the view that were being acted upon by the context menu
@@ -281,7 +285,10 @@ class BookMark:
         sel = self.bookmark_view.get_selection()
         sel.unselect_all()
 
-    def cm_on_item_button_release(self, unused_button, event, user_data=None):
+    def cm_on_item_button_release(self,
+                                  _: Gtk.MenuItem,
+                                  event: Gdk.EventButton,
+                                  user_data: any=None) -> None:
         """
         do task based on context menu selection by the user
         """
@@ -296,7 +303,7 @@ class BookMark:
                 elif 'rename bookmark' == user_data:
                     self.rename_selected_bookmark()
 
-    def on_button_release(self, unused_button, event):
+    def on_button_release(self, _: Gtk.TreeView, event: Gdk.EventButton) -> None:
         """
         change to the directory targeted by the clicked bookmark
         """
@@ -309,14 +316,13 @@ class BookMark:
                     tree_iter = model.get_iter(path)
                     value = model.get_value(tree_iter, self.column_map['target']['g_col'])
                     tvs.unselect_all()
-                    self.files.cd(value)
+                    self.file_mgr.cd(value)
 
-    def on_button_press(self, unused_button, event):
+    def on_button_press(self, _: Gtk.TreeView, event: Gdk.EventButton) -> None:
         """
         handle callbacks for a button press on a bookmark by any mouse button.
         currently its only action is to call a context menu when the bookmark view is right clicked
         """
-        print('on_button_press')
         if event.get_button()[0] is True:
             if event.get_button()[1] == 1:
                 pass
@@ -334,11 +340,11 @@ class BookMark:
                 pass
                 #print('forward button clicked')
 
-    def on_row_deleted(self, unused_path, unused_user_data=None):
+    def on_row_deleted(self, _: Gtk.ListStore, __: any=None) -> None:
         """callback for treestore row deleted, catching the user drag icons to reorder"""
         self.update_bookmark_config()
 
-    def update_bookmark_config(self):
+    def update_bookmark_config(self) -> None:
         """clear and re-save all the bookmarks with current values"""
         cmap = BookMark.column_map
         data = tuple(BookMarkData(id_=row[cmap['id']['g_col']],
@@ -349,14 +355,12 @@ class BookMark:
 
         self.book_mark_dbi.set_book_marks(data)
 
-    def reload_bookmarks(self):
+    def reload_bookmarks(self) -> None:
         """
         load saved bookmarks into the bookmark treeview
         Note: this does not reload, it only appends
         """
         for row in self.book_mark_dbi.get_bookmarks():
-            # if os.path.isdir(row[1]):
-
             if os.path.isdir(row.target):
                 icon = Gtk.IconTheme.get_default().load_icon('folder', 24, Gtk.IconLookupFlags.GENERIC_FALLBACK)
                 self.bookmark_model.append([icon, row.id_, row.name, row.target])
@@ -570,21 +574,22 @@ class MainWindow(Gtk.Window):
             self.file_manager_pane.show()
 
 
-def main(unused_args):  # pylint: disable=unused-variable
+#pylint: disable=unused-variable
+def main(unused_args):
     """entry point for book_ease"""
     builder = Gtk.Builder()
     builder.add_from_file("book_ease.glade")
     # files backend
-    files = file_mgr.Files_()
+    file_mgr_0 = file_mgr.FileMgr()
     # left side file viewer
-    files_view_1 = file_mgr_view.Files_View(builder.get_object("files_1"), files)
+    file_mgr_view_0: Gtk.TreeView = file_mgr_view.FileMgrView(builder.get_object("files_1"), file_mgr_0)
     # left side bookmarks
-    book_mark_1 = BookMark(builder.get_object("bookmarks_1"), files_view_1, files)
+    book_mark_0: Gtk.TreeView = BookMark(builder.get_object("bookmarks_1"), file_mgr_view_0, file_mgr_0)
     # image pane
-    image_view_ref = Image_View(files, builder)
+    image_view_ref = Image_View(file_mgr_0, builder)
 
     # bookreader backend
-    book_reader_ref = book_reader.BookReader(files, builder)
+    book_reader_ref = book_reader.BookReader(file_mgr_0, builder)
 
     player_c_ref = player.PlayerC(book_reader_ref, builder)
 
