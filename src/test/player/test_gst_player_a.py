@@ -377,11 +377,18 @@ def get_new_stream_data() -> player.StreamData:
     stream_data.track_number = 13
     return stream_data
 
+orig_pop = None
+
+def fake_pop(self):
+    TestPop.pop_count += 1
+    orig_pop(self)
 
 class TestPop:
     """
     Unit test for method pop().
     """
+    pop_count = 0
+    orig_pop = GstPlayerA.pop
 
     def test_runtime_error_clears_the_queue(self):
         """
@@ -420,9 +427,17 @@ class TestPop:
         player_a = GstPlayerA()
         player_a._gst_player = get_mock_gst_player(return_values=True)
 
+        TestPop.pop_count = 0
+        #def fake_pop():
+        #    TestPop.pop_count += 1
+        #    TestPop.orig_pop()
+
         # Wrap pop() with a mock, so we can use call_count attribute.
+        global orig_pop
         orig_pop = player_a.pop
-        player_a.pop = mock.Mock(side_effect=orig_pop)
+        #TestPop.orig_pop = player_a.pop
+        #player_a.pop = mock.Mock(side_effect=orig_pop)
+        player_a.pop = fake_pop
 
         # should call pop itself
         player_a.play()
@@ -432,7 +447,8 @@ class TestPop:
         player_a.play()
         # pop sould onnly be called one more time
         player_a._gst_player.transmitter.send('stream_ready')
-        assert player_a.pop.call_count == 2
+        #assert player_a.pop.call_count == 2
+        assert TestPop.pop_count == 2
 
 
 class _TestGMainLoopIntegration:

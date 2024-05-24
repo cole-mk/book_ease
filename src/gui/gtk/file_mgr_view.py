@@ -32,22 +32,23 @@ import os
 import gi
 
 gi.require_version("Gtk", "3.0")  # pylint: disable=wrong-import-position
-from gi.repository import Gtk
+from gi.repository import Gtk, Gdk
 import book_ease_tables
+import file_mgr
 
 
-class Files_View:
-    """Display file infrmation for files in the cwd"""
+class FileMgrView:
+    """Display file information for files in the cwd"""
 
-    def __init__(self, files_view, files):
-        self.files_view = files_view
-        self.files_view.connect('destroy', self.on_destroy)
-        self.files_view_dbi = FilesViewDBI()
-        self.files = files
+    def __init__(self, file_mgr_view: Gtk.TreeView, file_mgr_: file_mgr.FileMgr) -> None:
+        self.file_mgr_view = file_mgr_view
+        self.file_mgr_view.connect('destroy', self.on_destroy)
+        self.file_mgr_view_dbi = FileMgrViewDBI()
+        self.file_mgr = file_mgr_
         # set up the data model and containers
-        self.files_ls = self.files.get_file_list()
-        self.files_ls.set_sort_func(1, self.files.cmp_f_list_dir_fst, None)
-        self.files_view.set_model(self.files_ls)
+        self.file_lst = self.file_mgr.get_file_list()
+        self.file_lst.set_sort_func(1, self.file_mgr.cmp_f_list_dir_fst, None)
+        self.file_mgr_view.set_model(self.file_lst)
 
         # name column
         name_r_icon = Gtk.CellRendererPixbuf()
@@ -60,9 +61,9 @@ class Files_View:
         self.name_col.set_sort_column_id(1)
         self.name_col.set_resizable(True)
         # reset name column width to previous size iff previous size exists.
-        if name_width := self.files_view_dbi.get_name_col_width():
+        if name_width := self.file_mgr_view_dbi.get_name_col_width():
             self.name_col.set_fixed_width(name_width)
-        self.files_view.append_column(self.name_col)
+        self.file_mgr_view.append_column(self.name_col)
 
         # size column
         size_r_val = Gtk.CellRendererText()
@@ -72,20 +73,20 @@ class Files_View:
         size_col.pack_start(size_r_units, False)
         size_col.add_attribute(size_r_val, "text", 3)
         size_col.add_attribute(size_r_units, "text", 4)
-        self.files_view.append_column(size_col)
+        self.file_mgr_view.append_column(size_col)
 
         # file creation time column
         c_time_r = Gtk.CellRendererText()
         c_time_col = Gtk.TreeViewColumn("Modified")
         c_time_col.pack_start(c_time_r, True)
         c_time_col.add_attribute(c_time_r, "text", 5)
-        self.files_view.append_column(c_time_col)
+        self.file_mgr_view.append_column(c_time_col)
 
         #signals
-        self.files_view.connect('row-activated', self.row_activated)
-        self.files_view.connect('button-release-event', self.on_button_release )
+        self.file_mgr_view.connect('row-activated', self.row_activated)
+        self.file_mgr_view.connect('button-release-event', self.on_button_release )
 
-    def on_button_release(self, unused_button, event):
+    def on_button_release(self, _: Gtk.TreeView, event: Gdk.EventButton) -> None:
         """
         handle mouse button release events.
         Currently:
@@ -103,13 +104,16 @@ class Files_View:
                 pass
                 #print('right button clicked')
             elif event.get_button()[1] == 8:
-                self.files.cd_previous()
+                self.file_mgr.cd_previous()
                 #print('back button clicked')
             elif event.get_button()[1] == 9:
-                self.files.cd_ahead()
+                self.file_mgr.cd_ahead()
                 #print('forward button clicked')
 
-    def row_activated(self, treeview, path, unused_column):
+    def row_activated(self,
+                      treeview: Gtk.TreeView,
+                      path: Gtk.TreePath,
+                      _: Gtk.TreeViewColumn) -> None:
         """
         a file was cicked in the view.
         if file is a directory then change to that directory
@@ -120,15 +124,15 @@ class Files_View:
         is_dir = model.get_value(tree_iter,2)
         if is_dir:
             # cd into selected dir
-            new_path = os.path.join(self.files.get_path_current(), value)
-            self.files.cd(new_path)
+            new_path = os.path.join(self.file_mgr.get_path_current(), value)
+            self.file_mgr.cd(new_path)
 
-    def on_destroy(self, *unused_args):
+    def on_destroy(self, _: Gtk.TreeView):
         """save the gui's state"""
-        self.files_view_dbi.save_name_col_width(self.name_col.get_width())
+        self.file_mgr_view_dbi.save_name_col_width(self.name_col.get_width())
 
 
-class FilesViewDBI:
+class FileMgrViewDBI:
     """Class to help FilesView interface with a database"""
 
     def __init__(self):
