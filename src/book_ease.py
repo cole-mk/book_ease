@@ -582,9 +582,9 @@ def main(unused_args):
     # files backend
     file_mgr_0 = file_mgr.FileMgr()
     # left side file viewer
-    file_mgr_view_0: Gtk.TreeView = file_mgr_view.FileMgrView(builder.get_object("files_1"), file_mgr_0)
+    file_mgr_view_0 = file_mgr_view.FileMgrView(builder.get_object("files_1"), file_mgr_0)
     # left side bookmarks
-    book_mark_0: Gtk.TreeView = BookMark(builder.get_object("bookmarks_1"), file_mgr_view_0, file_mgr_0)
+    book_mark_0 = BookMark(builder.get_object("bookmarks_1"), file_mgr_view_0, file_mgr_0)
     # image pane
     image_view_ref = Image_View(file_mgr_0, builder)
 
