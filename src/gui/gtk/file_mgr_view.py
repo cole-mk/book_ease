@@ -118,6 +118,7 @@ class FileMgrView:
         a file was cicked in the view.
         if file is a directory then change to that directory
         """
+
         model = treeview.get_model()
         tree_iter = model.get_iter(path)
         value = model.get_value(tree_iter,1)
@@ -127,7 +128,7 @@ class FileMgrView:
             new_path = os.path.join(self.file_mgr.get_path_current(), value)
             self.file_mgr.cd(new_path)
 
-    def on_destroy(self, _: Gtk.TreeView):
+    def on_destroy(self, _: Gtk.TreeView) -> None:
         """save the gui's state"""
         self.file_mgr_view_dbi.save_name_col_width(self.name_col.get_width())
 
@@ -135,7 +136,7 @@ class FileMgrView:
 class FileMgrViewDBI:
     """Class to help FilesView interface with a database"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.settings_numeric = book_ease_tables.SettingsNumeric()
         # ids dict stores attribute:rowid to ease calls to update or insert a new row in the database
         self.ids = {}
@@ -153,7 +154,7 @@ class FileMgrViewDBI:
             self.ids['name_col_width'] = None
         return width
 
-    def save_name_col_width(self, width: int):
+    def save_name_col_width(self, width: int) -> None:
         """Save the width of the name column in the FilesView:TreeView to a database."""
         with book_ease_tables.DB_CONNECTION_MANAGER.query() as con:
             if id_ := self.ids['name_col_width']:
