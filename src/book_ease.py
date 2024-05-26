@@ -25,6 +25,7 @@
 import os
 import re
 import logging
+from pathlib import Path
 import gi
 gi.require_version("Gtk", "3.0")  # pylint: disable=wrong-import-position
 from gi.repository import Gtk, GdkPixbuf, Gdk
@@ -256,7 +257,7 @@ class BookMark:
             Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, "Select", Gtk.ResponseType.OK
         )
         dialog.set_default_size(800, 400)
-        dialog.set_current_folder(self.file_mgr.get_path_current())
+        dialog.set_current_folder(str(self.file_mgr.get_cwd()))
         response = dialog.run()
         if response == Gtk.ResponseType.OK:
             target = dialog.get_filename()
@@ -316,7 +317,7 @@ class BookMark:
                     tree_iter = model.get_iter(path)
                     value = model.get_value(tree_iter, self.column_map['target']['g_col'])
                     tvs.unselect_all()
-                    self.file_mgr.cd(value)
+                    self.file_mgr.cd(Path(value))
 
     def on_button_press(self, _: Gtk.TreeView, event: Gdk.EventButton) -> None:
         """
@@ -573,23 +574,20 @@ class MainWindow(Gtk.Window):
             # show file manager pane
             self.file_manager_pane.show()
 
-
 #pylint: disable=unused-variable
 def main(unused_args):
     """entry point for book_ease"""
     builder = Gtk.Builder()
     builder.add_from_file("book_ease.glade")
-    # files backend
-    file_mgr_0 = file_mgr.FileMgr()
-    # left side file viewer
-    file_mgr_view_0 = file_mgr_view.FileMgrView(builder.get_object("files_1"), file_mgr_0)
+    # file manager system
+    file_mgr_c_0 = file_mgr.FileMgrC(builder, file_mgr_view_name="files_1")
     # left side bookmarks
-    book_mark_0 = BookMark(builder.get_object("bookmarks_1"), file_mgr_view_0, file_mgr_0)
+    book_mark_0 = BookMark(builder.get_object("bookmarks_1"), file_mgr_c_0.file_mgr_view, file_mgr_c_0.file_mgr)
     # image pane
-    image_view_ref = Image_View(file_mgr_0, builder)
+    image_view_ref = Image_View(file_mgr_c_0.file_mgr, builder)
 
     # bookreader backend
-    book_reader_ref = book_reader.BookReader(file_mgr_0, builder)
+    book_reader_ref = book_reader.BookReader(file_mgr_c_0.file_mgr, builder)
 
     player_c_ref = player.PlayerC(book_reader_ref, builder)
 
