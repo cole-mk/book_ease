@@ -28,6 +28,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 import re
 import os
+from pathlib import Path
 import mutagen
 import playlist
 import signal_
@@ -297,7 +298,7 @@ class PlaylistDBI():
         playlists = []
         with abt.DB_CONNECTION.query() as con:
             # execute query
-            pl_list = abt.Playlist.get_rows_by_path(con, pl_data.get_path())
+            pl_list = abt.Playlist.get_rows_by_path(con, str(pl_data.get_path().absolute()))
         # build playlists list
         for plst in pl_list:
             play_list = PlaylistData(title=plst['title'], path=plst['path'], id_=plst['id'])

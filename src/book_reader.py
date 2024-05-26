@@ -35,15 +35,16 @@ if TYPE_CHECKING:
     gi.require_version("Gtk", "3.0")  # pylint: disable=wrong-import-position
     from gi.repository import Gtk
     import book_ease
+    import file_mgr
 
 
 class BookReader:
     """This class is responsible for opening books for display"""
 
     def __init__(self,
-                 files: book_ease.Files_,
+                 file_mgr_: file_mgr.FileMgr,
                  book_view_builder: Gtk.Builder):
-        self.files = files
+        self._file_mgr = file_mgr_
         self.transmitter = signal_.Signal()
         self.transmitter.add_signal('book_opened', 'book_closed')
         # playlists database helper
@@ -60,10 +61,10 @@ class BookReader:
         book_reader_v = book_reader_view.BookReaderV(book_view_builder)
         gui_builder = book_reader_v.get_builder()
 
-        self.existing_book_opener = ExistingBookOpener(gui_builder, self.files)
+        self.existing_book_opener = ExistingBookOpener(gui_builder, self._file_mgr)
         self.existing_book_opener.transmitter.connect('open_book', self.open_existing_book)
 
-        self.new_book_opener = NewBookOpener(gui_builder, self.files)
+        self.new_book_opener = NewBookOpener(gui_builder, self._file_mgr)
         self.new_book_opener.transmitter.connect('open_book', self.open_new_book)
 
         start_page = StartPage(gui_builder)
@@ -88,7 +89,7 @@ class BookReader:
         create a new Book instance and tell it to load a saved playlist.
         append the new Book to the booklist for later usage
         """
-        book_ = book.BookC(self.files.get_path_current(), None, self)
+        book_ = book.BookC(self._file_mgr.get_cwd(), None, self)
         br_note_book_tab_vc = BookReaderNoteBookTabVC(book_.transmitter, book_.component_transmitter)
         note_book_page = NoteBookPage(book_.get_view(), pl_data.get_id(), book_.transmitter)
 
@@ -108,10 +109,10 @@ class BookReader:
         create a new Book instance and tell it to create a new playlist.
         append the new Book to the booklist for later usage
         """
-        f_list = self.files.get_file_list_new()
-        self.files.populate_file_list(f_list, self.files.get_path_current())
+        f_list = self._file_mgr.get_file_list_new()
+        self._file_mgr.populate_file_list(f_list, self._file_mgr.get_path_current())
         # create the book and the notebook tab view
-        book_ = book.BookC(self.files.get_path_current(), f_list, self)
+        book_ = book.BookC(self._file_mgr.get_path_current(), f_list, self)
         br_title_vc = BookReaderNoteBookTabVC(book_.transmitter, book_.component_transmitter)
         note_book_page = NoteBookPage(book_.get_view(), book_.get_playlist_id(), book_.transmitter)
 
@@ -196,7 +197,7 @@ class ExistingBookOpener:
 
         """
         # def update_book_list(self, *args):  # pylint: disable=unused-argument
-        cur_path = self.files.get_path_current()
+        cur_path = self.files.get_cwd()
         playlists_in_path = self.playlist_dbi.get_by_path(book.PlaylistData(path=cur_path))
         self.existing_book_opener_m.update(playlists_in_path)
         if len(playlists_in_path) > 0:
@@ -250,7 +251,7 @@ class NewBookOpener:
         f_list = self.files.get_file_list()
         has_new_media = False
         for i in f_list:
-            if book.TrackFI.is_media_file(i[1]):
+            if book.TrackFI.is_media_file(i.name):
                 has_new_media = True
                 break
         return has_new_media

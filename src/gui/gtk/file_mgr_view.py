@@ -28,42 +28,45 @@ It supports the following basic features:
 Copy, Move, Delete, Rename
 """
 
-import os
+from __future__ import annotations
+from typing import TYPE_CHECKING
+from typing import Literal
+from pathlib import Path
 import gi
-
 gi.require_version("Gtk", "3.0")  # pylint: disable=wrong-import-position
 from gi.repository import Gtk, Gdk
+from gi.repository.GdkPixbuf import Pixbuf
 import book_ease_tables
-import file_mgr
-
+if TYPE_CHECKING:
+    import file_mgr
 
 class FileMgrView:
     """Display file information for files in the cwd"""
 
-    def __init__(self, file_mgr_view: Gtk.TreeView, file_mgr_: file_mgr.FileMgr) -> None:
-        self.file_mgr_view = file_mgr_view
-        self.file_mgr_view.connect('destroy', self.on_destroy)
-        self.file_mgr_view_dbi = FileMgrViewDBI()
-        self.file_mgr = file_mgr_
+    def __init__(self, builder: Gtk.Builder, file_mgr_view_name: str, file_mgr_: file_mgr.FileMgr) -> None:
+        self._file_mgr_view_gtk: Gtk.TreeView = builder.get_object(file_mgr_view_name)
+        self._file_mgr_view_gtk.connect('destroy', self.on_destroy)
+        self._file_mgr_view_dbi = FileMgrViewDBI()
+        self._file_mgr = file_mgr_
         # set up the data model and containers
-        self.file_lst = self.file_mgr.get_file_list()
-        self.file_lst.set_sort_func(1, self.file_mgr.cmp_f_list_dir_fst, None)
-        self.file_mgr_view.set_model(self.file_lst)
+        self._file_lst = Gtk.ListStore(Pixbuf, str, bool, str, str, str)
+        self._file_lst.set_sort_func(1, self.cmp_file_list, None)
+        self._file_mgr_view_gtk.set_model(self._file_lst)
 
         # name column
         name_r_icon = Gtk.CellRendererPixbuf()
         name_r_text = Gtk.CellRendererText()
-        self.name_col = Gtk.TreeViewColumn("Name")
-        self.name_col.pack_start(name_r_icon, False)
-        self.name_col.pack_start(name_r_text, True)
-        self.name_col.add_attribute(name_r_icon, "pixbuf", 0)
-        self.name_col.add_attribute(name_r_text, "text", 1)
-        self.name_col.set_sort_column_id(1)
-        self.name_col.set_resizable(True)
+        self._name_col = Gtk.TreeViewColumn("Name")
+        self._name_col.pack_start(name_r_icon, False)
+        self._name_col.pack_start(name_r_text, True)
+        self._name_col.add_attribute(name_r_icon, "pixbuf", 0)
+        self._name_col.add_attribute(name_r_text, "text", 1)
+        self._name_col.set_sort_column_id(1)
+        self._name_col.set_resizable(True)
         # reset name column width to previous size iff previous size exists.
-        if name_width := self.file_mgr_view_dbi.get_name_col_width():
-            self.name_col.set_fixed_width(name_width)
-        self.file_mgr_view.append_column(self.name_col)
+        if name_width := self._file_mgr_view_dbi.get_name_col_width():
+            self._name_col.set_fixed_width(name_width)
+        self._file_mgr_view_gtk.append_column(self._name_col)
 
         # size column
         size_r_val = Gtk.CellRendererText()
@@ -73,18 +76,21 @@ class FileMgrView:
         size_col.pack_start(size_r_units, False)
         size_col.add_attribute(size_r_val, "text", 3)
         size_col.add_attribute(size_r_units, "text", 4)
-        self.file_mgr_view.append_column(size_col)
+        self._file_mgr_view_gtk.append_column(size_col)
 
         # file creation time column
         c_time_r = Gtk.CellRendererText()
         c_time_col = Gtk.TreeViewColumn("Modified")
         c_time_col.pack_start(c_time_r, True)
         c_time_col.add_attribute(c_time_r, "text", 5)
-        self.file_mgr_view.append_column(c_time_col)
+        self._file_mgr_view_gtk.append_column(c_time_col)
 
         #signals
-        self.file_mgr_view.connect('row-activated', self.row_activated)
-        self.file_mgr_view.connect('button-release-event', self.on_button_release )
+        self._file_mgr_view_gtk.connect('row-activated', self.row_activated)
+        self._file_mgr_view_gtk.connect('button-release-event', self.on_button_release)
+        self._file_mgr.connect('cwd_changed', self.populate_file_list)
+        self.populate_file_list()
+
 
     def on_button_release(self, _: Gtk.TreeView, event: Gdk.EventButton) -> None:
         """
@@ -104,10 +110,10 @@ class FileMgrView:
                 pass
                 #print('right button clicked')
             elif event.get_button()[1] == 8:
-                self.file_mgr.cd_previous()
+                self._file_mgr.cd_previous()
                 #print('back button clicked')
             elif event.get_button()[1] == 9:
-                self.file_mgr.cd_ahead()
+                self._file_mgr.cd_ahead()
                 #print('forward button clicked')
 
     def row_activated(self,
@@ -118,19 +124,69 @@ class FileMgrView:
         a file was cicked in the view.
         if file is a directory then change to that directory
         """
-
         model = treeview.get_model()
         tree_iter = model.get_iter(path)
         value = model.get_value(tree_iter,1)
         is_dir = model.get_value(tree_iter,2)
         if is_dir:
-            # cd into selected dir
-            new_path = os.path.join(self.file_mgr.get_path_current(), value)
-            self.file_mgr.cd(new_path)
+            new_path = Path(self._file_mgr.get_cwd(), value)
+            self._file_mgr.cd(new_path)
 
     def on_destroy(self, _: Gtk.TreeView) -> None:
         """save the gui's state"""
-        self.file_mgr_view_dbi.save_name_col_width(self.name_col.get_width())
+        self._file_mgr_view_dbi.save_name_col_width(self._name_col.get_width())
+
+    def cmp_file_list(self, model, row1, row2, _) -> Literal[1] | Literal[-1] | Literal[0]:
+        """
+        compare method for sorting sort columns in the file view
+        returns gt:1 lt:-1 or eq:0
+        """
+        sort_column, sort_order = model.get_sort_column_id()
+        name1 = model.get_value(row1, sort_column)
+        name2 = model.get_value(row2, sort_column)
+
+        if self._file_mgr.sort_ignore_case:
+            name1 = name1.lower()
+            name2 = name2.lower()
+
+        if self._file_mgr.sort_dir_first:
+            is_dir_1 = model.get_value(row1, 2)
+            is_dir_2 = model.get_value(row2, 2)
+            # account for the sort order when returning directories first
+            direction = 1
+            if sort_order is Gtk.SortType.DESCENDING:
+                direction = -1
+            #return immediately if comparing a dir and a file
+            if is_dir_1 and not is_dir_2:
+                return -1 * direction
+            if not is_dir_1 and is_dir_2:
+                return 1 * direction
+
+        if name1 < name2:
+            return -1
+        if name1 == name2:
+            return 0
+        return 1
+
+    def populate_file_list(self) -> None:
+        """Determine if files in path, directory, are suitable to be displayed and add them to the file_list"""
+        files = self._file_mgr.get_file_list()
+        self._file_lst.clear()
+        # populate liststore
+        for i in files:
+            if not i.is_file() and not i.is_dir():
+                # ignore things like broken symlinks
+                continue
+            if not self._file_mgr.show_hidden_files and i.is_hidden_file():
+                continue
+
+            timestamp_formatted = i.timestamp_formatted
+            size_f, units = i.size_formatted
+            # set correct icon
+            icon = Gtk.IconTheme.get_default().load_icon('multimedia-player', 24, 0)
+            if i.is_dir():
+                icon = Gtk.IconTheme.get_default().load_icon('folder', 24, 0)
+            self._file_lst.append((icon, i.name, i.is_dir(), size_f, units, str(timestamp_formatted)))
 
 
 class FileMgrViewDBI:
