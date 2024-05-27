@@ -179,7 +179,7 @@ class ExistingBookOpener:
         self.transmitter.add_signal('open_book')
 
         self.files = files
-        self.files.connect('cwd_changed', self.update_book_list)
+        self.files.transmitter.connect('cwd_changed', self.update_book_list)
 
         self.playlist_dbi = book.PlaylistDBI()
 
@@ -229,7 +229,7 @@ class NewBookOpener:
         self.transmitter.add_signal('open_book')
 
         self.files = files
-        self.files.connect('cwd_changed', self.on_cwd_changed)
+        self.files.transmitter.connect('cwd_changed', self.on_cwd_changed)
         self.view = book_reader_view.NewBookOpenerV(gui_builder)
         self.view.transmitter.connect('open_book', self.open_book)
 
