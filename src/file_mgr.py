@@ -125,12 +125,12 @@ class FileList:
         return self.FileListIterator(self)
 
 
-class FileMgr(signal_.Signal):
+class FileMgr():
     """class to manage the file management features of book_ease"""
     _default_library_path = Path.home()
 
     def __init__(self) -> None:
-        signal_.Signal.__init__(self)
+        self.transmitter = signal_.Signal()
         self._file_mgr_dbi = FileMgrDBI()
         self._current_path: Path = self._file_mgr_dbi.get_library_path() or self._default_library_path
         self._path_back_max_len = 10
@@ -142,7 +142,7 @@ class FileMgr(signal_.Signal):
         self.sort_dir_first = True
         # Signals
         # Notify of file changes
-        self.add_signal('cwd_changed')
+        self.transmitter.add_signal('cwd_changed')
 
     def get_file_list(self) -> FileList:
         """retrieve self.file_list"""
@@ -171,7 +171,7 @@ class FileMgr(signal_.Signal):
             self._append_to_path_back()
             self._path_ahead.clear()
             self._current_path = path
-            self.send('cwd_changed')
+            self.transmitter.send('cwd_changed')
 
     def cd_ahead(self):
         """move forward to directory in the file change history"""
@@ -180,7 +180,7 @@ class FileMgr(signal_.Signal):
             if os.path.isdir(path):
                 self._append_to_path_back()
                 self._current_path = path
-                self.send('cwd_changed')
+                self.transmitter.send('cwd_changed')
             else:
                 self._path_ahead.append(path)
 
@@ -190,7 +190,7 @@ class FileMgr(signal_.Signal):
             self._append_to_path_back()
             self.cd(self.get_cwd().parent)
             #self.cd(os.path.split(self.get_cwd())[0])
-            self.send('cwd_changed')
+            self.transmitter.send('cwd_changed')
 
     def cd_previous(self) -> None:
         """move back to directory in the file change history"""
@@ -199,7 +199,7 @@ class FileMgr(signal_.Signal):
             if path.is_dir():
                 self._append_to_path_ahead()
                 self._current_path = path
-                self.send('cwd_changed')
+                self.transmitter.send('cwd_changed')
             else:
                 self._path_back.append(path)
 

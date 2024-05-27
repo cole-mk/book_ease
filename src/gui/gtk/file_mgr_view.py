@@ -88,7 +88,7 @@ class FileMgrView:
         #signals
         self._file_mgr_view_gtk.connect('row-activated', self.row_activated)
         self._file_mgr_view_gtk.connect('button-release-event', self.on_button_release)
-        self._file_mgr.connect('cwd_changed', self.populate_file_list)
+        self._file_mgr.transmitter.connect('cwd_changed', self.populate_file_list)
         self.populate_file_list()
 
 
