@@ -36,7 +36,7 @@ This module controls the playback of playlists.
 """
 
 from __future__ import annotations
-import pathlib
+from pathlib import Path
 import io
 import numbers
 import logging
@@ -62,7 +62,6 @@ import book
 from book_reader import BookReader
 from gui.gtk import player_view
 if TYPE_CHECKING:
-    from pathlib import Path
     gi.require_version("Gtk", "3.0")  # pylint: disable=wrong-import-position
     from gi.repository import Gtk
 
@@ -234,7 +233,7 @@ class PositionData:
 class StreamData:
     """Container for stream data."""
 
-    path: str | None = None
+    path: Path | None = None
     duration: StreamTime | None = None
     track_number: int | None = None
     last_saved_position: StreamTime = StreamTime(-1)
@@ -448,7 +447,6 @@ class Player:  # pylint: disable=unused-argument
             position_data.pl_track_id = pl_track_id
 
         current_track = new_book_data.get_track_by_pl_track_id(position_data.pl_track_id)
-
         self.stream_data.path = current_track.get_file_path()
         self.stream_data.position_data = position_data
         self.stream_data.track_number = current_track.get_number()
@@ -961,14 +959,14 @@ class GstPlayer:
         return False
 
     @staticmethod
-    def get_uri_from_path(path: str) -> str:
+    def get_uri_from_path(path: Path) -> str:
         """
         Convert a path string to uri.
         Returns path unchanged if it is already a valid uri.
         """
-        uri = path
+        uri = str(path.absolute())
         if not Gst.uri_is_valid(uri):
-            uri = Gst.filename_to_uri(path)
+            uri = Gst.filename_to_uri(uri)
         return uri
 
     def _update_time(self):
