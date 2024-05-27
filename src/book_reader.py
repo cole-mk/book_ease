@@ -89,7 +89,7 @@ class BookReader:
         create a new Book instance and tell it to load a saved playlist.
         append the new Book to the booklist for later usage
         """
-        book_ = book.BookC(self._file_mgr.get_cwd(), None, self)
+        book_ = book.BookC(self._file_mgr.get_cwd(), self)
         br_note_book_tab_vc = BookReaderNoteBookTabVC(book_.transmitter, book_.component_transmitter)
         note_book_page = NoteBookPage(book_.get_view(), pl_data.get_id(), book_.transmitter)
 
@@ -109,10 +109,8 @@ class BookReader:
         create a new Book instance and tell it to create a new playlist.
         append the new Book to the booklist for later usage
         """
-        f_list = self._file_mgr.get_file_list_new()
-        self._file_mgr.populate_file_list(f_list, self._file_mgr.get_path_current())
         # create the book and the notebook tab view
-        book_ = book.BookC(self._file_mgr.get_path_current(), f_list, self)
+        book_ = book.BookC(self._file_mgr.get_cwd(), self)
         br_title_vc = BookReaderNoteBookTabVC(book_.transmitter, book_.component_transmitter)
         note_book_page = NoteBookPage(book_.get_view(), book_.get_playlist_id(), book_.transmitter)
 
@@ -251,7 +249,7 @@ class NewBookOpener:
         f_list = self.files.get_file_list()
         has_new_media = False
         for i in f_list:
-            if book.TrackFI.is_media_file(i.name):
+            if book.TrackFI.is_media_file(i):
                 has_new_media = True
                 break
         return has_new_media

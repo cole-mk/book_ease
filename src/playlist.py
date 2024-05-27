@@ -25,10 +25,12 @@ This module contains playlist and track definitions, as well as the TrackMDEntry
 It also includes a TrackEdit class that implements Track but has an additional column field.
 """
 
+from pathlib import Path
+
 class Track:
     """the data type that represents everything about a Track in a playlist"""
 
-    def __init__(self, file_path=None, number=None, pl_track_id=None):
+    def __init__(self, file_path: Path=None, number=None, pl_track_id=None):
         self.metadata = {}
         self.file_path = file_path
         self.number = number
@@ -82,14 +84,14 @@ class Track:
         entries.sort(key=lambda entry: entry.get_index())
         return entries
 
-    def get_file_name(self) -> 'str':
+    def get_file_name(self) -> str:
         """
         return file_name as derived from self.file_path
         raises AttributeError if self.file_path has not been set
         """
-        return self.file_path.rsplit('/', maxsplit=1).pop()
+        return self.file_path.name
 
-    def get_file_path(self):
+    def get_file_path(self) -> Path:
         """get the path full path to the file represented by this Track"""
         return self.file_path
 
@@ -105,7 +107,7 @@ class Track:
                 entry_list.append(e.copy())
         return entry_list
 
-    def set_file_path(self, path):
+    def set_file_path(self, path: Path) -> None:
         """set the file path associated with this Track instance"""
         self.file_path = path
 

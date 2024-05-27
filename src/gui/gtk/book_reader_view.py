@@ -151,7 +151,7 @@ class ExistingBookOpenerM:
             g_iter = self.model.append()
             self.model.set_value(g_iter, self.pl_id['g_col'], playlist_data.get_id())
             self.model.set_value(g_iter, self.pl_title['g_col'], playlist_data.get_title())
-            self.model.set_value(g_iter, self.pl_path['g_col'], playlist_data.get_path())
+            self.model.set_value(g_iter, self.pl_path['g_col'], str(playlist_data.get_path().absolute()))
 
     def get_model(self) -> Gtk.ListStore:
         """get the Gtk.ListStore that this class encapsulates."""

@@ -570,12 +570,12 @@ class PlaylistVM:
     def __add_track_columns(self, track, cur_row):
         """add the non metadata columns, track_file and track_path, to the current row in self.playlist"""
         self.playlist.set_value(cur_row, book_view_columns.track_file['g_col'], track.get_file_name())
-        self.playlist.set_value(cur_row, book_view_columns.track_path['g_col'], track.get_file_path())
+        self.playlist.set_value(cur_row, book_view_columns.track_path['g_col'], str(track.get_file_path().absolute()))
 
     def __load_track_columns(self, track, cur_row):
         """load track file path data from the playlist into the Track"""
         # The playlist displays both path and filename, but Tracks only store the path, so only get the path
-        track.set_file_path(self.playlist.get_value(cur_row, book_view_columns.track_path['g_col']))
+        track.set_file_path(Path(self.playlist.get_value(cur_row, book_view_columns.track_path['g_col'])))
 
     def __load_row_id_column(self, track, cur_row):
         """Load the row_id from the playlist into the Track"""

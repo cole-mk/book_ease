@@ -33,7 +33,7 @@ import mutagen
 import playlist
 import signal_
 import audio_book_tables as abt
-
+import file_mgr
 from gui.gtk import book_view
 import book_columns
 if TYPE_CHECKING:
@@ -45,7 +45,7 @@ class PlaylistData:
 
     def __init__(self,
                  title: str = None,
-                 path: str = None,
+                 path: Path = None,
                  id_: int = None):
         self.title = title
         self.path = path
@@ -59,11 +59,11 @@ class PlaylistData:
         """set title attribute of PlaylistData"""
         self.title = title
 
-    def get_path(self) -> str:
+    def get_path(self) -> Path:
         """get path attribute from PlaylistData"""
         return self.path
 
-    def set_path(self, path: str):
+    def set_path(self, path: Path):
         """set path attribute of PlaylistData"""
         self.path = path
 
@@ -142,16 +142,13 @@ class BookData:
 class Book(playlist.Playlist, signal_.Signal):
     """Book is the model for a book"""
 
-    def __init__(self, path: str, file_list: list[tuple] | None):
+    def __init__(self, path: Path):
         playlist.Playlist.__init__(self)
         signal_.Signal.__init__(self)
         self.playlist_data = PlaylistData(title='New Book', path=path)
         #database interfaces
         self.track_dbi = TrackDBI()
         self.playlist_dbi = PlaylistDBI()
-        # files to scrape for track metadata
-        self.file_list = file_list
-
         # initialize the callback system
         self.add_signal('book_data_loaded')
         self.add_signal('book_data_created')
@@ -183,11 +180,10 @@ class Book(playlist.Playlist, signal_.Signal):
 
     def create_book_data(self):
         """initialize a new BookData object with playlist data scraped from file metadata"""
-
         book_data = BookData(self.playlist_data)
-        for file_ in self.file_list:
+        for file_ in file_mgr.FileList(self.playlist_data.get_path()):
             # populate track data
-            file_path = os.path.join(self.playlist_data.get_path(), file_[1])
+            file_path = file_.path.absolute()
             try:
                 # create the track
                 track = TrackFI.get_track(file_path)
@@ -282,7 +278,7 @@ class PlaylistDBI():
         """
         with abt.DB_CONNECTION.query() as con:
             count = abt.Playlist.count_duplicates(pl_data.get_title(),
-                                                  pl_data.get_path(),
+                                                  str(pl_data.get_path().absolute()),
                                                   pl_data.get_id(),
                                                   con)
         return count[0]
@@ -301,7 +297,7 @@ class PlaylistDBI():
             pl_list = abt.Playlist.get_rows_by_path(con, str(pl_data.get_path().absolute()))
         # build playlists list
         for plst in pl_list:
-            play_list = PlaylistData(title=plst['title'], path=plst['path'], id_=plst['id'])
+            play_list = PlaylistData(title=plst['title'], path=Path(plst['path']), id_=plst['id'])
             playlists.append(play_list)
         return playlists
 
@@ -310,7 +306,7 @@ class PlaylistDBI():
         with abt.DB_CONNECTION.query() as con:
             row = abt.Playlist.get_row(con, playlist_id)
         if row:
-            return PlaylistData(title=row['title'], path=row['path'], id_=row['id'])
+            return PlaylistData(title=row['title'], path=Path(row['path']), id_=row['id'])
         else:
             return None
 
@@ -322,7 +318,7 @@ class PlaylistDBI():
         with abt.DB_CONNECTION.query() as con:
             id_ = pl_data.get_id()
             if abt.Playlist.get_row(con, id_) is None:
-                id_ = abt.Playlist.insert(con, pl_data.get_title(), pl_data.get_path())
+                id_ = abt.Playlist.insert(con, pl_data.get_title(), str(pl_data.get_path().absolute()))
             else:
                 abt.Playlist.update(con, pl_data.get_title(), pl_data.get_path(), id_)
         return id_
@@ -353,8 +349,8 @@ class TrackDBI():
         """
         with abt.DB_CONNECTION.query() as con:
             # add entry to track_file table
-            abt.TrackFile.add_row(con, path=track.get_file_path())
-            track_file_id = abt.TrackFile.get_id_by_path(con, track.get_file_path())['id']
+            abt.TrackFile.add_row(con, path=str(track.get_file_path().absolute()))
+            track_file_id = abt.TrackFile.get_id_by_path(con, str(track.get_file_path().absolute()))['id']
         return track_file_id
 
     def save_pl_track(self,
@@ -428,8 +424,8 @@ class TrackDBI():
         with abt.DB_CONNECTION.query() as con:
             # create Track instances and populate the simple instance variables
             for trak in abt.PlTrack.get_rows_by_playlist_id(con, playlist_id):
-                path = abt.TrackFile.get_row_by_id(con, trak['track_id'])['path']
-                track = playlist.Track(file_path=path)
+                path_str = abt.TrackFile.get_row_by_id(con, trak['track_id'])['path']
+                track = playlist.Track(file_path=Path(path_str))
                 track.set_number(trak['track_number'])
                 track.set_pl_track_id(trak['id'])
                 track_list.append(track)
@@ -472,7 +468,7 @@ class TrackFI:
     entry_formatter = playlist.TrackMDEntryFormatter()
 
     @classmethod
-    def get_track(cls, path: str) -> playlist.Track:
+    def get_track(cls, path: Path) -> playlist.Track:
         """
         create and return a track populated with file data and metadata
         Raises exception if path does not represent a media file
@@ -507,10 +503,10 @@ class TrackFI:
             track.set_entry(key, md_entry_list)
 
     @classmethod
-    def is_media_file(cls, file_: str):
+    def is_media_file(cls, file_: Path):
         """determine is file_ matches any of the media file definitions"""
         for i in cls.f_type_re:
-            if i.match(file_):
+            if i.match(file_.name):
                 return True
         return False
 
@@ -528,12 +524,12 @@ class BookC:
     component_tx_api = ['save_button', 'cancel_button', 'edit_button', 'close']
 
     def __init__(self,
-                 path: str,
-                 file_list: list[tuple] | None,
+                 path: Path,
+                 #file_list: list[tuple] | None,
                  book_reader_: book_reader.BookReader):
 
         # the model
-        self.book = Book(path, file_list)
+        self.book = Book(path)
         # allow BookReader to track BookC's position in its books list
         self.index = None
 
