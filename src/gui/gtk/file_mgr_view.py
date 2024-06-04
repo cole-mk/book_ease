@@ -32,22 +32,234 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from typing import Literal
 from pathlib import Path
+import logging
 import gi
 gi.require_version("Gtk", "3.0")  # pylint: disable=wrong-import-position
 from gi.repository import Gtk, Gdk
 from gi.repository.GdkPixbuf import Pixbuf
+import signal_
 import book_ease_tables
+import book
 if TYPE_CHECKING:
     import file_mgr
 
-class FileMgrView:
+#logger = logging.getLogger()
+
+@Gtk.Template(filename='gui/gtk/file_mgr.ui')
+class FileManagerViewOuterT(Gtk.Box):
+    """The file manager view"""
+    __gtype_name__ = 'FileManagerViewOuter'
+    file_view_treeview_gtk: Gtk.TreeView = Gtk.Template.Child('file_view_treeview')
+    book_mark_treeview_gtk: Gtk.TreeView = Gtk.Template.Child('book_mark_treeview')
+    navigation_box: Gtk.Box = Gtk.Template.Child('navigation_box')
+    up_button: Gtk.Button = Gtk.Template.Child('up_button')
+    forward_button: Gtk.Button = Gtk.Template.Child('forward_button')
+    backward_button: Gtk.Button = Gtk.Template.Child('backward_button')
+    path_entry: Gtk.Entry = Gtk.Template.Child('path_entry')
+    has_playlist_combo: Gtk.ComboBox = Gtk.Template.Child('has_playlist_combo')
+    open_playlist_btn: Gtk.Button = Gtk.Template.Child('open_playlist_btn')
+    create_playlist_btn: Gtk.Button = Gtk.Template.Child('create_playlist_btn')
+    playlist_opener_box: Gtk.Button = Gtk.Template.Child('playlist_opener_box')
+    open_playlist_box: Gtk.Button = Gtk.Template.Child('open_playlist_box')
+
+    def __init__(self):
+        super().__init__()
+
+class PlaylistOpenerView:
+    """Display playlist opener widgets
+
+    class NewBookOpenerV:
+    The Gtk view for the ExistingBookOpener
+    """
+
+    def __init__(self, file_manager: file_mgr.FileMgr, file_mgr_view_gtk: FileManagerViewOuterT):
+        self.file_manager = file_manager
+        self.file_mgr_view_gtk = file_mgr_view_gtk
+
+        self.has_playlist_combo = self.file_mgr_view_gtk.has_playlist_combo
+        self.open_playlist_btn = self.file_mgr_view_gtk.open_playlist_btn
+        self.open_playlist_btn.connect('button-release-event', self.on_button_release)
+
+        self.create_playlist_btn = self.file_mgr_view_gtk.create_playlist_btn
+        self.create_playlist_btn.set_no_show_all(True)
+
+        self.open_playlist_box = self.file_mgr_view_gtk.open_playlist_box
+        self.open_playlist_box.set_no_show_all(True)
+
+        self.playlist_dbi = book.PlaylistDBI()
+        self.existing_playlist_opener_m = ExistingPlaylistOpenerM()
+
+        self.has_playlist_combo.set_model(self.existing_playlist_opener_m.get_model())
+        renderer_text = Gtk.CellRendererText()
+        self.has_playlist_combo.pack_start(renderer_text, True)
+        self.has_playlist_combo.add_attribute(renderer_text, "text", ExistingPlaylistOpenerM.pl_title['g_col'])
+
+        self.create_playlist_btn.connect('button-release-event', self.on_button_release)
+        self.file_manager.transmitter.connect('cwd_changed', self.update_view)
+        self.file_manager.transmitter.connect('cwd_changed', self.update_book_list)
+        signal_.GLOBAL_TRANSMITTER.connect('book_updated', self.update_book_list)
+
+        self.update_book_list()
+        self.update_view()
+
+    def update_view(self):
+        """
+        Update the visibility of playlist opener widget.
+        Set the "create" button's visibility— True if there are
+        media files in the file manager's cwd.
+
+        Set the open playlist button's and combo box's visibilites— True if there are
+        any playlists associated with file manager's cwd.
+        """
+        f_list = self.file_manager.get_file_list()
+        if f_list.has_media_file():
+            self.create_playlist_btn.show()
+        else:
+            self.create_playlist_btn.hide()
+
+    def on_button_release(self, btn: Gtk.Button, _: Gdk.EventButton) -> None:
+        """Relay the message that the user wants to open a book."""
+        if btn == self.open_playlist_btn:
+            selection = self.has_playlist_combo.get_active_iter()
+            book_ = self.existing_playlist_opener_m.get_row(selection)
+            signal_.GLOBAL_TRANSMITTER.send('open_book', book_)
+        elif btn == self.create_playlist_btn:
+            signal_.GLOBAL_TRANSMITTER.send('open_new_book', self.file_manager.get_cwd())
+
+
+    def update_book_list(self, *_) -> None:
+        """
+        Check if there are any saved Books associated with the new cwd.
+        """
+        cur_path = self.file_manager.get_cwd()
+        playlists_in_path = self.playlist_dbi.get_by_path(book.PlaylistData(path=cur_path))
+        self.existing_playlist_opener_m.update(playlists_in_path)
+        if len(playlists_in_path) > 0:
+            self.has_playlist_combo.set_active(0)
+            self.open_playlist_box.show()
+        else:
+            self.open_playlist_box.hide()
+
+    def open_book(self) -> None:
+        """
+        Use transmitter to broadcast the command to open a book.
+        Include a PlaylistData object describing the book as an arg.
+        """
+        selection = self.has_playlist_combo.get_selection()
+        book_ = self.existing_playlist_opener_m.get_row(selection)
+        signal_.GLOBAL_TRANSMITTER.send('open_book', book_)
+
+
+class ExistingPlaylistOpenerM:
+    """Wrapper for the Gtk.Liststore containing the data displayed in the has_book_combo"""
+
+    # add gui keys to helpers for accessing playlist data stored in db
+    pl_id = {'col': 0, 'col_name': 'id', 'g_type': int, 'g_col': 0}
+    pl_title = {'col': 1, 'col_name': 'title', 'g_type': str, 'g_col': 1}
+    pl_path = {'col': 2, 'col_name': 'path', 'g_type': str, 'g_col': 2}
+    pl_helper_l = [pl_id, pl_title, pl_path]
+    pl_helper_l.sort(key=lambda col: col['col'])
+    # extract list of g_types from self.cur_pl_helper_l that was previously sorted by col number
+    # use list to initialize the model for displaying
+    # all playlists associated with the current path
+    # Cast to list here even though at every other place in the program that uses a liststore
+    # is fine with just g_types = map(lambda x: x['g_type'], pl_helper_l)
+    g_types = list(map(lambda x: x['g_type'], pl_helper_l))
+
+    def __init__(self):
+        self.model = Gtk.ListStore(*self.g_types)
+
+    def get_row(self, row: Gtk.TreeIter) -> book.PlaylistData:
+        """return a row from the model as a PlaylistData object"""
+        playlist_data = book.PlaylistData()
+        playlist_data.set_id(self.model.get_value(row, self.pl_id['g_col']))
+        playlist_data.set_title(self.model.get_value(row, self.pl_title['g_col']))
+        playlist_data.set_path(Path(self.model.get_value(row, self.pl_path['g_col'])))
+        return playlist_data
+
+    def update(self, pl_data_list: list[book.PlaylistData]):
+        """Populate the model with the data in the list of PlaylistData objects."""
+        self.model.clear()
+        for playlist_data in pl_data_list:
+            g_iter = self.model.append()
+            self.model.set_value(g_iter, self.pl_id['g_col'], playlist_data.get_id())
+            self.model.set_value(g_iter, self.pl_title['g_col'], playlist_data.get_title())
+            self.model.set_value(g_iter, self.pl_path['g_col'], str(playlist_data.get_path().absolute()))
+
+    def get_model(self) -> Gtk.ListStore:
+        """get the Gtk.ListStore that this class encapsulates."""
+        return self.model
+
+
+class NavigationView:
+    """Display the file navigation buttons"""
+    logger = logging.getLogger(f'{__name__}::NavigationView')
+    logger.addHandler(logging.NullHandler())
+
+    def __init__(self,
+                 file_manager_view: FileManagerViewOuterT,
+                 file_manager: file_mgr.FileMgr) -> None:
+
+        self.file_manager_view = file_manager_view
+        self.file_manager = file_manager
+        self.file_manager.transmitter.connect('cwd_changed', self.update_path_entry)
+
+        self.up_button = self.file_manager_view.up_button
+        self.up_button.connect('clicked', self.on_button_clicked)
+
+        self.forward_button = self.file_manager_view.forward_button
+        self.forward_button.connect('clicked', self.on_button_clicked)
+
+        self.backward_button = self.file_manager_view.backward_button
+        self.backward_button.connect('clicked', self.on_button_clicked)
+
+        self.path_entry = self.file_manager_view.path_entry
+        self.path_entry.connect('activate', self.on_entry_activate)
+        self.update_path_entry()
+
+    def on_entry_activate(self, path_entry: Gtk.Entry) -> None:
+        """
+        cd into directory described by self.path_entry
+        Callback triggered by self.path_entry 'activate' signal.
+        """
+        new_path = Path(path_entry.get_text()).absolute()
+        try:
+            self.file_manager.cd(new_path)
+        except RuntimeError as e:
+            if str(e) == 'path is not a directory':
+                self.logger.warning("path is not a directory: %s", new_path)
+            else:
+                raise e
+
+    def on_button_clicked(self, widget: Gtk.Button) -> None:
+        """
+        Call the file_manager directory change command corresponding
+        to which navigation button was clicked.
+        """
+        match widget:
+            case self.up_button:
+                self.file_manager.cd_up()
+            case self.forward_button:
+                self.file_manager.cd_ahead()
+            case self.backward_button:
+                self.file_manager.cd_previous()
+
+    def update_path_entry(self, *_) -> None:
+        """
+        Set the path entry text.
+        """
+        self.path_entry.set_text(str(self.file_manager.get_cwd()))
+
+
+class FileView:
     """Display file information for files in the cwd"""
 
-    def __init__(self, builder: Gtk.Builder, file_mgr_view_name: str, file_mgr_: file_mgr.FileMgr) -> None:
-        self._file_mgr_view_gtk: Gtk.TreeView = builder.get_object(file_mgr_view_name)
+    def __init__(self, file_mgr_view_name: FileManagerViewOuterT, file_mgr_: file_mgr.FileMgr) -> None:
+        self._file_mgr_view_gtk = file_mgr_view_name.file_view_treeview_gtk
         self._file_mgr_view_gtk.connect('destroy', self.on_destroy)
         self._file_mgr_view_dbi = FileMgrViewDBI()
         self._file_mgr = file_mgr_
+
         # set up the data model and containers
         self._file_lst = Gtk.ListStore(Pixbuf, str, bool, str, str, str)
         self._file_lst.set_sort_func(1, self.cmp_file_list, None)
@@ -90,7 +302,6 @@ class FileMgrView:
         self._file_mgr_view_gtk.connect('button-release-event', self.on_button_release)
         self._file_mgr.transmitter.connect('cwd_changed', self.populate_file_list)
         self.populate_file_list()
-
 
     def on_button_release(self, _: Gtk.TreeView, event: Gdk.EventButton) -> None:
         """

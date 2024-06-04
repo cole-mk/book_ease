@@ -27,7 +27,6 @@ this includes the book model, database interfaces for the book, and the main con
 from __future__ import annotations
 from typing import TYPE_CHECKING
 import re
-import os
 from pathlib import Path
 import mutagen
 import playlist
@@ -320,7 +319,7 @@ class PlaylistDBI():
             if abt.Playlist.get_row(con, id_) is None:
                 id_ = abt.Playlist.insert(con, pl_data.get_title(), str(pl_data.get_path().absolute()))
             else:
-                abt.Playlist.update(con, pl_data.get_title(), pl_data.get_path(), id_)
+                abt.Playlist.update(con, pl_data.get_title(), str(pl_data.get_path().absolute()), id_)
         return id_
 
 
@@ -584,6 +583,7 @@ class BookC:
     def open_new_playlist(self):
         """Create a new playlist from media files"""
         book_data = self.book.create_book_data()
+        signal_.GLOBAL_TRANSMITTER.send('book_updated', book_data)
         self.transmitter.send('update', book_data)
         self.transmitter.send('begin_edit_mode')
 
@@ -594,6 +594,7 @@ class BookC:
     def open_existing_playlist(self, playlist_data: PlaylistData):
         """open a previously saved book"""
         book_data = self.book.book_data_load(playlist_data)
+        signal_.GLOBAL_TRANSMITTER.send('book_updated', book_data)
         self.transmitter.send('update', book_data)
         self.transmitter.send('begin_display_mode')
 
@@ -606,6 +607,7 @@ class BookC:
         # Tell the book that it is finished saving and can cleanup
         reloaded_book_data = self.book.book_data_load(self.book.playlist_data)
         # tell the VC classes to update their views and switch to display mode
+        signal_.GLOBAL_TRANSMITTER.send('book_updated', reloaded_book_data)
         self.transmitter.send('update', reloaded_book_data)
         self.transmitter.send('begin_display_mode')
 

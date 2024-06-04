@@ -41,6 +41,7 @@ import gi
 import book_ease_tables
 import signal_
 from gui.gtk import file_mgr_view
+import book_mark
 if TYPE_CHECKING:
     gi.require_version("Gtk", "3.0")  # pylint: disable=wrong-import-position
     from gi.repository import Gtk
@@ -56,7 +57,17 @@ class FileList:
 
     class FileListIterator:
         """Iterate outer FileList and provide access to each file's attributes"""
+
+        # strings that start with a period.
         dot_file_regex = re.compile(r"^[\.]")
+
+        # build compiled regexes for matching list of media suffixes.
+        audio_file_types = ('.flac', '.opus', '.loss', '.aiff', '.ogg', '.m4b', '.mp3', '.wav')
+        f_type_re = []
+        for i in audio_file_types:
+            i = '.*.\\' + i.strip() + '$'
+            f_type_re.append(re.compile(i))
+        # get a TrackMDEntryFormatter for fixing known formatting issues in file metadata
 
         def __init__(self, outer) -> None:
             self.outer = outer
@@ -121,8 +132,22 @@ class FileList:
                 return True
             return False
 
+        def is_media_file(self) -> bool:
+            """Determine if the current file is a media file"""
+            for regex in self.f_type_re:
+                if regex.match(self._cur_file.name):
+                    return True
+            return False
+
     def __iter__(self) -> FileListIterator:
         return self.FileListIterator(self)
+
+    def has_media_file(self) -> bool:
+        """Determine if any of the files in this FileList are media files."""
+        for file in self:
+            if file.is_media_file():
+                return True
+        return False
 
 
 class FileMgr():
@@ -172,6 +197,8 @@ class FileMgr():
             self._path_ahead.clear()
             self._current_path = path
             self.transmitter.send('cwd_changed')
+        else:
+            raise RuntimeError("path is not a directory", path)
 
     def cd_ahead(self):
         """move forward to directory in the file change history"""
@@ -184,13 +211,12 @@ class FileMgr():
             else:
                 self._path_ahead.append(path)
 
-    def cd_up(self, path: str) -> None:
+    def cd_up(self) -> None:
         """move up one level in the directory tree"""
-        if os.path.isdir(path):
-            self._append_to_path_back()
-            self.cd(self.get_cwd().parent)
-            #self.cd(os.path.split(self.get_cwd())[0])
-            self.transmitter.send('cwd_changed')
+        self._append_to_path_back()
+        self._path_ahead.clear()
+        self.cd(self.get_cwd().parent)
+        self.transmitter.send('cwd_changed')
 
     def cd_previous(self) -> None:
         """move back to directory in the file change history"""
@@ -225,6 +251,23 @@ class FileMgrDBI:
 
 class FileMgrC:
     """Instantate the components of the file manager system."""
-    def __init__(self, builder: Gtk.Builder, file_mgr_view_name: str) -> None:
+    def __init__(self,
+                 file_manager_pane: Gtk.Paned,
+                 file_mgr_view_name: str) -> None:
+
         self.file_mgr = FileMgr()
-        self.file_mgr_view = file_mgr_view.FileMgrView(builder, file_mgr_view_name, self.file_mgr)
+        self.file_mgr_view_gtk = file_mgr_view.FileManagerViewOuterT()
+        self.file_view_gtk = file_mgr_view.FileView(self.file_mgr_view_gtk, self.file_mgr)
+
+        self.book_mark = book_mark.BookMark(self.file_mgr_view_gtk.book_mark_treeview_gtk, self.file_mgr)
+        self.navigation = file_mgr_view.NavigationView(self.file_mgr_view_gtk, self.file_mgr)
+
+        if file_mgr_view_name == 'files_1':
+            file_manager_pane.pack1(self.file_mgr_view_gtk, True, False)
+        elif file_mgr_view_name == 'files_2':
+            file_manager_pane.pack2(self.file_mgr_view_gtk, True, False)
+        else:
+            raise RuntimeError("file_mgr_view didn't didn't match any Gtk object")
+        self.playlist_opener = file_mgr_view.PlaylistOpenerView(self.file_mgr, self.file_mgr_view_gtk)
+        file_manager_pane.show_all()
+        self.file_mgr_view_gtk.show_all()

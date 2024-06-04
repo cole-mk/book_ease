@@ -33,6 +33,11 @@ import weakref
 import logging
 from typing import Callable
 
+"""
+To enable the global transmitter, main() should instantiate the instance early in the program.
+signal_.GLOBAL_TRANSMITTER = Signal()
+"""
+GLOBAL_TRANSMITTER = None
 
 class SignalData:
     """
