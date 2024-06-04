@@ -32,8 +32,6 @@ import pathlib
 import gi
 gi.require_version("Gtk", "3.0")  # pylint: disable=wrong-import-position
 from gi.repository import Gtk  # noqa: E402
-import signal_  # noqa: E402
-import book  # noqa: E402
 if TYPE_CHECKING:
     import book_reader
 
@@ -81,107 +79,6 @@ class BookReaderV:  # pylint: disable=too-few-public-methods
     def get_builder(self) -> Gtk.Builder:
         """get the builder object"""
         return self.builder
-
-
-class ExistingBookOpenerV:
-    """
-    The Gtk view for the ExistingBookOpener
-    """
-
-    def __init__(self, gui_builder: Gtk.Builder):
-        self.transmitter = signal_.Signal()
-        self.transmitter.add_signal('open_book')
-        # has_book_box notification
-        self.has_book_box: Gtk.Box = gui_builder.get_object('has_book_box')
-        self.has_book_box.set_no_show_all(True)
-        self.open_book_btn: Gtk.Button = gui_builder.get_object('open_book_btn')
-        self.has_book_combo: Gtk.ComboBox = gui_builder.get_object('has_book_combo')
-        renderer_text = Gtk.CellRendererText()
-        self.has_book_combo.pack_start(renderer_text, True)
-        self.has_book_combo.add_attribute(renderer_text, "text", ExistingBookOpenerM.pl_title['g_col'])
-        self.open_book_btn.connect('button-release-event', self.on_button_release)
-
-    def on_button_release(self, *args):  # pylint: disable=unused-argument
-        """Relay the message that the user wants to open a book."""
-        self.transmitter.send('open_book')
-
-    def get_selection(self) -> Gtk.TreeIter:
-        """get an iterator pointing to the book selected by the user in the has_book_combo"""
-        return self.has_book_combo.get_active_iter()
-
-    def show(self):
-        """Make this view visible"""
-        self.has_book_combo.set_active(0)
-        self.has_book_box.show()
-
-    def hide(self):
-        """Make this view invisible"""
-        self.has_book_box.hide()
-
-
-class ExistingBookOpenerM:
-    """Wrapper for the Gtk.Liststore containing the data displayed in the has_book_combo"""
-
-    # add gui keys to helpers for accessing playlist data stored in db
-    pl_id = {'col': 0, 'col_name': 'id', 'g_type': int, 'g_col': 0}
-    pl_title = {'col': 1, 'col_name': 'title', 'g_type': str, 'g_col': 1}
-    pl_path = {'col': 2, 'col_name': 'path', 'g_type': str, 'g_col': 2}
-    pl_helper_l = [pl_id, pl_title, pl_path]
-    pl_helper_l.sort(key=lambda col: col['col'])
-    # extract list of g_types from self.cur_pl_helper_l that was previously sorted by col number
-    # use list to initialize the model for displaying
-    # all playlists associated with the current path
-    g_types = map(lambda x: x['g_type'], pl_helper_l)
-
-    def __init__(self):
-        self.model = Gtk.ListStore(*self.g_types)
-
-    def get_row(self, row: Gtk.TreeIter) -> book.PlaylistData:
-        """return a row from the model as a PlaylistData object"""
-        playlist_data = book.PlaylistData()
-        playlist_data.set_id(self.model.get_value(row, self.pl_id['g_col']))
-        playlist_data.set_title(self.model.get_value(row, self.pl_title['g_col']))
-        playlist_data.set_path(self.model.get_value(row, self.pl_path['g_col']))
-        return playlist_data
-
-    def update(self, pl_data_list: list[book.PlaylistData]):
-        """Populate the model with the data in the list of PlaylistData objects."""
-        self.model.clear()
-        for playlist_data in pl_data_list:
-            g_iter = self.model.append()
-            self.model.set_value(g_iter, self.pl_id['g_col'], playlist_data.get_id())
-            self.model.set_value(g_iter, self.pl_title['g_col'], playlist_data.get_title())
-            self.model.set_value(g_iter, self.pl_path['g_col'], str(playlist_data.get_path().absolute()))
-
-    def get_model(self) -> Gtk.ListStore:
-        """get the Gtk.ListStore that this class encapsulates."""
-        return self.model
-
-
-class NewBookOpenerV:
-    """The Gtk view for the ExistingBookOpener"""
-
-    def __init__(self, gui_builder: Gtk.Builder):
-        self.transmitter = signal_.Signal()
-        self.transmitter.add_signal('open_book')
-
-        self.has_new_media_box: Gtk.Box = gui_builder.get_object('has_new_media_box')
-        self.has_new_media_box.set_no_show_all(True)
-
-        self.create_book_btn = gui_builder.get_object('create_book_btn')
-        self.create_book_btn.connect('button-release-event', self.on_button_release)
-
-    def on_button_release(self, *args):  # pylint: disable=unused-argument
-        """Relay the message that the user wants to open a book."""
-        self.transmitter.send('open_book')
-
-    def show(self):
-        """Make this view visible"""
-        self.has_new_media_box.show()
-
-    def hide(self):
-        """Make this view invisible"""
-        self.has_new_media_box.hide()
 
 
 class StartPageV:

@@ -30,7 +30,7 @@ import audio_book_tables
 import singleton_
 import book
 
-class PinnedBooksC(signal_.Signal):
+class PinnedBooksC():
     """
     controller for the pinned books module
     """
@@ -39,12 +39,8 @@ class PinnedBooksC(signal_.Signal):
         """
         instantiate both the PinnedBooksV and the PinnedBooksM
         """
-        signal_.Signal.__init__(self)
-        self.add_signal('open_book')
         self.pinned_books_model = PinnedBooksM()
         self.view_c = PinnedBooksVC(self.pinned_books_model)
-        # Set up the transmitter to resend the open_book signal.
-        self.view_c.transmitter.connect('open_book', self.send, 'open_book')
 
     def get_view(self):
         """get the pinned_list view"""
