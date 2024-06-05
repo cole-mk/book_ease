@@ -90,7 +90,10 @@ class PlaylistOpenerView:
         self.existing_playlist_opener_m = ExistingPlaylistOpenerM()
 
         self.has_playlist_combo.set_model(self.existing_playlist_opener_m.get_model())
+
         renderer_text = Gtk.CellRendererText()
+        renderer_text.set_property('width-chars', 10)
+        renderer_text.set_property('ellipsize', gi.repository.Pango.EllipsizeMode.END)
         self.has_playlist_combo.pack_start(renderer_text, True)
         self.has_playlist_combo.add_attribute(renderer_text, "text", ExistingPlaylistOpenerM.pl_title['g_col'])
 
