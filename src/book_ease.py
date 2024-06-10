@@ -42,7 +42,7 @@ logging.getLogger().setLevel(logging.WARNING)
 
 
 
-class Image_View:
+class ImageView:
     """Display images inside a playlist folder"""
 
     # image file types supported by Image_View
@@ -63,7 +63,6 @@ class Image_View:
         self.image_view_da.connect('configure-event', self.on_configure)
         self.pixbuf = Pixbuf.new_from_file("python.jpg")
         self.surface = None
-        # TODO: setup locating the image files automatically
         # image_filetypes key has values given in a comma separated list
 
     def is_image_file(self, file_):
@@ -248,10 +247,13 @@ class MainWindow(Gtk.Window):
             # show file manager pane
             self.file_manager_pane.show()
 
-#pylint: disable=unused-variable
 def main(unused_args):
     """entry point for book_ease"""
+    # pylint: disable=unused-variable
+    # unused-variables must be kept to prevent garbage collection.
+
     signal_.GLOBAL_TRANSMITTER = signal_.Signal()
+    # book
     signal_.GLOBAL_TRANSMITTER.add_signal('open_book')
     signal_.GLOBAL_TRANSMITTER.add_signal('open_new_book')
     signal_.GLOBAL_TRANSMITTER.add_signal('book_updated')
@@ -268,7 +270,7 @@ def main(unused_args):
     file_mgr_c_1 = file_mgr.FileMgrC(file_manager_pane, file_mgr_view_name="files_2")
 
     # image pane
-    image_view_ref = Image_View(file_mgr_c_0.file_mgr, builder)
+    image_view_ref = ImageView(file_mgr_c_0.file_mgr, builder)
 
     # bookreader backend
     book_reader_ref = book_reader.BookReader(builder)
@@ -276,7 +278,9 @@ def main(unused_args):
     player_c_ref = player.PlayerC(book_reader_ref, builder)
 
     # main window
-    main_window_ref = MainWindow(builder.get_object("window1"), builder.get_object("window_1_pane"), file_manager_pane, builder)
+    main_window_ref = MainWindow(
+        builder.get_object("window1"), builder.get_object("window_1_pane"), file_manager_pane, builder
+    )
 
     Gtk.main()
     return 0

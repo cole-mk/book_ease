@@ -241,6 +241,12 @@ class NavigationView:
 
 class FileView:
     """Display file information for files in the cwd"""
+    name_icon = {'column': 0}
+    name_text = {'column': 1}
+    is_dir = {'column': 2}
+    size_val = {'column': 3}
+    size_units = {'column': 4}
+    c_time = {'column': 5}
 
     def __init__(self, file_mgr_view_name: fmvt.FileManagerViewOuterT, file_mgr_: file_mgr.FileMgr) -> None:
         self._file_mgr_view_gtk = file_mgr_view_name.file_view_treeview_gtk
@@ -261,8 +267,8 @@ class FileView:
         self._name_col = Gtk.TreeViewColumn("Name")
         self._name_col.pack_start(name_r_icon, False)
         self._name_col.pack_start(name_r_text, True)
-        self._name_col.add_attribute(name_r_icon, "pixbuf", 0)
-        self._name_col.add_attribute(name_r_text, "text", 1)
+        self._name_col.add_attribute(name_r_icon, "pixbuf", self.name_icon['column'])
+        self._name_col.add_attribute(name_r_text, "text", self.name_text['column'])
         self._name_col.set_sort_column_id(1)
         self._name_col.set_resizable(True)
         # reset name column width to previous size iff previous size exists.
@@ -276,15 +282,15 @@ class FileView:
         size_col = Gtk.TreeViewColumn("Size")
         size_col.pack_start(size_r_val, False)
         size_col.pack_start(size_r_units, False)
-        size_col.add_attribute(size_r_val, "text", 3)
-        size_col.add_attribute(size_r_units, "text", 4)
+        size_col.add_attribute(size_r_val, "text", self.size_val['column'])
+        size_col.add_attribute(size_r_units, "text", self.size_units['column'])
         self._file_mgr_view_gtk.append_column(size_col)
 
         # file creation time column
         c_time_r = Gtk.CellRendererText()
         c_time_col = Gtk.TreeViewColumn("Modified")
         c_time_col.pack_start(c_time_r, True)
-        c_time_col.add_attribute(c_time_r, "text", 5)
+        c_time_col.add_attribute(c_time_r, "text", self.c_time['column'])
         self._file_mgr_view_gtk.append_column(c_time_col)
 
         # right click popup menu widgets

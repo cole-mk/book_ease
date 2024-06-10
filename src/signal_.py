@@ -24,6 +24,10 @@
 helper module to implement signal system (notifications)
 note: instantiated/inherited by server
 
+This module provides a global instance of a Signal transmitter.
+To enable the global transmitter, main() should instantiate the instance early in the program.
+signal_.GLOBAL_TRANSMITTER = Signal()
+
 This module provides logging output. It is set to output to the NullHandler.
 To access the output, place the following in the main application file:
 import logging
@@ -33,11 +37,9 @@ import weakref
 import logging
 from typing import Callable
 
-"""
-To enable the global transmitter, main() should instantiate the instance early in the program.
-signal_.GLOBAL_TRANSMITTER = Signal()
-"""
+
 GLOBAL_TRANSMITTER = None
+
 
 class SignalData:
     """
