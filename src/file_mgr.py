@@ -33,14 +33,21 @@ import re
 import os
 from datetime import datetime
 from pathlib import Path
+from shutil import rmtree
+from dataclasses import dataclass
 from typing import Literal
 from typing import List
 from typing import TYPE_CHECKING
 from typing_extensions import Self
 import gi
+from gi.repository import Gio, GLib
 import book_ease_tables
 import signal_
 from gui.gtk import file_mgr_view
+# pylint: disable=no-name-in-module
+# pylint seems to think that gui.gtk.file_mgr_view_templates is a module. I don't know why.
+from gui.gtk.file_mgr_view_templates import file_mgr_view_templates as fmvt
+# pylint: enable=no-name-in-module
 import book_mark
 if TYPE_CHECKING:
     gi.require_version("Gtk", "3.0")  # pylint: disable=wrong-import-position
@@ -150,6 +157,15 @@ class FileList:
         return False
 
 
+@dataclass
+class FileError:
+    """
+    Container for file error information for sending out to the
+    upper application layers for user display.
+    """
+    file: Path
+    err: Exception
+
 class FileMgr():
     """class to manage the file management features of book_ease"""
     _default_library_path = Path.home()
@@ -229,6 +245,81 @@ class FileMgr():
             else:
                 self._path_back.append(path)
 
+    def mkdir(self, new_dir_abs_path: Path) -> None | FileError:
+        """
+        Create a new directory at the location described by new_dir_abs_path.
+
+        Returns an error describing the failed directory creation. Currently
+        it only provides information for FileExistsError. No other exceptions
+        are caught.
+        """
+        try:
+            new_dir_abs_path.mkdir()
+            signal_.GLOBAL_TRANSMITTER.send('dir_contents_updated', self._current_path)
+        except  FileExistsError as e:
+            return FileError(new_dir_abs_path, e)
+
+    def delete(self, *files: Path | list[Path], move_to_trash=False, recursive=False) -> list[Path]:
+        """
+        Delete files or send them to the trash.
+        Returns a list of failed deletions.
+        """
+        if move_to_trash:
+            return self._trash(*files, recursive=recursive)
+        else:
+            return self._delete(*files, recursive=recursive)
+
+    def _trash(self, *files: Path | list[Path], recursive=False) -> list[FileError]:
+        """
+        Send files to the trash.
+        Send dir_contents_updated signal upon deletion of all files.
+
+        Return a list of FileError describing any files that failed
+        to be moved to the trash.
+        """
+        failed_deletions = []
+        for file in files:
+            try:
+                if file.is_dir() and not recursive and os.listdir():
+                    raise OSError(f"[Errno 39] Directory not empty: {file}")
+                fil: Gio.File  = Gio.File.new_for_path(str(file.absolute()))
+                fil.trash(None)
+            except GLib.Error as e:
+                failed_deletions.append(FileError(file, e))
+            except OSError as e:
+                failed_deletions.append(FileError(file, e))
+
+        signal_.GLOBAL_TRANSMITTER.send('dir_contents_updated', self._current_path)
+        return failed_deletions
+
+    def _delete(self, *files: Path | list[Path], recursive=False) -> list[Path]:
+        """
+        Delete files
+        Delete file recursively if one of the files is a directory and recursive is set to True.
+            default: False
+
+        Send dir_contents_updated signal upon deletion of all files.
+        Return a list of any files that failed to be deleted.
+        """
+        failed_deletions = []
+        for file in files:
+            try:
+                if file.is_file():
+                    file.unlink()
+                elif file.is_dir():
+                    if recursive:
+                        rmtree(file)
+                    else:
+                        file.rmdir()
+            # pylint: disable=broad-exception-caught
+            # Disabled because it doesn't matter why it failed, only that
+            # the failure can be reported to the user in the gui.
+            except Exception as e:
+                failed_deletions.append(FileError(file, e))
+
+        signal_.GLOBAL_TRANSMITTER.send('dir_contents_updated', self._current_path)
+        return failed_deletions
+
 
 class FileMgrDBI:
     """Adapter to help Files interface with book_ease.db"""
@@ -256,7 +347,7 @@ class FileMgrC:
                  file_mgr_view_name: str) -> None:
 
         self.file_mgr = FileMgr()
-        self.file_mgr_view_gtk = file_mgr_view.FileManagerViewOuterT()
+        self.file_mgr_view_gtk = fmvt.FileManagerViewOuterT()
         self.file_view_gtk = file_mgr_view.FileView(self.file_mgr_view_gtk, self.file_mgr)
 
         self.book_mark = book_mark.BookMark(self.file_mgr_view_gtk.book_mark_treeview_gtk, self.file_mgr)
