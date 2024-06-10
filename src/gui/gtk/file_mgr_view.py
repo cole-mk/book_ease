@@ -326,9 +326,32 @@ class FileView:
         self._file_mgr_view_gtk.connect('row-activated', self.row_activated)
         self._file_mgr_view_gtk.connect('button-release-event', self.on_button_release)
         self._file_mgr_view_gtk.connect('button-press-event', self.on_button_press)
+        self._file_mgr_view_gtk.connect('key_release-event', self.on_key_release)
         self._file_mgr.transmitter.connect('cwd_changed', self.populate_file_list)
         signal_.GLOBAL_TRANSMITTER.connect('dir_contents_updated', self.cb_dir_contents_updated)
         self.populate_file_list()
+
+    def on_key_release(self, treeview: Gtk.TreeView, event: Gdk.EventKey):
+        """
+        Process Keyboard controls of the treeview.
+        """
+        sel: Gtk.TreeSelection = treeview.get_selection()
+        selection_count = sel.count_selected_rows()
+        msk = Gdk.ModifierType
+
+        match Gdk.keyval_name(event.keyval):
+
+            case ("Delete" | "BackSpace"):
+                if selection_count:
+                    if not event.state & (msk.SHIFT_MASK | msk.MOD1_MASK | msk.CONTROL_MASK):
+                        self._delete_selected_files()
+
+            case "Escape":
+                if selection_count:
+                    if not event.state & (msk.SHIFT_MASK | msk.MOD1_MASK | msk.CONTROL_MASK):
+                        print("selection_count")
+                        sel.unselect_all()
+
 
     def on_ctrl_menu_released(self, menu_item: Gtk.MenuItem, _: Gdk.EventButton, __: any=None) -> None:
         """Handle the response of the file manager control popup."""
