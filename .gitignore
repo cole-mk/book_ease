@@ -3,6 +3,8 @@
 __pycache__/
 *.glade#
 *.glade~
+*.ui#
+*.ui~
 /testing/
 *.bak
 *.geany

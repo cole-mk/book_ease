@@ -40,30 +40,15 @@ from gi.repository.GdkPixbuf import Pixbuf
 import signal_
 import book_ease_tables
 import book
+# pylint: disable=no-name-in-module
+# pylint seems to think that gui.gtk.file_mgr_view_templates is a module. I don't know why.
+from gui.gtk.file_mgr_view_templates import file_mgr_view_templates as fmvt
+# pylint: enable=no-name-in-module
 if TYPE_CHECKING:
     import file_mgr
 
 #logger = logging.getLogger()
 
-@Gtk.Template(filename='gui/gtk/file_mgr.ui')
-class FileManagerViewOuterT(Gtk.Box):
-    """The file manager view"""
-    __gtype_name__ = 'FileManagerViewOuter'
-    file_view_treeview_gtk: Gtk.TreeView = Gtk.Template.Child('file_view_treeview')
-    book_mark_treeview_gtk: Gtk.TreeView = Gtk.Template.Child('book_mark_treeview')
-    navigation_box: Gtk.Box = Gtk.Template.Child('navigation_box')
-    up_button: Gtk.Button = Gtk.Template.Child('up_button')
-    forward_button: Gtk.Button = Gtk.Template.Child('forward_button')
-    backward_button: Gtk.Button = Gtk.Template.Child('backward_button')
-    path_entry: Gtk.Entry = Gtk.Template.Child('path_entry')
-    has_playlist_combo: Gtk.ComboBox = Gtk.Template.Child('has_playlist_combo')
-    open_playlist_btn: Gtk.Button = Gtk.Template.Child('open_playlist_btn')
-    create_playlist_btn: Gtk.Button = Gtk.Template.Child('create_playlist_btn')
-    playlist_opener_box: Gtk.Button = Gtk.Template.Child('playlist_opener_box')
-    open_playlist_box: Gtk.Button = Gtk.Template.Child('open_playlist_box')
-
-    def __init__(self):
-        super().__init__()
 
 class PlaylistOpenerView:
     """Display playlist opener widgets
@@ -72,7 +57,7 @@ class PlaylistOpenerView:
     The Gtk view for the ExistingBookOpener
     """
 
-    def __init__(self, file_manager: file_mgr.FileMgr, file_mgr_view_gtk: FileManagerViewOuterT):
+    def __init__(self, file_manager: file_mgr.FileMgr, file_mgr_view_gtk: fmvt.FileManagerViewOuterT):
         self.file_manager = file_manager
         self.file_mgr_view_gtk = file_mgr_view_gtk
 
@@ -200,7 +185,7 @@ class NavigationView:
     logger.addHandler(logging.NullHandler())
 
     def __init__(self,
-                 file_manager_view: FileManagerViewOuterT,
+                 file_manager_view: fmvt.FileManagerViewOuterT,
                  file_manager: file_mgr.FileMgr) -> None:
 
         self.file_manager_view = file_manager_view
@@ -257,8 +242,10 @@ class NavigationView:
 class FileView:
     """Display file information for files in the cwd"""
 
-    def __init__(self, file_mgr_view_name: FileManagerViewOuterT, file_mgr_: file_mgr.FileMgr) -> None:
+    def __init__(self, file_mgr_view_name: fmvt.FileManagerViewOuterT, file_mgr_: file_mgr.FileMgr) -> None:
         self._file_mgr_view_gtk = file_mgr_view_name.file_view_treeview_gtk
+        sel: Gtk.TreeSelection = self._file_mgr_view_gtk.get_selection()
+        sel.set_mode(Gtk.SelectionMode.MULTIPLE)
         self._file_mgr_view_gtk.connect('destroy', self.on_destroy)
         self._file_mgr_view_dbi = FileMgrViewDBI()
         self._file_mgr = file_mgr_
@@ -300,11 +287,106 @@ class FileView:
         c_time_col.add_attribute(c_time_r, "text", 5)
         self._file_mgr_view_gtk.append_column(c_time_col)
 
+        # right click popup menu widgets
+        self._ctrl_popup_menu = file_mgr_view_name.ctrl_popup_menu
+        self._new_folder_menu_item = file_mgr_view_name.new_folder_menu_item
+        self._copy_menu_item = file_mgr_view_name.copy_menu_item
+        self._paste_menu_item = file_mgr_view_name.paste_menu_item
+        self._cut_menu_item  = file_mgr_view_name.cut_menu_item
+        self._properties_menu_item  = file_mgr_view_name.properties_menu_item
+        self._delete_menu_item  = file_mgr_view_name.delete_menu_item
+        self._rename_menu_item  = file_mgr_view_name.rename_menu_item
+        self._file_mgr_view_name = file_mgr_view_name
+
+        # popup menu signals
+        file_mgr_view_name.new_folder_menu_item.connect('button-release-event', self.on_ctrl_menu_released)
+        file_mgr_view_name.copy_menu_item.connect('button-release-event', self.on_ctrl_menu_released)
+        file_mgr_view_name.paste_menu_item.connect('button-release-event', self.on_ctrl_menu_released)
+        file_mgr_view_name.cut_menu_item.connect('button-release-event', self.on_ctrl_menu_released)
+        file_mgr_view_name.delete_menu_item.connect('button-release-event', self.on_ctrl_menu_released)
+        file_mgr_view_name.rename_menu_item.connect('button-release-event', self.on_ctrl_menu_released)
+        file_mgr_view_name.properties_menu_item.connect('button-release-event', self.on_ctrl_menu_released)
+
+        self.menu_items_requiring_selection = [
+            file_mgr_view_name.copy_menu_item,
+            file_mgr_view_name.paste_menu_item,
+            file_mgr_view_name.cut_menu_item,
+            file_mgr_view_name.delete_menu_item,
+            file_mgr_view_name.rename_menu_item,
+            file_mgr_view_name.properties_menu_item
+        ]
+
         #signals
         self._file_mgr_view_gtk.connect('row-activated', self.row_activated)
         self._file_mgr_view_gtk.connect('button-release-event', self.on_button_release)
+        self._file_mgr_view_gtk.connect('button-press-event', self.on_button_press)
         self._file_mgr.transmitter.connect('cwd_changed', self.populate_file_list)
+        signal_.GLOBAL_TRANSMITTER.connect('dir_contents_updated', self.cb_dir_contents_updated)
         self.populate_file_list()
+
+    def on_ctrl_menu_released(self, menu_item: Gtk.MenuItem, _: Gdk.EventButton, __: any=None) -> None:
+        """Handle the response of the file manager control popup."""
+
+        match menu_item:
+            case self._file_mgr_view_name.new_folder_menu_item:
+                self._create_new_folder()
+
+            case self._file_mgr_view_name.copy_menu_item:
+                print('on_ctrl_menu_released _copy_menu_item')
+            case self._file_mgr_view_name.paste_menu_item:
+                print('on_ctrl_menu_released _paste_menu_item')
+            case self._file_mgr_view_name.cut_menu_item:
+                print('on_ctrl_menu_released _cut_menu_item')
+            case self._file_mgr_view_name.properties_menu_item:
+                print('on_ctrl_menu_released _properties_menu_item')
+            case self._file_mgr_view_name.delete_menu_item:
+                self._delete_selected_files()
+
+            case self._file_mgr_view_name.rename_menu_item:
+                print('on_ctrl_menu_released _rename_menu_item')
+
+    def on_button_press(self, _: Gtk.TreeView, event: Gdk.EventButton) -> None:
+        """
+        Handle callbacks for a button press on the FileView by any mouse button.
+
+        Currently its only action is to call a context menu when the FileView is right clicked.
+        Note: It does do some work to manage the selections in the treeview to achieve this.
+        """
+        if event.get_button()[0] is True:
+            # Clear selected rows if the button press was on an empty area.
+            # Select row if button-press was on a row. This second part is neccessary because
+            # the row doesn't actually get selected until sometime after this callback exits.
+            path = self._file_mgr_view_gtk.get_path_at_pos(int(event.x), int(event.y))
+            sel: Gtk.TreeSelection = self._file_mgr_view_gtk.get_selection()
+
+            if path is None:
+                sel.unselect_all()
+            elif sel.count_selected_rows() == 0:
+                sel.select_path(path[0])
+
+            match event.get_button()[1]:
+                case 1:  # Left button
+                    pass
+                case 2:  # Middle button
+                    pass
+                case 3:  # Right Button
+                    # enable/disable relevant parts of the popup menu based
+                    # on if there is a selection in the treeview.
+                    enable = False if path is None else True
+                    for menu_item in self.menu_items_requiring_selection:
+                        menu_item.set_sensitive(enable)
+
+                    # For multiselect, reselect the rows that were unselected
+                    # by the right mouse button press.
+                    _, paths = sel.get_selected_rows()
+                    for pth in paths:
+                        sel.select_path(pth)
+
+                    self._ctrl_popup_menu.popup_at_pointer()
+                case 8:  # Back button
+                    pass
+                case 9:  # Forward button
+                    pass
 
     def on_button_release(self, _: Gtk.TreeView, event: Gdk.EventButton) -> None:
         """
@@ -382,8 +464,16 @@ class FileView:
             return 0
         return 1
 
-    def populate_file_list(self) -> None:
+    def cb_dir_contents_updated(self, cwd=None) -> None:
         """Determine if files in path, directory, are suitable to be displayed and add them to the file_list"""
+        if cwd == self._file_mgr.get_cwd():
+            self.populate_file_list()
+
+    def populate_file_list(self):
+        """
+        Get the list of files in the cwd and push them to the
+        list store for display in the treeview.
+        """
         files = self._file_mgr.get_file_list()
         self._file_lst.clear()
         # populate liststore
@@ -401,6 +491,57 @@ class FileView:
             if i.is_dir():
                 icon = Gtk.IconTheme.get_default().load_icon('folder', 24, 0)
             self._file_lst.append((icon, i.name, i.is_dir(), size_f, units, str(timestamp_formatted)))
+
+    def _delete_selected_files(self):
+        """Delete or trash selected files"""
+        file_list = []
+        cwd = self._file_mgr.get_cwd()
+
+        # Get the names of the selected files.
+        sel = self._file_mgr_view_gtk.get_selection()
+        model, paths = sel.get_selected_rows()
+        for pth in paths:
+            itr = model.get_iter(pth)
+            name = model.get_value(itr, self.name_text['column'])
+            file_list.append(Path(cwd, name))
+
+        # Present list to user for verification.
+        verify_dialog = fmvt.DeleteFilesDialog()
+        verify_dialog.add_files(*file_list)
+        response = verify_dialog.run()
+        verify_dialog.hide_on_delete()
+        if response == Gtk.ResponseType.OK:
+            sel.unselect_all()
+            errors = self._file_mgr.delete(*file_list,
+                                            move_to_trash=verify_dialog.trash,
+                                            recursive=verify_dialog.recursive)
+            if errors:
+                fmvt.ErrorDialog("Failed to delete the following files", errors)
+        verify_dialog.destroy()
+
+    def _create_new_folder(self):
+        """Get the new directry name from the user and create the folder."""
+        new_dir_name = ''
+        continue_dialog = True
+        while continue_dialog:
+            continue_dialog = False
+
+            new_dir_dialog = fmvt.NewDirDialog()
+            new_dir_dialog.set_entry_text(new_dir_name)
+            response = new_dir_dialog.run()
+            new_dir_dialog.hide_on_delete()
+
+            if response != Gtk.ResponseType.CANCEL:
+                new_dir_name = new_dir_dialog.get_entry_text()
+                new_dir = Path(self._file_mgr.get_cwd(), new_dir_name)
+
+                if not (error := self._file_mgr.mkdir(new_dir)):
+                    if response == new_dir_dialog.ResponseType.AND_OPEN:
+                        self._file_mgr.cd(new_dir)
+                else:
+                    fmvt.ErrorDialog('Failed to create the following file', [error])
+                    continue_dialog = True
+            new_dir_dialog.destroy()
 
 
 class FileMgrViewDBI:
