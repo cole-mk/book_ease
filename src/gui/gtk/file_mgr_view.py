@@ -263,12 +263,12 @@ class FileView:
 
         # name column
         name_r_icon = Gtk.CellRendererPixbuf()
-        name_r_text = Gtk.CellRendererText()
+        self.name_r_text = Gtk.CellRendererText()
         self._name_col = Gtk.TreeViewColumn("Name")
         self._name_col.pack_start(name_r_icon, False)
-        self._name_col.pack_start(name_r_text, True)
+        self._name_col.pack_start(self.name_r_text, True)
         self._name_col.add_attribute(name_r_icon, "pixbuf", self.name_icon['column'])
-        self._name_col.add_attribute(name_r_text, "text", self.name_text['column'])
+        self._name_col.add_attribute(self.name_r_text, "text", self.name_text['column'])
         self._name_col.set_sort_column_id(1)
         self._name_col.set_resizable(True)
         # reset name column width to previous size iff previous size exists.
@@ -313,23 +313,75 @@ class FileView:
         file_mgr_view_name.rename_menu_item.connect('button-release-event', self.on_ctrl_menu_released)
         file_mgr_view_name.properties_menu_item.connect('button-release-event', self.on_ctrl_menu_released)
 
-        self.menu_items_requiring_selection = [
-            file_mgr_view_name.copy_menu_item,
-            file_mgr_view_name.paste_menu_item,
-            file_mgr_view_name.cut_menu_item,
-            file_mgr_view_name.delete_menu_item,
-            file_mgr_view_name.rename_menu_item,
-            file_mgr_view_name.properties_menu_item
-        ]
+        # Some control menu items are only valid depending
+        # on how many files are selected.
+        fmvn = file_mgr_view_name
+        self.ctrl_menu_items = {
+           fmvn.new_folder_menu_item: {'no_sel': True,  'one_sel': True,  'multi_sel': True },
+           fmvn.copy_menu_item:       {'no_sel': False, 'one_sel': True,  'multi_sel': True },
+           fmvn.paste_menu_item:      {'no_sel': True,  'one_sel': True,  'multi_sel': True },
+           fmvn.cut_menu_item:        {'no_sel': False, 'one_sel': True,  'multi_sel': True },
+           fmvn.delete_menu_item:     {'no_sel': False, 'one_sel': True,  'multi_sel': True },
+           fmvn.rename_menu_item:     {'no_sel': False, 'one_sel': True,  'multi_sel': False},
+           fmvn.properties_menu_item: {'no_sel': True,  'one_sel': True,  'multi_sel': False},
+        }
 
         #signals
+        self.name_r_text.connect("edited", self.on_rename_file_finished)
+        self.name_r_text.connect("editing-canceled", self.on_rename_file_cancelled)
         self._file_mgr_view_gtk.connect('row-activated', self.row_activated)
         self._file_mgr_view_gtk.connect('button-release-event', self.on_button_release)
         self._file_mgr_view_gtk.connect('button-press-event', self.on_button_press)
-        self._file_mgr_view_gtk.connect('key_release-event', self.on_key_release)
+        self._file_mgr_view_gtk.connect('key-release-event', self.on_key_release)
+        self._file_mgr_view_gtk.connect('key-press-event', self.on_key_press)
         self._file_mgr.transmitter.connect('cwd_changed', self.populate_file_list)
         signal_.GLOBAL_TRANSMITTER.connect('dir_contents_updated', self.cb_dir_contents_updated)
+
         self.populate_file_list()
+        # A kludge to prevent the 'Escape' key's 'key-release-event' from unselecting
+        # a file when using 'Escape' to cancel file renaming.
+        self.mute_escape_key = False
+
+
+    def on_rename_file_cancelled(self, *_):
+        """
+        'editing-cancelled' callback
+        """
+        self.name_r_text.set_property("editable", False)
+        self.mute_escape_key = True
+
+    def on_rename_file_finished(self, renderer: Gtk.CellRendererText, path: str, text: str):
+        """
+        Callback signaled when the 'edited' signal is sent
+        upon completion of renaming a file.
+        """
+        renderer.set_property("editable", False)
+        cwd = self._file_mgr.get_cwd()
+
+        # Build absolute paths for the previous and new file names.
+        model: Gtk.ListStore = self._file_mgr_view_gtk.get_model()
+        itr = model.get_iter_from_string(path)
+        val = model.get_value(itr, self.name_text['column'])
+        old_name = Path(cwd, val)
+        new_name = Path(cwd, text)
+
+        # Clicking outside the cell being edited triggers this
+        # signal instead of 'editing-cancelled'.
+        if old_name == new_name:
+            return
+
+        if error := self._file_mgr.rename(old_name, new_name):
+            fmvt.ErrorDialog(f"Failed to rename the following file:\n{old_name}", [error])
+
+    def on_key_press(self, _: Gtk.TreeView, event: Gdk.EventKey):
+        """
+        'key-press-event' callback
+        Using this to prevent the 'key-release-event' from unselecting a file
+        when escape is used to cancel file renaming.
+        """
+        match Gdk.keyval_name(event.keyval):
+            case "Escape":
+                self.mute_escape_key = False
 
     def on_key_release(self, treeview: Gtk.TreeView, event: Gdk.EventKey):
         """
@@ -347,11 +399,32 @@ class FileView:
                         self._delete_selected_files()
 
             case "Escape":
-                if selection_count:
+                if selection_count and not self.mute_escape_key:
                     if not event.state & (msk.SHIFT_MASK | msk.MOD1_MASK | msk.CONTROL_MASK):
                         print("selection_count")
                         sel.unselect_all()
 
+            case "F2":
+                if selection_count == 1:
+                    if not event.state & (msk.SHIFT_MASK | msk.MOD1_MASK | msk.CONTROL_MASK):
+                        self._rename_selected_files()
+
+    def _rename_selected_files(self):
+        """
+        Rename the file selected in the tree view.
+
+        This method only works on one row at a time.
+        The caller is responsible to ensure that only one row is selected.
+        Otherwise This will only act upon the first row returned by
+        Gtk.TreeSelection.get_selected_rows().
+        """
+        sel: Gtk.TreeSelection = self._file_mgr_view_gtk.get_selection()
+        _, paths = sel.get_selected_rows()
+        self.name_r_text.set_property("editable", True)
+        self._file_mgr_view_gtk.set_cursor_on_cell(paths[0],
+                                                   self._name_col,
+                                                   self.name_r_text,
+                                                   True)
 
     def on_ctrl_menu_released(self, menu_item: Gtk.MenuItem, _: Gdk.EventButton, __: any=None) -> None:
         """Handle the response of the file manager control popup."""
@@ -368,11 +441,12 @@ class FileView:
                 print('on_ctrl_menu_released _cut_menu_item')
             case self._file_mgr_view_name.properties_menu_item:
                 print('on_ctrl_menu_released _properties_menu_item')
+
             case self._file_mgr_view_name.delete_menu_item:
                 self._delete_selected_files()
 
             case self._file_mgr_view_name.rename_menu_item:
-                print('on_ctrl_menu_released _rename_menu_item')
+                self._rename_selected_files()
 
     def on_button_press(self, _: Gtk.TreeView, event: Gdk.EventButton) -> None:
         """
@@ -381,41 +455,49 @@ class FileView:
         Currently its only action is to call a context menu when the FileView is right clicked.
         Note: It does do some work to manage the selections in the treeview to achieve this.
         """
-        if event.get_button()[0] is True:
-            # Clear selected rows if the button press was on an empty area.
-            # Select row if button-press was on a row. This second part is neccessary because
-            # the row doesn't actually get selected until sometime after this callback exits.
-            path = self._file_mgr_view_gtk.get_path_at_pos(int(event.x), int(event.y))
-            sel: Gtk.TreeSelection = self._file_mgr_view_gtk.get_selection()
+        if event.get_button()[0] is False:
+            return
 
-            if path is None:
-                sel.unselect_all()
-            elif sel.count_selected_rows() == 0:
-                sel.select_path(path[0])
+        # Clear selected rows if the button press was on an empty area.
+        # Select row if button-press was on a row. This second part is neccessary because
+        # the row doesn't actually get selected until sometime after this callback exits.
+        path = self._file_mgr_view_gtk.get_path_at_pos(int(event.x), int(event.y))
+        sel: Gtk.TreeSelection = self._file_mgr_view_gtk.get_selection()
+        if path is None:
+            sel.unselect_all()
+        elif sel.count_selected_rows() == 0:
+            sel.select_path(path[0])
 
-            match event.get_button()[1]:
-                case 1:  # Left button
-                    pass
-                case 2:  # Middle button
-                    pass
-                case 3:  # Right Button
-                    # enable/disable relevant parts of the popup menu based
-                    # on if there is a selection in the treeview.
-                    enable = False if path is None else True
-                    for menu_item in self.menu_items_requiring_selection:
-                        menu_item.set_sensitive(enable)
+        match event.get_button()[1]:
+            case 1:  # Left button
+                pass
+            case 2:  # Middle button
+                pass
+            case 3:  # Right Button
+                # Display a popup menu showing FileMgr commands.
 
-                    # For multiselect, reselect the rows that were unselected
-                    # by the right mouse button press.
-                    _, paths = sel.get_selected_rows()
-                    for pth in paths:
-                        sel.select_path(pth)
+                # enable/disable relevant parts of the popup menu based
+                # upon if there is a selection in the treeview.
+                if sel.count_selected_rows() == 0:
+                    for menu_item, enabled in self.ctrl_menu_items.items():
+                        menu_item.set_sensitive(enabled['no_sel'])
+                elif sel.count_selected_rows() == 1:
+                    for menu_item, enabled in self.ctrl_menu_items.items():
+                        menu_item.set_sensitive(enabled['one_sel'])
+                elif sel.count_selected_rows() > 1:
+                    for menu_item, enabled in self.ctrl_menu_items.items():
+                        menu_item.set_sensitive(enabled['multi_sel'])
+                # For multiselect, reselect the rows that were unselected
+                # by the right mouse button press.
+                _, paths = sel.get_selected_rows()
+                for pth in paths:
+                    sel.select_path(pth)
 
-                    self._ctrl_popup_menu.popup_at_pointer()
-                case 8:  # Back button
-                    pass
-                case 9:  # Forward button
-                    pass
+                self._ctrl_popup_menu.popup_at_pointer()
+            case 8:  # Back button
+                pass
+            case 9:  # Forward button
+                pass
 
     def on_button_release(self, _: Gtk.TreeView, event: Gdk.EventButton) -> None:
         """

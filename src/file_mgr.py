@@ -245,6 +245,23 @@ class FileMgr():
             else:
                 self._path_back.append(path)
 
+    def rename(self, old_path: Path, new_path: Path) -> None | FileError:
+        """
+        Rename file from 'old_path' to 'new_path'.
+        """
+        try:
+            if new_path.exists():
+                raise FileExistsError('File already exists.')
+            old_path.rename(new_path)
+            signal_.GLOBAL_TRANSMITTER.send('dir_contents_updated', self._current_path)
+        except FileNotFoundError as e:
+            # Another process likely deleted the file during editing. Inform the
+            # user and the application that the directory contents have changed.
+            signal_.GLOBAL_TRANSMITTER.send('dir_contents_updated', self._current_path)
+            return FileError(new_path, e)
+        except FileExistsError as e:
+            return FileError(new_path, e)
+
     def mkdir(self, new_dir_abs_path: Path) -> None | FileError:
         """
         Create a new directory at the location described by new_dir_abs_path.
