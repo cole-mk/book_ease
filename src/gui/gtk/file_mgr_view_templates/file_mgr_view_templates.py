@@ -29,6 +29,7 @@ from pathlib import Path
 import gi
 gi.require_version("Gtk", "3.0")  # pylint: disable=wrong-import-position
 from gi.repository import Gtk
+from book_ease_path import BEPath
 if TYPE_CHECKING:
     import file_mgr
 
@@ -153,3 +154,31 @@ class FileManagerViewOuterT(Gtk.Box):
     delete_menu_item: Gtk.ImageMenuItem = Gtk.Template.Child('delete_menu_item')
     rename_menu_item: Gtk.ImageMenuItem = Gtk.Template.Child('rename_menu_item')
     properties_menu_item: Gtk.ImageMenuItem = Gtk.Template.Child('properties_menu_item')
+
+
+@Gtk.Template(filename='gui/gtk/file_mgr_view_templates/file_properties_dialog.ui')
+class FilePropertiesDialog(Gtk.Dialog):
+    """Dialog to diaplay file properties."""
+    # pylint:disable=no-member
+    # pylint erroneously thinks that Gtk template members are of type Child.
+    __gtype_name__ = 'FilePropertiesDialog'
+    name: Gtk.Label = Gtk.Template.Child('name')
+    location: Gtk.Label = Gtk.Template.Child('location')
+    file_type: Gtk.Label = Gtk.Template.Child('file_type')
+    owner_name: Gtk.Label = Gtk.Template.Child('owner_name')
+    group_name: Gtk.Label = Gtk.Template.Child('group_name')
+    user: Gtk.Label = Gtk.Template.Child('user')
+    group: Gtk.Label = Gtk.Template.Child('group')
+    other: Gtk.Label = Gtk.Template.Child('other')
+
+    def init_properties(self, path: BEPath):
+        """Populate the dialog with file information gleaned from path."""
+        path.update_stat()
+        self.name.set_text(path.name)
+        self.location.set_text(str(path.parent))
+        self.file_type.set_text(path.file_type)
+        self.group_name.set_text(path.group())
+        self.owner_name.set_text(path.owner())
+        self.user.set_text(path.perm_usr)
+        self.group.set_text(path.perm_grp)
+        self.other.set_text(path.perm_oth)
