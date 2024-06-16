@@ -29,13 +29,10 @@ Copy, Move, Delete, Rename
 """
 
 from __future__ import annotations
-import re
 import os
-from datetime import datetime
 from pathlib import Path
 from shutil import rmtree
 from dataclasses import dataclass
-from typing import Literal
 from typing import List
 from typing import TYPE_CHECKING
 from typing_extensions import Self
@@ -49,6 +46,7 @@ from gui.gtk import file_mgr_view
 from gui.gtk.file_mgr_view_templates import file_mgr_view_templates as fmvt
 # pylint: enable=no-name-in-module
 import book_mark
+from book_ease_path import BEPath
 if TYPE_CHECKING:
     gi.require_version("Gtk", "3.0")  # pylint: disable=wrong-import-position
     from gi.repository import Gtk
@@ -79,75 +77,6 @@ class FileList:
         """Determine if any of the files in this FileList are media files."""
         for file in self:
             if file.is_media_file():
-                return True
-        return False
-
-
-class BEPath():
-    """
-    Wraper for pathlib.Path.
-    Mostly implements the pathlib.Path interface plus a number of convenience
-    functions for collecting data from pathlib objects.
-
-    Note: isinstance(BEPath(), Path) will return False.
-    """
-
-    # strings that start with a period.
-    dot_file_regex = re.compile(r"^[\.]")
-
-    # build compiled regexes for matching list of media suffixes.
-    audio_file_types = ('.flac', '.opus', '.loss', '.aiff', '.ogg', '.m4b', '.mp3', '.wav')
-    f_type_re = []
-    for i in audio_file_types:
-        i = '.*.\\' + i.strip() + '$'
-        f_type_re.append(re.compile(i))
-
-    def __init__(self, *args, **kwargs):
-        self._path = Path(*args, **kwargs)
-
-    def __getattr__(self, attr):
-        return getattr(self._path, attr)
-
-    @property
-    def timestamp_formatted(self) -> str:
-        """Get a formatted timestamp as a string"""
-        return datetime.fromtimestamp(self.stat().st_ctime).strftime("%y/%m/%d  %H:%M")
-
-    @property
-    def size_formatted(self) -> tuple[str, Literal['b', 'kb', 'mb', 'gb', 'tb']]:
-        """
-        convert file size to string with appropriate units
-        This includes generating a units suffix thats returned with the formatted size as a tuple.
-        """
-        units = 'b'
-        size = self.stat().st_size
-        length = len(f"{size:.0f}")
-        if length <= 3:
-            val = str(size)
-        elif length <= 6:
-            val = f"{size / 10e+2:.1f}"
-            units = 'kb'
-        elif length <= 9:
-            val = f"{size / 10e+5:.1f}"
-            units = 'mb'
-        elif length <= 12:
-            val = f"{size / 10e+8:.1f}"
-            units = 'gb'
-        else:
-            val = f"{size / 10e+11:.1f}"
-            units = 'tb'
-        return (val, units)
-
-    def is_hidden_file(self) -> bool:
-        """determine if the file refered to by self is a hidden file"""
-        if self.dot_file_regex.match(self.name):
-            return True
-        return False
-
-    def is_media_file(self) -> bool:
-        """Determine if the current file is a media file"""
-        for regex in self.f_type_re:
-            if regex.match(self.name):
                 return True
         return False
 
