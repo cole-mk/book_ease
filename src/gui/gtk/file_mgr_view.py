@@ -40,6 +40,7 @@ from gi.repository.GdkPixbuf import Pixbuf
 import signal_
 import book_ease_tables
 import book
+from book_ease_path import BEPath
 # pylint: disable=no-name-in-module
 # pylint seems to think that gui.gtk.file_mgr_view_templates is a module. I don't know why.
 from gui.gtk.file_mgr_view_templates import file_mgr_view_templates as fmvt
@@ -323,7 +324,7 @@ class FileView:
            fmvn.cut_menu_item:        {'no_sel': False, 'one_sel': True,  'multi_sel': True },
            fmvn.delete_menu_item:     {'no_sel': False, 'one_sel': True,  'multi_sel': True },
            fmvn.rename_menu_item:     {'no_sel': False, 'one_sel': True,  'multi_sel': False},
-           fmvn.properties_menu_item: {'no_sel': True,  'one_sel': True,  'multi_sel': False},
+           fmvn.properties_menu_item: {'no_sel': False, 'one_sel': True,  'multi_sel': False},
         }
 
         #signals
@@ -425,6 +426,20 @@ class FileView:
                                                    self._name_col,
                                                    self.name_r_text,
                                                    True)
+    def _display_properties(self):
+        """Collect file information and display it in the FilePropertiesDialog,"""
+
+        sel = self._file_mgr_view_gtk.get_selection()
+        model, paths = sel.get_selected_rows()
+        itr = model.get_iter(paths[0])
+
+        cwd = self._file_mgr.get_cwd()
+        selected_file = BEPath(cwd, model.get_value(itr, self.name_text['column']))
+        fpd = fmvt.FilePropertiesDialog()
+        fpd.init_properties(selected_file)
+        fpd.run()
+        fpd.destroy()
+
 
     def on_ctrl_menu_released(self, menu_item: Gtk.MenuItem, _: Gdk.EventButton, __: any=None) -> None:
         """Handle the response of the file manager control popup."""
@@ -439,8 +454,9 @@ class FileView:
                 print('on_ctrl_menu_released _paste_menu_item')
             case self._file_mgr_view_name.cut_menu_item:
                 print('on_ctrl_menu_released _cut_menu_item')
+
             case self._file_mgr_view_name.properties_menu_item:
-                print('on_ctrl_menu_released _properties_menu_item')
+                self._display_properties()
 
             case self._file_mgr_view_name.delete_menu_item:
                 self._delete_selected_files()
