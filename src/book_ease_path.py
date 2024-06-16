@@ -26,10 +26,15 @@
 This module provides a convenience class for dealing with the file system.
 It wraps a pathlib.Path object with extra functions.
 """
+
+import stat
 import re
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    import os
 
 
 class BEPath(type(Path())):
@@ -50,12 +55,57 @@ class BEPath(type(Path())):
 
     def __init__(self, *args, **kwargs):
         self._path = Path(*args, **kwargs)
+        self._stat_result: os.stat_result | None = None
 
+    def update_stat(self):
+        """
+        Update the internal os.stat_result.
+        Note: os.stat_result is not intended to be long lived, so
+        this method needs to be called before using stat results.
+        """
+        self._stat_result = self.stat()
+
+    @property
+    def perm_usr(self) -> str:
+        """The user permission for this file as a string. ie 'r--x' or 'rw--'"""
+        perm  = 'r' if self._stat_result.st_mode & stat.S_IRUSR else '--'
+        perm += 'w' if self._stat_result.st_mode & stat.S_IWUSR else '--'
+        perm += 'x' if self._stat_result.st_mode & stat.S_IXUSR else '--'
+        return perm
+
+    @property
+    def perm_grp(self) -> str:
+        """The user permission for this file as a string. ie 'r--x' or 'rw--'"""
+        perm  = 'r' if self._stat_result.st_mode & stat.S_IRGRP else '--'
+        perm += 'w' if self._stat_result.st_mode & stat.S_IWGRP else '--'
+        perm += 'x' if self._stat_result.st_mode & stat.S_IXGRP else '--'
+        return perm
+
+    @property
+    def perm_oth(self) -> str:
+        """The user permission for this file as a string. ie 'r--x' or 'rw--'"""
+        perm  = 'r' if self._stat_result.st_mode & stat.S_IROTH else '--'
+        perm += 'w' if self._stat_result.st_mode & stat.S_IWOTH else '--'
+        perm += 'x' if self._stat_result.st_mode & stat.S_IXOTH else '--'
+        return perm
 
     @property
     def timestamp_formatted(self) -> str:
         """Get a formatted timestamp as a string"""
         return datetime.fromtimestamp(self.stat().st_ctime).strftime("%y/%m/%d  %H:%M")
+
+    @property
+    def file_type(self) -> str:
+        """
+        Get the file type formatted as a string.
+        ie 'Audio File', etc.
+        """
+        if self.is_dir():
+            return 'Directory'
+        elif self.is_media_file():
+            return 'Audio File'
+        elif self.is_file():
+            return 'File'
 
     @property
     def size_formatted(self) -> tuple[str, Literal['b', 'kb', 'mb', 'gb', 'tb']]:
