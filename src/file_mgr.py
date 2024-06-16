@@ -55,104 +55,99 @@ if TYPE_CHECKING:
 
 
 class FileList:
-    """Wrapper for os.DirEntry objects created by os.scandir()"""
+    """
+    Iterable of all of the files residing inside parent_dir
+    The iterator provides BEPath objects, wrappers for pathlib.Path.
+    """
 
     def __init__(self, parent_dir: Path) -> None:
         if not parent_dir.is_dir():
             raise ValueError("dir_path must be a directory.")
         self.parent_dir = parent_dir
+        self._files = [BEPath(file) for file in os.scandir(self.parent_dir)]
+        self._iter = None
+        self._cur_file = None
 
-    class FileListIterator:
-        """Iterate outer FileList and provide access to each file's attributes"""
+    def __iter__(self) -> Self:
+        self._iter = iter(self._files)
+        return self
 
-        # strings that start with a period.
-        dot_file_regex = re.compile(r"^[\.]")
-
-        # build compiled regexes for matching list of media suffixes.
-        audio_file_types = ('.flac', '.opus', '.loss', '.aiff', '.ogg', '.m4b', '.mp3', '.wav')
-        f_type_re = []
-        for i in audio_file_types:
-            i = '.*.\\' + i.strip() + '$'
-            f_type_re.append(re.compile(i))
-        # get a TrackMDEntryFormatter for fixing known formatting issues in file metadata
-
-        def __init__(self, outer) -> None:
-            self.outer = outer
-            self.files = os.scandir(outer.parent_dir)
-            self._cur_file = None
-
-        def __next__(self) -> Self:
-            self._cur_file = next(self.files)
-            return self
-
-        @property
-        def path(self) -> Path:
-            """get the file refered to by self as a pathlib.Path object"""
-            return Path(self._cur_file)
-
-        @property
-        def name(self) -> str:
-            """get the name of the file refered to by self as a string"""
-            return self._cur_file.name
-
-        @property
-        def timestamp_formatted(self) -> str:
-            """Get a formatted timestamp as a string"""
-            return datetime.fromtimestamp(self._cur_file.stat().st_ctime).strftime("%y/%m/%d  %H:%M")
-
-        @property
-        def size_formatted(self) -> tuple[str, Literal['b', 'kb', 'mb', 'gb', 'tb']]:
-            """
-            convert file size to string with appropriate units
-            This includes generating a units suffix thats returned with the formatted size as a tuple.
-            """
-            units = 'b'
-            size = self._cur_file.stat().st_size
-            length = len(f"{size:.0f}")
-            if length <= 3:
-                val = str(size)
-            elif length <= 6:
-                val = f"{size / 10e+2:.1f}"
-                units = 'kb'
-            elif length <= 9:
-                val = f"{size / 10e+5:.1f}"
-                units = 'mb'
-            elif length <= 12:
-                val = f"{size / 10e+8:.1f}"
-                units = 'gb'
-            else:
-                val = f"{size / 10e+11:.1f}"
-                units = 'tb'
-            return (val, units)
-
-        def is_file(self) -> bool:
-            """Determine if self refers to an actual file"""
-            return self._cur_file.is_file()
-
-        def is_dir(self) -> bool:
-            """Determine if self refers to a directory"""
-            return self._cur_file.is_dir()
-
-        def is_hidden_file(self) -> bool:
-            """determine if the file refered to by self is a hidden file"""
-            if self.dot_file_regex.match(self._cur_file.name):
-                return True
-            return False
-
-        def is_media_file(self) -> bool:
-            """Determine if the current file is a media file"""
-            for regex in self.f_type_re:
-                if regex.match(self._cur_file.name):
-                    return True
-            return False
-
-    def __iter__(self) -> FileListIterator:
-        return self.FileListIterator(self)
+    def __next__(self):
+        return next(self._iter)
 
     def has_media_file(self) -> bool:
         """Determine if any of the files in this FileList are media files."""
         for file in self:
             if file.is_media_file():
+                return True
+        return False
+
+
+class BEPath():
+    """
+    Wraper for pathlib.Path.
+    Mostly implements the pathlib.Path interface plus a number of convenience
+    functions for collecting data from pathlib objects.
+
+    Note: isinstance(BEPath(), Path) will return False.
+    """
+
+    # strings that start with a period.
+    dot_file_regex = re.compile(r"^[\.]")
+
+    # build compiled regexes for matching list of media suffixes.
+    audio_file_types = ('.flac', '.opus', '.loss', '.aiff', '.ogg', '.m4b', '.mp3', '.wav')
+    f_type_re = []
+    for i in audio_file_types:
+        i = '.*.\\' + i.strip() + '$'
+        f_type_re.append(re.compile(i))
+
+    def __init__(self, *args, **kwargs):
+        self._path = Path(*args, **kwargs)
+
+    def __getattr__(self, attr):
+        return getattr(self._path, attr)
+
+    @property
+    def timestamp_formatted(self) -> str:
+        """Get a formatted timestamp as a string"""
+        return datetime.fromtimestamp(self.stat().st_ctime).strftime("%y/%m/%d  %H:%M")
+
+    @property
+    def size_formatted(self) -> tuple[str, Literal['b', 'kb', 'mb', 'gb', 'tb']]:
+        """
+        convert file size to string with appropriate units
+        This includes generating a units suffix thats returned with the formatted size as a tuple.
+        """
+        units = 'b'
+        size = self.stat().st_size
+        length = len(f"{size:.0f}")
+        if length <= 3:
+            val = str(size)
+        elif length <= 6:
+            val = f"{size / 10e+2:.1f}"
+            units = 'kb'
+        elif length <= 9:
+            val = f"{size / 10e+5:.1f}"
+            units = 'mb'
+        elif length <= 12:
+            val = f"{size / 10e+8:.1f}"
+            units = 'gb'
+        else:
+            val = f"{size / 10e+11:.1f}"
+            units = 'tb'
+        return (val, units)
+
+    def is_hidden_file(self) -> bool:
+        """determine if the file refered to by self is a hidden file"""
+        if self.dot_file_regex.match(self.name):
+            return True
+        return False
+
+    def is_media_file(self) -> bool:
+        """Determine if the current file is a media file"""
+        for regex in self.f_type_re:
+            if regex.match(self.name):
                 return True
         return False
 
