@@ -32,13 +32,10 @@ from pathlib import Path
 from typing import Literal
 
 
-class BEPath():
+class BEPath(type(Path())):
     """
     Wraper for pathlib.Path.
-    Mostly implements the pathlib.Path interface plus a number of convenience
-    functions for collecting data from pathlib objects.
-
-    Note: isinstance(BEPath(), Path) will return False.
+    Adds a number of convenience methods for collecting data from pathlib objects.
     """
 
     # strings that start with a period.
@@ -54,8 +51,6 @@ class BEPath():
     def __init__(self, *args, **kwargs):
         self._path = Path(*args, **kwargs)
 
-    def __getattr__(self, attr):
-        return getattr(self._path, attr)
 
     @property
     def timestamp_formatted(self) -> str:
