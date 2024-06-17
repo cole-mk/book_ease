@@ -154,6 +154,8 @@ class FileManagerViewOuterT(Gtk.Box):
     delete_menu_item: Gtk.ImageMenuItem = Gtk.Template.Child('delete_menu_item')
     rename_menu_item: Gtk.ImageMenuItem = Gtk.Template.Child('rename_menu_item')
     properties_menu_item: Gtk.ImageMenuItem = Gtk.Template.Child('properties_menu_item')
+    hidden_files_menu_item: Gtk.ImageMenuItem = Gtk.Template.Child('hidden_files_menu_item')
+    audio_only_menu_item: Gtk.ImageMenuItem = Gtk.Template.Child('audio_only_menu_item')
 
 
 @Gtk.Template(filename='gui/gtk/file_mgr_view_templates/file_properties_dialog.ui')

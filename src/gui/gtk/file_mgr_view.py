@@ -305,6 +305,10 @@ class FileView:
         self._rename_menu_item  = file_mgr_view_name.rename_menu_item
         self._file_mgr_view_name = file_mgr_view_name
 
+        self.hidden_file_manual_toggle_active = False
+        self.show_hidden_files = False
+        self.show_audio_only = False
+
         # popup menu signals
         file_mgr_view_name.new_folder_menu_item.connect('button-release-event', self.on_ctrl_menu_released)
         file_mgr_view_name.copy_menu_item.connect('button-release-event', self.on_ctrl_menu_released)
@@ -313,18 +317,22 @@ class FileView:
         file_mgr_view_name.delete_menu_item.connect('button-release-event', self.on_ctrl_menu_released)
         file_mgr_view_name.rename_menu_item.connect('button-release-event', self.on_ctrl_menu_released)
         file_mgr_view_name.properties_menu_item.connect('button-release-event', self.on_ctrl_menu_released)
+        file_mgr_view_name.hidden_files_menu_item.connect('toggled', self.on_menu_item_toggled)
+        file_mgr_view_name.audio_only_menu_item.connect('toggled', self.on_menu_item_toggled)
 
         # Some control menu items are only valid depending
         # on how many files are selected.
         fmvn = file_mgr_view_name
         self.ctrl_menu_items = {
-           fmvn.new_folder_menu_item: {'no_sel': True,  'one_sel': True,  'multi_sel': True },
-           fmvn.copy_menu_item:       {'no_sel': False, 'one_sel': True,  'multi_sel': True },
-           fmvn.paste_menu_item:      {'no_sel': True,  'one_sel': True,  'multi_sel': True },
-           fmvn.cut_menu_item:        {'no_sel': False, 'one_sel': True,  'multi_sel': True },
-           fmvn.delete_menu_item:     {'no_sel': False, 'one_sel': True,  'multi_sel': True },
-           fmvn.rename_menu_item:     {'no_sel': False, 'one_sel': True,  'multi_sel': False},
-           fmvn.properties_menu_item: {'no_sel': False, 'one_sel': True,  'multi_sel': False},
+           fmvn.new_folder_menu_item:       {'no_sel': True,  'one_sel': True,  'multi_sel': True },
+           fmvn.copy_menu_item:             {'no_sel': False, 'one_sel': True,  'multi_sel': True },
+           fmvn.paste_menu_item:            {'no_sel': True,  'one_sel': True,  'multi_sel': True },
+           fmvn.cut_menu_item:              {'no_sel': False, 'one_sel': True,  'multi_sel': True },
+           fmvn.delete_menu_item:           {'no_sel': False, 'one_sel': True,  'multi_sel': True },
+           fmvn.rename_menu_item:           {'no_sel': False, 'one_sel': True,  'multi_sel': False},
+           fmvn.properties_menu_item:       {'no_sel': False, 'one_sel': True,  'multi_sel': False},
+           fmvn.hidden_files_menu_item:     {'no_sel': True,  'one_sel': True,  'multi_sel': True },
+           fmvn.audio_only_menu_item:       {'no_sel': True,  'one_sel': True,  'multi_sel': True },
         }
 
         #signals
@@ -410,6 +418,11 @@ class FileView:
                     if not event.state & (msk.SHIFT_MASK | msk.MOD1_MASK | msk.CONTROL_MASK):
                         self._rename_selected_files()
 
+            case "h":
+                if event.state & msk.CONTROL_MASK:
+                    if not event.state & (msk.SHIFT_MASK | msk.MOD1_MASK):
+                        self._show_hidden_files(not self.show_hidden_files)
+
     def _rename_selected_files(self):
         """
         Rename the file selected in the tree view.
@@ -426,6 +439,20 @@ class FileView:
                                                    self._name_col,
                                                    self.name_r_text,
                                                    True)
+
+    def _show_hidden_files(self, show_hidden_files: bool):
+        """Display hidden files in the treeview."""
+        # Maintain the state of the check menu item
+        menu_item_is_active = self._file_mgr_view_name.hidden_files_menu_item.get_active()
+        if menu_item_is_active ^ show_hidden_files:
+            # calling set_active triggers the toggled callback
+            self.hidden_file_manual_toggle_active = True
+            self._file_mgr_view_name.hidden_files_menu_item.set_active(show_hidden_files)
+
+        self.show_hidden_files = show_hidden_files
+        self.populate_file_list()
+
+
     def _display_properties(self):
         """Collect file information and display it in the FilePropertiesDialog,"""
 
@@ -440,6 +467,19 @@ class FileView:
         fpd.run()
         fpd.destroy()
 
+    def on_menu_item_toggled(self, menu_item: Gtk.CheckMenuItem, _: any=None):
+        """Callback for the CheckMenuItems from the file manager control popup."""
+        match menu_item:
+            case self._file_mgr_view_name.hidden_files_menu_item:
+                if self.hidden_file_manual_toggle_active is True:
+                    self.hidden_file_manual_toggle_active = False
+                    return
+                self._show_hidden_files(self._file_mgr_view_name.hidden_files_menu_item.get_active())
+
+            case self._file_mgr_view_name.audio_only_menu_item:
+                show_audio_only = self._file_mgr_view_name.audio_only_menu_item.get_active()
+                self.show_audio_only = show_audio_only
+                self.populate_file_list()
 
     def on_ctrl_menu_released(self, menu_item: Gtk.MenuItem, _: Gdk.EventButton, __: any=None) -> None:
         """Handle the response of the file manager control popup."""
@@ -605,10 +645,16 @@ class FileView:
         self._file_lst.clear()
         # populate liststore
         for i in files:
-            if not i.is_file() and not i.is_dir():
-                # ignore things like broken symlinks
+            if i.is_dir():
+                pass
+            elif not i.is_file():
+                # Directories are never things like broken symlinks
                 continue
-            if not self._file_mgr.show_hidden_files and i.is_hidden_file():
+            elif self.show_audio_only and not i.is_media_file():
+                # Directories are never audio files
+                continue
+            if not self.show_hidden_files and i.is_hidden_file():
+                # Directories are sometimes hidden
                 continue
 
             timestamp_formatted = i.timestamp_formatted
