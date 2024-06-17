@@ -182,7 +182,7 @@ class Book(playlist.Playlist, signal_.Signal):
         book_data = BookData(self.playlist_data)
         for file_ in file_mgr.FileList(self.playlist_data.get_path()):
             # populate track data
-            file_path = file_.path.absolute()
+            file_path = file_.absolute()
             try:
                 # create the track
                 track = TrackFI.get_track(file_path)
