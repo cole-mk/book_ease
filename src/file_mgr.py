@@ -102,7 +102,6 @@ class FileMgr():
         self._path_ahead_max_len = 10
         self._path_back: List[Path] = []
         self._path_ahead = []
-        self.show_hidden_files = False
         self.sort_ignore_case = True
         self.sort_dir_first = True
         # Signals

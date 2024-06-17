@@ -95,6 +95,24 @@
         <property name="use_stock">True</property>
       </object>
     </child>
+    <child>
+      <object class="GtkCheckMenuItem" id="hidden_files_menu_item">
+        <property name="label">hidden files</property>
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="tooltip_text" translatable="yes">Show hidden files.</property>
+        <property name="use_underline">True</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkCheckMenuItem" id="audio_only_menu_item">
+        <property name="label">audio only</property>
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="tooltip_text" translatable="yes">Show only audio files.</property>
+        <property name="use_underline">True</property>
+      </object>
+    </child>
   </object>
   <object class="GtkImage" id="up">
     <property name="visible">True</property>
