@@ -40,10 +40,6 @@ from typing import Callable
 import gi  # pylint: disable=unused-import; It's clearly used on the next line.
 from gi.repository import GLib
 
-def poo():
-    """
-    doc_string
-    """
 
 def g_idle_add_once(callback, *cb_args, **g_kwargs):
     """
