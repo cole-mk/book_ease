@@ -41,21 +41,74 @@ import gi  # pylint: disable=unused-import; It's clearly used on the next line.
 from gi.repository import GLib
 
 
-def g_idle_add_once(callback, *cb_args, **g_kwargs):
+def _g_idle_add(once: bool, callback, *cb_args, priority=GLib.PRIORITY_DEFAULT_IDLE, **cb_kwargs):
     """
+    * This method wraps calls to GLib.idle_add with keyword arguments that can be passed
+      to the callback.
+
+    * This method also optionally wraps the callback with a False return value. This guarantees
+      that if the once parameter is True, the callback will only be called a single time. If the
+      once parameter is False, The callback's return value is handled by the GLib event loop
+      in the normal way. True = continue. False or no return value = stop
+
+    * GLib.idle_add by itself only accepts one keyword argument, priority. It is consumed by GLib.idle_add
+      and no keyword arguments get passed to the callback.
+
+    Args:
+
+        * once: flag to determine is callback gets removed from the event loop after its first invocation.
+
+        * callback: callback to be placed on the eventloop.
+
+        * cb_args: positional arguments passed to the callback
+
+        * priority: GLib priority with which the callback gets placed on the event loop.
+
+        * cb_kwargs keyword arguments passed to callback.
+    """
+    def callback_wrapper(callback, *args):
+        # Separate the once flag and the kwargs dict from args.
+        once: bool = args[0]
+        cb_args: tuple = args[1:-1]
+        cb_kwargs: dict = args[-1]
+
+        if once:
+            callback(*cb_args, **cb_kwargs)
+            return False
+        else:
+            return callback(*cb_args, **cb_kwargs)
+
+    # Pack everything into a single tuple that can be handled by GLib.idle_add.
+    args = (once, *cb_args, cb_kwargs)
+    GLib.idle_add(callback_wrapper, callback, *args, priority=priority)
+
+def g_idle_add_once(callback, *cb_args, priority=GLib.PRIORITY_DEFAULT_IDLE, **cb_kwargs):
+    """
+    Place callback on the GLib event loop to be executed a single time
+
     Wrap GLib.idle_add() calls with a False return value so the callback only fires once.
 
-    *cb_args: args passed to callback
-    **g_kwargs: keyword args that will be passed to GLib.idle_add. ie priority=GLib.PRIORITY_LOW
-    """
-    def wrap_call_with_false_ret_value(callback, *cb_args):
-        # I don't think that any kwargs get passed to the callback by GLib.idle_add
-        # so they're not included here.
-        callback(*cb_args)
-        return False
+    Wrap GLib.idle_add() calls with the ability to pass keyword arguments to the callback.
 
-    # I think that the only kwarg that GLib.idle_add accepts is 'priority'.
-    GLib.idle_add(wrap_call_with_false_ret_value, callback, *cb_args, **g_kwargs)
+    *cb_args: args passed to callback
+    *cb_kwargs: kwargs passed to callback. cb_kwargs key 'priority' is not allowed. It
+        gets consumed by GLib.idle_add.
+    priority: keyword args that will be passed to GLib.idle_add. ie priority=GLib.PRIORITY_LOW
+    """
+    _g_idle_add(True, callback, *cb_args, priority=priority, **cb_kwargs)
+
+def g_idle_add(callback, *args, priority=GLib.PRIORITY_DEFAULT_IDLE, **kwargs):
+    """
+    Place callback on the GLib event loop to be executed unti the callback returns False
+
+    Wrap GLib.idle_add() calls with the ability to pass keyword arguments to the callback.
+
+    *cb_args: args passed to callback
+    *cb_kwargs: kwargs passed to callback. cb_kwargs key 'priority' is not allowed. It
+        gets consumed by GLib.idle_add.
+    priority: keyword args that will be passed to GLib.idle_add. ie priority=GLib.PRIORITY_LOW
+    """
+    _g_idle_add(False, callback, *args, priority=priority, **kwargs)
 
 
 class AsyncWorker(threading.Thread):
