@@ -643,26 +643,30 @@ class FileView:
         """
         files = self._file_mgr.get_file_list()
         self._file_lst.clear()
-        # populate liststore
+
         for i in files:
-            if i.is_dir():
-                pass
-            elif not i.is_file():
-                # Directories are never things like broken symlinks
-                continue
-            elif self.show_audio_only and not i.is_media_file():
-                # Directories are never audio files
-                continue
-            if not self.show_hidden_files and i.is_hidden_file():
-                # Directories are sometimes hidden
+            if self.show_audio_only and not i.is_media_file():
                 continue
 
-            timestamp_formatted = i.timestamp_formatted
-            size_f, units = i.size_formatted
-            # set correct icon
-            icon = Gtk.IconTheme.get_default().load_icon('multimedia-player', 24, 0)
-            if i.is_dir():
-                icon = Gtk.IconTheme.get_default().load_icon('folder', 24, 0)
+            if not self.show_hidden_files and i.is_hidden_file():
+                continue
+
+            try:
+                timestamp_formatted = i.timestamp_formatted
+                size_f, units = i.size_formatted
+
+                icon = Gtk.IconTheme.get_default().load_icon('multimedia-player', 24, 0)
+                if i.is_dir():
+                    icon = Gtk.IconTheme.get_default().load_icon('folder', 24, 0)
+            except FileNotFoundError:
+                if i.is_symlink():
+                    timestamp_formatted = '00/00/00 00:00'
+                    size_f = '0'
+                    units = 'na'
+                    icon = Gtk.IconTheme.get_default().load_icon('error', 16, 0)
+                else:
+                    raise
+
             self._file_lst.append((icon, i.name, i.is_dir(), size_f, units, str(timestamp_formatted)))
 
     def _delete_selected_files(self):
