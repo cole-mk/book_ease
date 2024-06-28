@@ -654,10 +654,11 @@ class FileView:
             try:
                 timestamp_formatted = i.timestamp_formatted
                 size_f, units = i.size_formatted
-
-                icon = Gtk.IconTheme.get_default().load_icon('multimedia-player', 24, 0)
                 if i.is_dir():
                     icon = Gtk.IconTheme.get_default().load_icon('folder', 24, 0)
+                else:
+                    icon = Gtk.IconTheme.get_default().load_icon('multimedia-player', 24, 0)
+
             except FileNotFoundError:
                 if i.is_symlink():
                     timestamp_formatted = '00/00/00 00:00'
