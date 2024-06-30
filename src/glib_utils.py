@@ -49,7 +49,7 @@ def _g_idle_add(once: bool, callback: Callable, *cb_args, priority=GLib.PRIORITY
     * This method also optionally wraps the callback with a False return value. This guarantees
       that if the once parameter is True, the callback will only be called a single time. If the
       once parameter is False, The callback's return value is handled by the GLib event loop
-      in the normal way. True = continue. False or None return value = stop
+      in the normal way. True = continue. False or None return value = stop.
 
     * GLib.idle_add by itself only accepts one keyword argument, priority. It is consumed by GLib.idle_add
       and no keyword arguments get passed to the callback.
@@ -126,14 +126,23 @@ def g_idle_add(callback: Callable, *args, priority=GLib.PRIORITY_DEFAULT_IDLE, *
     _g_idle_add(False, callback, *args, priority=priority, **kwargs)
 
 
+class AsyncWorkerCancelledError(RuntimeError):
+    """A thread was cancelled"""
+
+
 class AsyncWorker(threading.Thread):
     """
-    Run a function in a separate thread, calling an optional callback in the main context
-    when that threaded function returns.
-    The thread is invoked in the same way as threading.Thread, call `AsyncWorker.start()`.
+    * Run a function in a separate thread, calling an optional callback in the main context
+      when that threaded function returns.
 
-    The constructor args/kwargs mirror those of `threading.Thread()`, but additionally takes
-    the following arguments:
+    * Subclasses threading.Thread
+
+    * The thread is invoked in the same way as threading.Thread, call `AsyncWorker.start()`.
+
+    * The constructor args/kwargs mirror those of `threading.Thread()`, but additionally takes
+      the following arguments:
+
+    Args:
 
         cancellable: Set to True to have a cancel_event (threading.Event) passed to the threaded
             function and the optional on_finished_cb.
@@ -144,9 +153,15 @@ class AsyncWorker(threading.Thread):
             The optional callback is executed in the main app context, meaning that this
             class is thread-safe from Gtk's point of view.
 
-        cb_args: Args passed to on_finished_cb
+        cb_args: Args passed to on_finished_cb.
 
-    **Note**: The following example assumes that the Glib event loop is already running.
+        pass_cancel_event_to_cb: If True, pass the cancel event (threading.Thread) as the last arg
+            to the on_finished_cb.
+
+    * An optional AsyncWorkerCancelledError is provided for run method implementors
+      the raise if a worker thread is cancelled.
+
+    * The following example assumes that the Glib event loop is already running.
 
     .. code-block:: python
         import time
@@ -172,10 +187,11 @@ class AsyncWorker(threading.Thread):
                     itr +=1
 
         aw = AsyncWorker(target=threaded_function, args=('foo',), cancellable=True,
-                          on_finished_cb=run_after_thread_finished, cb_args=('finished!!!',))
+                          on_finished_cb=run_after_thread_finished, cb_args=('finished!!!',),
+                          cb_kwargs=)
 
         aw2 = AsyncWorker(target=threaded_function, args=('foo2',), cancellable=True,
-                          on_finished_cb=run_after_thread_finished, cb_args=('finished!!!',))
+                          on_finished_cb=run_after_thread_finished, cb_args=('finished 2 !!!',))
         aw.start()
         aw2.start()
         time.sleep(2)
@@ -190,7 +206,7 @@ class AsyncWorker(threading.Thread):
         threaded_function foo2
         threaded_function foo2
         threaded_function foo2
-        threaded function finished: finished!!!
+        threaded function finished: finished 2 !!!
     """
     # pylint: disable=dangerous-default-value
     # disabled because this is just mirroring threading.Thread
@@ -198,22 +214,24 @@ class AsyncWorker(threading.Thread):
 
     def __init__(self, group=None, target=None,
                  name=None, args=(), kwargs={},
-                 on_finished_cb: Callable=None, cb_args=(),
-                 cancellable:bool=False, *, daemon=None):
-
-        threading.Thread.__init__(self, group=group, target=target, name=name, daemon=daemon)
-
+                 on_finished_cb: Callable=None, cb_args=(), cb_kwargs={},
+                 cancellable:bool=False, pass_cancel_event_to_cb:bool=False,
+                 pass_ret_val_to_cb:bool=False,*, daemon=None):
+        super(AsyncWorker, self).__init__(group=group, target=target, name=name, daemon=daemon)
         self._cancellable = cancellable
         self._on_finished_cb = on_finished_cb
         self._kwargs = kwargs
+        self._cb_args = [*cb_args]
+        self._cb_kwargs = cb_kwargs
+        self.pass_ret_val_to_cb = pass_ret_val_to_cb
+        self._args = args
         if cancellable:
             self._cancel_event = threading.Event()
-            self._args = (*args, self._cancel_event)
-            self._cb_args = (*cb_args, self._cancel_event)
+            self._kwargs['cancel_event'] = self._cancel_event
+            if pass_cancel_event_to_cb:
+                self._cb_args.append(self._cancel_event)
         else:
             self._cancel_event = None
-            self._args = args
-            self._cb_args = cb_args
 
     def run(self):
         """
@@ -224,11 +242,12 @@ class AsyncWorker(threading.Thread):
         call the optional callback.
         """
         if self._target:
-            self._target(*self._args, **self._kwargs)
+            ret_val = self._target(*self._args, **self._kwargs)
+
         if self._on_finished_cb:
-            # self._on_finished_cb must run in the main context.
-            # Glib.idle_add does not seem to take kwargs, so they're not included here.
-            g_idle_add_once(self._on_finished_cb, *self._cb_args)
+            if self.pass_ret_val_to_cb:
+                self._cb_args.append(ret_val)
+            g_idle_add_once(self._on_finished_cb, *self._cb_args, **self._cb_kwargs)
 
     def cancel(self):
         """
