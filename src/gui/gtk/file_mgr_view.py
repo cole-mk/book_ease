@@ -509,6 +509,21 @@ class FileView:
                     if not event.state & (msk.SHIFT_MASK | msk.MOD1_MASK):
                         self._show_hidden_files(not self.show_hidden_files)
 
+            case "c":
+                if event.state & msk.CONTROL_MASK:
+                    if not event.state & (msk.SHIFT_MASK | msk.MOD1_MASK):
+                        self._copy_start()
+
+            case "v":
+                if event.state & msk.CONTROL_MASK:
+                    if not event.state & (msk.SHIFT_MASK | msk.MOD1_MASK):
+                        self._paste()
+
+            case "x":
+                if event.state & msk.CONTROL_MASK:
+                    if not event.state & (msk.SHIFT_MASK | msk.MOD1_MASK):
+                        self._cut_start()
+
     def _rename_start(self):
         """
         Rename the file selected in the tree view.
