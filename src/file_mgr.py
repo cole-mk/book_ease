@@ -220,6 +220,8 @@ class FileMgr():
         if not error_list:
             try:
                 src_file.rename(dest_file)
+                glib_utils.g_idle_add_once(signal_.GLOBAL_TRANSMITTER.send, 'dir_contents_updated', src_file.parent)
+                glib_utils.g_idle_add_once(signal_.GLOBAL_TRANSMITTER.send, 'dir_contents_updated', dest_file.parent)
             except IOError as e:
                 if e.errno == errno.EXDEV:
                     # errno.EXDEV == Cross-device link
