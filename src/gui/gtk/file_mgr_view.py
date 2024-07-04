@@ -31,8 +31,10 @@ Copy, Move, Delete, Rename
 from __future__ import annotations
 from typing import TYPE_CHECKING
 from typing import Literal
+from typing import Callable
 from pathlib import Path
 import logging
+from dataclasses import dataclass
 import gi
 gi.require_version("Gtk", "3.0")  # pylint: disable=wrong-import-position
 from gi.repository import Gtk, Gdk
@@ -40,6 +42,7 @@ from gi.repository.GdkPixbuf import Pixbuf
 import signal_
 import book_ease_tables
 import book
+import glib_utils
 from book_ease_path import BEPath
 # pylint: disable=no-name-in-module
 # pylint seems to think that gui.gtk.file_mgr_view_templates is a module. I don't know why.
@@ -47,8 +50,92 @@ from gui.gtk.file_mgr_view_templates import file_mgr_view_templates as fmvt
 # pylint: enable=no-name-in-module
 if TYPE_CHECKING:
     import file_mgr
+    import threading
 
 #logger = logging.getLogger()
+
+@dataclass
+class FileMgrClipData:
+    """
+    Clipboard data container.
+
+    copy_paths: The path(s) to the original copied or cut file.
+
+    on_pasted_callback: Required callback for copy/cut sources to be notified when
+        a paste is done. It is intended for this to be assigned when creating a
+        copy/paste source. The actual copying/moving/etc of files should be done here.
+        The callback signature should be callback(clipboard_data: FileMgrClipData).
+
+    paste_target: Path to the directory where the paste operation will be performed.
+    """
+    copy_paths: tuple[Path]
+    on_pasted_callback: Callable | None = None
+    paste_target: Path | None = None
+
+
+class FileMgrClipboard:
+    """
+    Clipboard to help with copy/cut/paste files.
+
+    Copy/Cut sources call set_data(on_pasted_callback, copied_paths) to copy a file or
+    files to this clipboard.
+
+    In addition set_data() copies the absolute file path to the main Gtk.Cilpboard
+    as a string.
+
+    Paste destinations can call paste(paste_target) to post a copy/paste destination
+    to the clipboard allowing the source to complete the copy/paste operation via callback.
+
+    For example, in the case of a cut operation, this allows the cut source to either move
+    the copied_files to target or copy the copied_files to the target and then delete the
+    originals.
+
+    Note: Cut/Paste can only be pasted once. Copy/Paste can be pasted repeatedly until
+    new clipboard contents are copied.
+    """
+
+    def __init__(self):
+        self._clipboard_data: FileMgrClipData|None = None
+        self._clipboard: Gtk.Clipboard  = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
+
+    def _copy_data_to_gtk_clipboard(self):
+        """
+        Generate a string representation of the Paths in self._path
+        and copy them to the main Gtk.Clipboard.
+        """
+        path_string = ''
+        for i, pth in enumerate(self._clipboard_data.copy_paths):
+            path_string += str(pth.absolute())
+            if i < len(self._clipboard_data.copy_paths) - 1:
+                path_string += ', '
+        self._clipboard.set_text(path_string, -1)
+
+    def set_data(self,
+                 on_pasted_callback: Callable[[list[Path]], None],
+                 *copied_paths: Path) -> None:
+        """
+        Save path to clipboard.
+
+        on_pasted_callback: Callback triggered by a paste operation. The
+        caller should perform the actual file operation here. The callback signature
+        should be `callback(clipboard_data: FileMgrClipData)`.
+
+        copied_paths: Absolute paths of one or more files to be copied.
+        """
+        self._clipboard_data = FileMgrClipData((*copied_paths,), on_pasted_callback)
+        self._copy_data_to_gtk_clipboard()
+
+    def paste(self, target: Path):
+        """
+        Post a paste target to the clipboard, allowing the copy/cut creator to
+        complete the operation.
+        """
+        self._clipboard_data.paste_target = target
+        self._clipboard_data.on_pasted_callback(self._clipboard_data)
+
+
+file_mgr_clipboard = FileMgrClipboard()
+"""The global instance of FileMgrClipboard"""
 
 
 class PlaylistOpenerView:
@@ -336,8 +423,8 @@ class FileView:
         }
 
         #signals
-        self.name_r_text.connect("edited", self.on_rename_file_finished)
-        self.name_r_text.connect("editing-canceled", self.on_rename_file_cancelled)
+        self.name_r_text.connect("edited", self._rename_finished)
+        self.name_r_text.connect("editing-canceled", self._rename_cancelled)
         self._file_mgr_view_gtk.connect('row-activated', self.row_activated)
         self._file_mgr_view_gtk.connect('button-release-event', self.on_button_release)
         self._file_mgr_view_gtk.connect('button-press-event', self.on_button_press)
@@ -352,14 +439,14 @@ class FileView:
         self.mute_escape_key = False
 
 
-    def on_rename_file_cancelled(self, *_):
+    def _rename_cancelled(self, *_):
         """
         'editing-cancelled' callback
         """
         self.name_r_text.set_property("editable", False)
         self.mute_escape_key = True
 
-    def on_rename_file_finished(self, renderer: Gtk.CellRendererText, path: str, text: str):
+    def _rename_finished(self, renderer: Gtk.CellRendererText, path: str, text: str):
         """
         Callback signaled when the 'edited' signal is sent
         upon completion of renaming a file.
@@ -405,25 +492,24 @@ class FileView:
             case ("Delete" | "BackSpace"):
                 if selection_count:
                     if not event.state & (msk.SHIFT_MASK | msk.MOD1_MASK | msk.CONTROL_MASK):
-                        self._delete_selected_files()
+                        self._delete_start()
 
             case "Escape":
                 if selection_count and not self.mute_escape_key:
                     if not event.state & (msk.SHIFT_MASK | msk.MOD1_MASK | msk.CONTROL_MASK):
-                        print("selection_count")
                         sel.unselect_all()
 
             case "F2":
                 if selection_count == 1:
                     if not event.state & (msk.SHIFT_MASK | msk.MOD1_MASK | msk.CONTROL_MASK):
-                        self._rename_selected_files()
+                        self._rename_start()
 
             case "h":
                 if event.state & msk.CONTROL_MASK:
                     if not event.state & (msk.SHIFT_MASK | msk.MOD1_MASK):
                         self._show_hidden_files(not self.show_hidden_files)
 
-    def _rename_selected_files(self):
+    def _rename_start(self):
         """
         Rename the file selected in the tree view.
 
@@ -467,6 +553,102 @@ class FileView:
         fpd.run()
         fpd.destroy()
 
+    def _delete_finished(self, delete_errors: list[file_mgr.FileError]):
+        """
+        Report errors to the user upon completion of a delete operation.
+        """
+        if delete_errors:
+            fmvt.ErrorDialog("failed to delete files", delete_errors)
+
+    def _paste(self) -> None:
+        """
+        Post the cwd to the clipboard as a paste target.
+        """
+        file_mgr_clipboard.paste(self._file_mgr.get_cwd())
+
+    def _copy_finished(self, paste_errors: list[file_mgr.FileError]):
+        """
+        Report errors to the user upon completion of a copy operation.
+        """
+        if paste_errors:
+            fmvt.ErrorDialog("failed to paste files", paste_errors)
+
+    def _copy_paste(self, clipboard_data: FileMgrClipData):
+        """
+        An on_pasted_callback registered with the file_mgr_clipboard.
+        Perform the actual copy/paste operation here.
+        """
+        for src_file in clipboard_data.copy_paths:
+            dest_file = Path(clipboard_data.paste_target, src_file.name)
+
+            paster = glib_utils.AsyncWorker(target=self._file_mgr.copy,
+                                            args=(src_file, dest_file),
+                                            on_finished_cb=self._copy_finished,
+                                            pass_ret_val_to_cb=True,
+                                            cancellable=True)
+            paster.start()
+
+    def _copy_start(self) -> None:
+        """
+        Generate Path objects for each selected row in the treeview
+        and post it to the clipboard.
+        """
+        cwd = self._file_mgr.get_cwd()
+        model: Gtk.ListStore
+        paths: list[Gtk.TreePath]
+        sel = self._file_mgr_view_gtk.get_selection()
+        model, paths = sel.get_selected_rows()
+
+        copied_files = []
+        for pth in paths:
+            itr = model.get_iter(pth)
+            file_name = model.get_value(itr, self.name_text['column'])
+            selected_file = Path(cwd, file_name)
+            copied_files.append(selected_file)
+        file_mgr_clipboard.set_data(self._copy_paste, *copied_files)
+
+    def _cut_start(self) -> None:
+        """
+        Generate Path objects for each selected row in the treeview
+        and post it to the clipboard.
+
+        Registers a callback that will delete the posted file(s) once the
+        the data in the clipboard has been posted.
+        """
+        cwd = self._file_mgr.get_cwd()
+        model: Gtk.ListStore
+        paths: list[Gtk.TreePath]
+
+        sel = self._file_mgr_view_gtk.get_selection()
+        model, paths = sel.get_selected_rows()
+
+        copied_files = []
+        for pth in paths:
+            itr = model.get_iter(pth)
+            file_name = model.get_value(itr, self.name_text['column'])
+            selected_file = Path(cwd, file_name)
+            if selected_file.is_file() or selected_file.is_dir():
+                copied_files.append(selected_file)
+        file_mgr_clipboard.set_data(self._cut_paste, *copied_files)
+
+    def _cut_finished(self, paste_errors: list[file_mgr.FileError]):
+        if paste_errors:
+            fmvt.ErrorDialog("failed to move files", paste_errors)
+
+    def _cut_paste(self, clipboard_data: FileMgrClipData) -> None:
+        """
+        Move files that have been cut/pasted.
+        """
+        for src_file in clipboard_data.copy_paths:
+            dest_file = Path(clipboard_data.paste_target, src_file.name)
+
+            mover_thread = glib_utils.AsyncWorker(target=self._file_mgr.move,
+                                            args=(src_file, dest_file),
+                                            on_finished_cb=self._cut_finished,
+                                            pass_ret_val_to_cb=True,
+                                            cancellable=True)
+            mover_thread.start()
+
     def on_menu_item_toggled(self, menu_item: Gtk.CheckMenuItem, _: any=None):
         """Callback for the CheckMenuItems from the file manager control popup."""
         match menu_item:
@@ -489,20 +671,22 @@ class FileView:
                 self._create_new_folder()
 
             case self._file_mgr_view_name.copy_menu_item:
-                print('on_ctrl_menu_released _copy_menu_item')
+                self._copy_start()
+
             case self._file_mgr_view_name.paste_menu_item:
-                print('on_ctrl_menu_released _paste_menu_item')
+                self._paste()
+
             case self._file_mgr_view_name.cut_menu_item:
-                print('on_ctrl_menu_released _cut_menu_item')
+                self._cut_start()
 
             case self._file_mgr_view_name.properties_menu_item:
                 self._display_properties()
 
             case self._file_mgr_view_name.delete_menu_item:
-                self._delete_selected_files()
+                self._delete_start()
 
             case self._file_mgr_view_name.rename_menu_item:
-                self._rename_selected_files()
+                self._rename_start()
 
     def on_button_press(self, _: Gtk.TreeView, event: Gdk.EventButton) -> None:
         """
@@ -670,7 +854,7 @@ class FileView:
 
             self._file_lst.append((icon, i.name, i.is_dir(), size_f, units, str(timestamp_formatted)))
 
-    def _delete_selected_files(self):
+    def _delete_start(self):
         """Delete or trash selected files"""
         file_list = []
         cwd = self._file_mgr.get_cwd()
@@ -690,11 +874,14 @@ class FileView:
         verify_dialog.hide_on_delete()
         if response == Gtk.ResponseType.OK:
             sel.unselect_all()
-            errors = self._file_mgr.delete(*file_list,
-                                            move_to_trash=verify_dialog.trash,
-                                            recursive=verify_dialog.recursive)
-            if errors:
-                fmvt.ErrorDialog("Failed to delete the following files", errors)
+            deleter = glib_utils.AsyncWorker(target=self._file_mgr.delete,
+                                             args=(*file_list,),
+                                             kwargs={'recursive':verify_dialog.recursive},
+                                             on_finished_cb=self._delete_finished,
+                                             pass_cancel_event_to_cb=False,
+                                             pass_ret_val_to_cb=True,
+                                             cancellable=True)
+            deleter.start()
         verify_dialog.destroy()
 
     def _create_new_folder(self):
