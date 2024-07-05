@@ -32,6 +32,8 @@ gi.require_version("Gtk", "3.0")  # pylint: disable=wrong-import-position
 from gi.repository import Gtk, Gdk
 from gi.repository.GdkPixbuf import Pixbuf
 import book_ease_tables
+import signal_
+import glib_utils
 if TYPE_CHECKING:
     import file_mgr
 
@@ -148,11 +150,17 @@ class BookMark:
         self.book_mark_dbi = BookMarkDBI(self.column_map)
 
         self.bookmark_model = Gtk.ListStore(Pixbuf, int, str, str)
+        # To get the updated values after using drag and drop to reorder
+        # the treeview, the 'row-deleted' signal must be used. It is necessary
+        # to set a _drag_drop flag in self.bookmark_view's 'drag-drop' callback to distinguish
+        # the drag-drop from other types of delete events.
         self.bookmark_model.connect('row-deleted', self.on_row_deleted)
+        self._drag_drop: bool=False
 
         self.bookmark_view = bookmark_view
         self.bookmark_view.connect('button-press-event', self.on_button_press)
         self.bookmark_view.connect('button-release-event', self.on_button_release)
+        self.bookmark_view.connect('drag-drop', self.on_drag_drop)
         self.bookmark_view.set_model(self.bookmark_model)
         self.bookmark_view.set_show_expanders (False)
         self.bookmark_view.unset_rows_drag_dest()
@@ -200,6 +208,8 @@ class BookMark:
         for pth in reversed(paths):
             itr = model.get_iter(pth)
             model.remove(itr)
+        self.update_bookmark_config()
+        signal_.GLOBAL_TRANSMITTER.send('bookmark_list_changed', sender=self)
 
     def rename_selected_bookmark(self) -> None:
         """
@@ -232,6 +242,7 @@ class BookMark:
                 model.set_value(itr, self.column_map['target']['g_col'], target)
                 # update config for data persistence
                 self.update_bookmark_config()
+                signal_.GLOBAL_TRANSMITTER.send('bookmark_list_changed', sender=self)
             dialog.destroy()
 
     def select_dir_dialog(self) -> tuple[str, str] | tuple[None, None]:
@@ -262,12 +273,13 @@ class BookMark:
         add bookmark, defined by name and path, by adding it
         to the bookmark model and saving it to file
         """
-        # This needs to be done so that the id is pushed into the bookmarks model
+        # Save to database immediately so that the id is pushed into the bookmarks model
         if name is not None and path is not None:
             index = len(self.bookmark_model)
             new_id = self.book_mark_dbi.append_book_mark(name=name, target=path, index=index)
             icon = Gtk.IconTheme.get_default().load_icon('folder', 24, 0)
             self.bookmark_model.append([icon, new_id, name, path])
+            signal_.GLOBAL_TRANSMITTER.send('bookmark_list_changed', sender=self)
 
     def cm_on_deactivate(self, __) -> None:
         """
@@ -334,7 +346,10 @@ class BookMark:
 
     def on_row_deleted(self, _: Gtk.ListStore, __: any=None) -> None:
         """callback for treestore row deleted, catching the user drag icons to reorder"""
-        self.update_bookmark_config()
+        if self._drag_drop:
+            self._drag_drop = False
+            self.update_bookmark_config()
+            signal_.GLOBAL_TRANSMITTER.send('bookmark_list_changed')
 
     def update_bookmark_config(self) -> None:
         """clear and re-save all the bookmarks with current values"""
@@ -347,12 +362,23 @@ class BookMark:
 
         self.book_mark_dbi.set_book_marks(data)
 
-    def reload_bookmarks(self) -> None:
+    def reload_bookmarks(self, sender: BookMark|None=None) -> None:
         """
         load saved bookmarks into the bookmark treeview
-        Note: this does not reload, it only appends
+
+        When this is called via callback, a reference to the sender is used to
+        exclude the sender from reloading its bookmarks, because the sender has already updated itself.
+
+        If this method is called directly, the sender arg can be omitted.
         """
-        for row in self.book_mark_dbi.get_bookmarks():
-            if os.path.isdir(row.target):
-                icon = Gtk.IconTheme.get_default().load_icon('folder', 24, Gtk.IconLookupFlags.GENERIC_FALLBACK)
-                self.bookmark_model.append([icon, row.id_, row.name, row.target])
+        if sender is not self or sender is None:
+            bookmarks = self.book_mark_dbi.get_bookmarks()
+            self.bookmark_model.clear()
+            for row in bookmarks:
+                if os.path.isdir(row.target):
+                    icon = Gtk.IconTheme.get_default().load_icon('folder', 24, Gtk.IconLookupFlags.GENERIC_FALLBACK)
+                    self.bookmark_model.append([icon, row.id_, row.name, row.target])
+
+    def on_drag_drop(self, *_):  # Don't typehint this b/c there are a half dozen args for this callback.
+        """Callback for using drag and drop to reorder the treeview rows."""
+        self._drag_drop = True
