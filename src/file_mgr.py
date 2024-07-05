@@ -220,8 +220,8 @@ class FileMgr():
         if not error_list:
             try:
                 src_file.rename(dest_file)
-                glib_utils.g_idle_add_once(signal_.GLOBAL_TRANSMITTER.send, 'dir_contents_updated', src_file.parent)
-                glib_utils.g_idle_add_once(signal_.GLOBAL_TRANSMITTER.send, 'dir_contents_updated', dest_file.parent)
+                signal_.GLOBAL_TRANSMITTER.send('dir_contents_updated', src_file.parent)
+                signal_.GLOBAL_TRANSMITTER.send('dir_contents_updated', dest_file.parent)
             except IOError as e:
                 if e.errno == errno.EXDEV:
                     # errno.EXDEV == Cross-device link
@@ -347,7 +347,7 @@ class FileMgr():
         else:
             error_list.append(FileError(dest_file, "Cannot copy files of this type."))
 
-        glib_utils.g_idle_add_once(signal_.GLOBAL_TRANSMITTER.send, 'dir_contents_updated', dest_file.parent)
+        signal_.GLOBAL_TRANSMITTER.send('dir_contents_updated', dest_file.parent)
         return error_list
 
     def _trash(self,
@@ -380,7 +380,7 @@ class FileMgr():
             except OSError as e:
                 failed_deletions.append(FileError(file, e))
         if dir_changed:
-            glib_utils.g_idle_add_once(signal_.GLOBAL_TRANSMITTER.send, 'dir_contents_updated', self._current_path)
+            signal_.GLOBAL_TRANSMITTER.send('dir_contents_updated', self._current_path)
         return failed_deletions
 
     def _delete(self,
@@ -435,7 +435,7 @@ class FileMgr():
             except Exception as e:
                 failed_deletions.append(FileError(file, e))
 
-        glib_utils.g_idle_add_once(signal_.GLOBAL_TRANSMITTER.send, 'dir_contents_updated', self._current_path)
+        signal_.GLOBAL_TRANSMITTER.send('dir_contents_updated', self._current_path)
         return failed_deletions
 
 
