@@ -36,6 +36,7 @@ logging.getLogger('signal_').addHandler(logging.StreamHandler())
 import weakref
 import logging
 from typing import Callable
+import glib_utils
 
 
 GLOBAL_TRANSMITTER = None
@@ -213,7 +214,7 @@ class Signal():
         for sig_h in (self._sig_handlers, temp_sig_handlers_once):
             # reversed so a calback can remove itself wihout disrupting the iteration.
             for signal in reversed(sig_h[handle]):
-                signal.callback()(*signal.cb_args, *extra_args, **signal.cb_kwargs, **extra_kwargs)
+                glib_utils.g_idle_add_once(signal.callback(), *signal.cb_args, *extra_args, **signal.cb_kwargs, **extra_kwargs)
 
     def disconnect_by_call_back(self, handle: str, call_back: Callable) -> None:
         """
