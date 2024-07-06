@@ -298,4 +298,3 @@ class OpenBook:
 
     def close(self):
         self.transmitter.send('close')
-        del self._book, self._notebook_page, self.br_notebook_tab_vc, self.transmitter

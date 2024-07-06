@@ -25,6 +25,7 @@ This module is responsible for displaying books in the view
 """
 from pathlib import Path
 import itertools
+from typing import Generator
 import gi
 gi.require_version("Gtk", "3.0") # pylint: disable=wrong-import-position
 from gi.repository import Gtk
@@ -115,7 +116,6 @@ class TitleVC:
         book_tx_signal.connect('begin_edit_mode', self.begin_edit_mode)
         book_tx_signal.connect('begin_display_mode', self.begin_display_mode)
         book_tx_signal.connect('update', self.update)
-        book_tx_signal.connect('save', self.save)
         # save a reference to the book model so TitleVC can get data when it needs to
         self.book = book_
         # create the Gtk view
@@ -148,9 +148,10 @@ class TitleVC:
         """relay the message to close the view"""
         self.title_v.close()
 
-    def save(self, book_data):
-        """Get the playlist title from the title_v model and save it to book_data."""
-        book_data.playlist_data.set_title(self.title_v.title_entry.get_text())
+    def get_title(self) -> str:
+        """Get the current playlist title text from the title_v model."""
+        return self.title_v.title_entry.get_text()
+
 
 class ControlBtnV:
     """display the control buttons"""
@@ -384,7 +385,6 @@ class PlaylistVC:
         # subscribe to the signals relevant to this class
         book_transmitter.connect('close', self.close)
         book_transmitter.connect('update', self.update)
-        book_transmitter.connect('save', self.save)
         book_transmitter.connect('begin_edit_mode', self.begin_edit_mode)
         book_transmitter.connect('begin_display_mode', self.begin_display_mode)
 
@@ -434,15 +434,17 @@ class PlaylistVC:
         """relay the message to close the view"""
         self.playlist_v.close()
 
-    def save(self, book_data) -> None:
+    def get_current_track_list(self) -> Generator[playlist.Track, None, None]:
         """
-        Get Track objects represented by rows in the playlist_model and save them to the Book
+        Get Track objects represented by rows in the playlist_model and save them to a tracklist
+
+        Note: Typehint formatting for generators is Generator[yield_type, send_type, return_type]
         """
         while True:
             track = self.playlist_model.pop()
             if track is None:
                 break
-            book_data.track_list.append(track)
+            yield track
 
     def get_toggled_tv_col_direction(self, tree_view_column):
         """Get the current sort order (Gtk.SortType) for a tree view column and return the opposite Gtk.SortType"""
