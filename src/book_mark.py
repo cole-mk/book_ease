@@ -157,6 +157,8 @@ class BookMark:
         self.bookmark_model.connect('row-deleted', self.on_row_deleted)
         self._drag_drop: bool=False
 
+        signal_.GLOBAL_TRANSMITTER.connect('bookmark_list_changed', self.reload_bookmarks)
+
         self.bookmark_view = bookmark_view
         self.bookmark_view.connect('button-press-event', self.on_button_press)
         self.bookmark_view.connect('button-release-event', self.on_button_release)
