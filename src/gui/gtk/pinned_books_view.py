@@ -165,7 +165,7 @@ class PinnedBooksVM:
         """
         self.pinned_list.clear()
         for playlist in pinned_playlists:
-            self.pinned_list.append([playlist.id_, playlist.title, playlist.path])
+            self.pinned_list.append([playlist.id_, playlist.title, str(playlist.path.absolute())])
 
     def get_playlist_data(self, path: Gtk.TreePath) -> book.PlaylistData:
         """get a row from self.pinned_list as PlaylistData object"""
@@ -173,7 +173,7 @@ class PinnedBooksVM:
         playlist_data = book.PlaylistData()
         playlist_data.set_id(self.pinned_list.get_value(g_iter, self.pinned_cols.playlist_id['col']))
         playlist_data.set_title(self.pinned_list.get_value(g_iter, self.pinned_cols.title['col']))
-        playlist_data.set_path(self.pinned_list.get_value(g_iter, self.pinned_cols.path['col']))
+        playlist_data.set_path(Path(self.pinned_list.get_value(g_iter, self.pinned_cols.path['col'])))
         return playlist_data
 
 
