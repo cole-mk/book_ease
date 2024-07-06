@@ -518,7 +518,7 @@ class BookC:
     """
 
     #the list of signals that BookC is allowed to send to the component views
-    book_tx_api = ['update', 'get_view', 'close', 'begin_edit_mode', 'begin_display_mode', 'save_title', 'save']
+    book_tx_api = ['update', 'get_view', 'close', 'begin_edit_mode', 'begin_display_mode', 'save_title']
     # the list of signals that the component views is allowed to send to BookC
     component_tx_api = ['save_button', 'cancel_button', 'edit_button', 'close']
 
@@ -601,8 +601,9 @@ class BookC:
     def save(self):
         """Coordinate the saving of the book with Book and the the VC classes"""
         book_data = BookData(self.book.playlist_data)
-        # notify the VC classes that they need to save
-        self.transmitter.send('save', book_data)
+        for track in self.playlist_vc.get_current_track_list():
+            book_data.track_list.append(track)
+        book_data.playlist_data.set_title(self.title_vc.get_title())
         self.book.save(book_data)
         # Tell the book that it is finished saving and can cleanup
         reloaded_book_data = self.book.book_data_load(self.book.playlist_data)
