@@ -24,6 +24,7 @@
 pinned_books module, along with the gui bits in gui.gtk.pinned_books_view, is the entire subsystem responsible for
 managing the list of book that have been marked as "pinned" by the user.
 """
+from pathlib import Path
 from gui.gtk.pinned_books_view import PinnedBooksVC, PinnedButtonVC
 import signal_
 import audio_book_tables
@@ -206,7 +207,7 @@ class PinnedBooksDBI:
             row = audio_book_tables.Playlist.get_row(con, playlist_id)
         con.close()
         # return PinnedData object
-        return book.PlaylistData(id_=row['id'], title=row['title'], path=row['path'])
+        return book.PlaylistData(id_=row['id'], title=row['title'], path=Path(row['path']))
 
     def get_playlists(self, playlist_ids: list[int]) -> list[book.PlaylistData]:
         """
@@ -221,7 +222,7 @@ class PinnedBooksDBI:
         # return list of PinnedData objects copied from list of sqlite row objects
         playlists = []
         for row in rows:
-            playlists.append(book.PlaylistData(id_=row['id'], title=row['title'], path=row['path']))
+            playlists.append(book.PlaylistData(id_=row['id'], title=row['title'], path=Path(row['path'])))
         return playlists
 
     def is_pinned(self, playlist_id: int) -> bool:
