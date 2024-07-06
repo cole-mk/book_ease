@@ -257,6 +257,7 @@ def main(unused_args):
     signal_.GLOBAL_TRANSMITTER.add_signal('open_book')
     signal_.GLOBAL_TRANSMITTER.add_signal('open_new_book')
     signal_.GLOBAL_TRANSMITTER.add_signal('book_updated')
+    signal_.GLOBAL_TRANSMITTER.add_signal('bookmark_list_changed')
     # file_mgr
     # Senders of 'dir_contents_updated' are expected to send the cwd as the extra_arg
     signal_.GLOBAL_TRANSMITTER.add_signal('dir_contents_updated')
