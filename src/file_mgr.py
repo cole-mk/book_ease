@@ -466,10 +466,12 @@ class FileMgrC:
 
         self.file_mgr = FileMgr()
         self.file_mgr_view_gtk = fmvt.FileManagerViewOuterT()
-        self.file_view_gtk = file_mgr_view.FileView(self.file_mgr_view_gtk, self.file_mgr)
+
+        self.file_mgr_view_m = file_mgr_view.FileMgrViewM(self.file_mgr)
+        self.file_view_gtk = file_mgr_view.FileView(self.file_mgr_view_gtk, self.file_mgr, self.file_mgr_view_m)
 
         self.book_mark = book_mark.BookMark(self.file_mgr_view_gtk.book_mark_treeview_gtk, self.file_mgr)
-        self.navigation = file_mgr_view.NavigationView(self.file_mgr_view_gtk, self.file_mgr)
+        self.navigation = file_mgr_view.NavigationView(self.file_mgr_view_gtk, self.file_mgr, self.file_mgr_view_m)
 
         if file_mgr_view_name == 'files_1':
             file_manager_pane.pack1(self.file_mgr_view_gtk, True, False)
