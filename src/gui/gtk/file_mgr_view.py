@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING
 from typing import Literal
 from typing import Callable
 from pathlib import Path
+import os
 import logging
 from dataclasses import dataclass
 import gi
@@ -274,10 +275,12 @@ class NavigationView:
 
     def __init__(self,
                  file_manager_view: fmvt.FileManagerViewOuterT,
-                 file_manager: file_mgr.FileMgr) -> None:
+                 file_manager: file_mgr.FileMgr,
+                 file_mgr_view_m: FileMgrViewM) -> None:
 
         self.file_manager_view = file_manager_view
         self.file_manager = file_manager
+        self.file_mgr_view_m = file_mgr_view_m
         self.file_manager.transmitter.connect('cwd_changed', self.update_path_entry)
 
         self.up_button = self.file_manager_view.up_button
@@ -289,9 +292,48 @@ class NavigationView:
         self.backward_button = self.file_manager_view.backward_button
         self.backward_button.connect('clicked', self.on_button_clicked)
 
-        self.path_entry = self.file_manager_view.path_entry
+        self._entry_completion: Gtk.EntryCompletion = Gtk.EntryCompletion()
+        self._entry_completion.set_model(self.file_mgr_view_m.get_model())
+        self._entry_completion.set_match_func(self._completion_match_func)
+        self._entry_completion.set_text_column(self.file_mgr_view_m.full_path['column'])
+        self._entry_completion.connect('match-selected', self._completion_on_match_selected)
+        self._entry_completion.connect('no-matches', lambda *args: print(f'no-matches {args}'))
+
+        self.path_entry: Gtk.Entry = self.file_manager_view.path_entry
         self.path_entry.connect('activate', self.on_entry_activate)
+        self.path_entry.set_completion(self._entry_completion)
         self.update_path_entry()
+
+    def _completion_on_match_selected(self,
+                                      _: Gtk.EntryCompletion,
+                                      model: Gtk.ListStore,
+                                      itr: Gtk.TreeIter,
+                                      *__):
+        """
+        When a completion match has been selected, select the row in the FileView's Gtk.Treeview.
+        """
+        sel = self.file_manager_view.file_view_treeview_gtk.get_selection()
+        sel.unselect_all()
+        sel.select_iter(itr)
+        pth = model.get_path(itr)
+        self.file_manager_view.file_view_treeview_gtk.scroll_to_cell(pth)
+
+    def _completion_match_func(self, completion: Gtk.EntryCompletion, _: str, itr: Gtk.TreeIter, *__):
+        """
+        Case sensitive match callback for the entry completion.
+
+        Args:
+           completion: The Gtk.EntryCompletion object that triggered this callback.
+           _: unused case insensitive match key.
+           itr: Points to the row in the Gtk.EntryCompletion's model that is being tested for a match.
+           __: Unused optional user data
+        """
+        model = completion.get_model()
+        uppercase_key = self.path_entry.get_text()
+
+        if model.get_value(itr, self.file_mgr_view_m.is_dir['column']):
+            name = model.get_value(itr, self.file_mgr_view_m.full_path['column'])
+            return name.startswith(uppercase_key)
 
     def on_entry_activate(self, path_entry: Gtk.Entry) -> None:
         """
@@ -324,7 +366,105 @@ class NavigationView:
         """
         Set the path entry text.
         """
-        self.path_entry.set_text(str(self.file_manager.get_cwd()))
+        pth = os.path.join(self.file_manager.get_cwd(), '')
+        self.path_entry.set_text(str(pth))
+
+
+class FileMgrViewM:
+    """
+    Wrapper around Gtk.ListStore that can be passed around
+    without bringing the rest of the FileMgrView class with it.
+    It allows multiple classes to share the FileView data without
+    needing to duplicate it.
+    """
+    name_icon  = {'column': 0}
+    name_text  = {'column': 1}
+    is_dir     = {'column': 2}
+    size_val   = {'column': 3}
+    size_units = {'column': 4}
+    c_time     = {'column': 5}
+    full_path  = {'column': 6}
+
+    def __init__(self, file_mgr_: file_mgr.FileMgr):
+        self.show_audio_only: bool = False
+        self.show_hidden_files: bool = False
+
+        self._file_mgr = file_mgr_
+        # set up the data model and containers
+        self._file_lst: Gtk.ListStore = Gtk.ListStore(Pixbuf, str, bool, str, str, str, str)
+        self._file_lst.set_sort_func(1, self.cmp_file_list, None)
+
+    def populate_file_list(self):
+        """
+        Get the list of files in the cwd and push them to the
+        list store for display in the treeview.
+        """
+        files = self._file_mgr.get_file_list()
+        self._file_lst.clear()
+
+        for i in files:
+            if self.show_audio_only and not i.is_media_file():
+                continue
+
+            if not self.show_hidden_files and i.is_hidden_file():
+                continue
+
+            try:
+                timestamp_formatted = i.timestamp_formatted
+                size_f, units = i.size_formatted
+                if i.is_dir():
+                    icon = Gtk.IconTheme.get_default().load_icon('folder', 24, 0)
+                else:
+                    icon = Gtk.IconTheme.get_default().load_icon('multimedia-player', 24, 0)
+
+            except FileNotFoundError:
+                if i.is_symlink():
+                    timestamp_formatted = '00/00/00 00:00'
+                    size_f = '0'
+                    units = 'na'
+                    icon = Gtk.IconTheme.get_default().load_icon('error', 16, 0)
+                else:
+                    raise
+
+            self._file_lst.append(
+                (icon, i.name, i.is_dir(), size_f, units, str(timestamp_formatted), str(i.absolute()))
+            )
+
+    def get_model(self) -> Gtk.ListStore:
+        """Get the TreeViewModel (Gtk.ListStore)."""
+        return self._file_lst
+
+    def cmp_file_list(self, model, row1, row2, _) -> Literal[1] | Literal[-1] | Literal[0]:
+        """
+        compare method for sorting sort columns in the file view
+        returns gt:1 lt:-1 or eq:0
+        """
+        sort_column, sort_order = model.get_sort_column_id()
+        name1 = model.get_value(row1, sort_column)
+        name2 = model.get_value(row2, sort_column)
+
+        if self._file_mgr.sort_ignore_case:
+            name1 = name1.lower()
+            name2 = name2.lower()
+
+        if self._file_mgr.sort_dir_first:
+            is_dir_1 = model.get_value(row1, 2)
+            is_dir_2 = model.get_value(row2, 2)
+            # account for the sort order when returning directories first
+            direction = 1
+            if sort_order is Gtk.SortType.DESCENDING:
+                direction = -1
+            #return immediately if comparing a dir and a file
+            if is_dir_1 and not is_dir_2:
+                return -1 * direction
+            if not is_dir_1 and is_dir_2:
+                return 1 * direction
+
+        if name1 < name2:
+            return -1
+        if name1 == name2:
+            return 0
+        return 1
 
 
 class FileView:
@@ -336,7 +476,11 @@ class FileView:
     size_units = {'column': 4}
     c_time = {'column': 5}
 
-    def __init__(self, file_mgr_view_name: fmvt.FileManagerViewOuterT, file_mgr_: file_mgr.FileMgr) -> None:
+    def __init__(self,
+                 file_mgr_view_name: fmvt.FileManagerViewOuterT,
+                 file_mgr_: file_mgr.FileMgr,
+                 file_mgr_view_m: FileMgrViewM) -> None:
+
         self._file_mgr_view_gtk = file_mgr_view_name.file_view_treeview_gtk
         sel: Gtk.TreeSelection = self._file_mgr_view_gtk.get_selection()
         sel.set_mode(Gtk.SelectionMode.MULTIPLE)
@@ -344,10 +488,9 @@ class FileView:
         self._file_mgr_view_dbi = FileMgrViewDBI()
         self._file_mgr = file_mgr_
 
-        # set up the data model and containers
-        self._file_lst = Gtk.ListStore(Pixbuf, str, bool, str, str, str)
-        self._file_lst.set_sort_func(1, self.cmp_file_list, None)
-        self._file_mgr_view_gtk.set_model(self._file_lst)
+        # # set up the data model and containers
+        self._file_mgr_view_m = file_mgr_view_m
+        self._file_mgr_view_gtk.set_model(self._file_mgr_view_m.get_model())
 
         # name column
         name_r_icon = Gtk.CellRendererPixbuf()
@@ -430,10 +573,10 @@ class FileView:
         self._file_mgr_view_gtk.connect('button-press-event', self.on_button_press)
         self._file_mgr_view_gtk.connect('key-release-event', self.on_key_release)
         self._file_mgr_view_gtk.connect('key-press-event', self.on_key_press)
-        self._file_mgr.transmitter.connect('cwd_changed', self.populate_file_list)
+        self._file_mgr.transmitter.connect('cwd_changed', self._file_mgr_view_m.populate_file_list)
         signal_.GLOBAL_TRANSMITTER.connect('dir_contents_updated', self.cb_dir_contents_updated)
 
-        self.populate_file_list()
+        self._file_mgr_view_m.populate_file_list()
         # A kludge to prevent the 'Escape' key's 'key-release-event' from unselecting
         # a file when using 'Escape' to cancel file renaming.
         self.mute_escape_key = False
@@ -551,7 +694,7 @@ class FileView:
             self._file_mgr_view_name.hidden_files_menu_item.set_active(show_hidden_files)
 
         self.show_hidden_files = show_hidden_files
-        self.populate_file_list()
+        self._file_mgr_view_m.populate_file_list()
 
 
     def _display_properties(self):
@@ -676,7 +819,7 @@ class FileView:
             case self._file_mgr_view_name.audio_only_menu_item:
                 show_audio_only = self._file_mgr_view_name.audio_only_menu_item.get_active()
                 self.show_audio_only = show_audio_only
-                self.populate_file_list()
+                self._file_mgr_view_m.populate_file_list()
 
     def on_ctrl_menu_released(self, menu_item: Gtk.MenuItem, _: Gdk.EventButton, __: any=None) -> None:
         """Handle the response of the file manager control popup."""
@@ -798,76 +941,10 @@ class FileView:
         """save the gui's state"""
         self._file_mgr_view_dbi.save_name_col_width(self._name_col.get_width())
 
-    def cmp_file_list(self, model, row1, row2, _) -> Literal[1] | Literal[-1] | Literal[0]:
-        """
-        compare method for sorting sort columns in the file view
-        returns gt:1 lt:-1 or eq:0
-        """
-        sort_column, sort_order = model.get_sort_column_id()
-        name1 = model.get_value(row1, sort_column)
-        name2 = model.get_value(row2, sort_column)
-
-        if self._file_mgr.sort_ignore_case:
-            name1 = name1.lower()
-            name2 = name2.lower()
-
-        if self._file_mgr.sort_dir_first:
-            is_dir_1 = model.get_value(row1, 2)
-            is_dir_2 = model.get_value(row2, 2)
-            # account for the sort order when returning directories first
-            direction = 1
-            if sort_order is Gtk.SortType.DESCENDING:
-                direction = -1
-            #return immediately if comparing a dir and a file
-            if is_dir_1 and not is_dir_2:
-                return -1 * direction
-            if not is_dir_1 and is_dir_2:
-                return 1 * direction
-
-        if name1 < name2:
-            return -1
-        if name1 == name2:
-            return 0
-        return 1
-
     def cb_dir_contents_updated(self, cwd=None) -> None:
         """Determine if files in path, directory, are suitable to be displayed and add them to the file_list"""
         if cwd == self._file_mgr.get_cwd():
-            self.populate_file_list()
-
-    def populate_file_list(self):
-        """
-        Get the list of files in the cwd and push them to the
-        list store for display in the treeview.
-        """
-        files = self._file_mgr.get_file_list()
-        self._file_lst.clear()
-
-        for i in files:
-            if self.show_audio_only and not i.is_media_file():
-                continue
-
-            if not self.show_hidden_files and i.is_hidden_file():
-                continue
-
-            try:
-                timestamp_formatted = i.timestamp_formatted
-                size_f, units = i.size_formatted
-                if i.is_dir():
-                    icon = Gtk.IconTheme.get_default().load_icon('folder', 24, 0)
-                else:
-                    icon = Gtk.IconTheme.get_default().load_icon('multimedia-player', 24, 0)
-
-            except FileNotFoundError:
-                if i.is_symlink():
-                    timestamp_formatted = '00/00/00 00:00'
-                    size_f = '0'
-                    units = 'na'
-                    icon = Gtk.IconTheme.get_default().load_icon('error', 16, 0)
-                else:
-                    raise
-
-            self._file_lst.append((icon, i.name, i.is_dir(), size_f, units, str(timestamp_formatted)))
+            self._file_mgr_view_m.populate_file_list()
 
     def _delete_start(self):
         """Delete or trash selected files"""
