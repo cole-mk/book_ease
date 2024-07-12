@@ -12,6 +12,11 @@
     <property name="can_focus">False</property>
     <property name="stock">gtk-go-forward</property>
   </object>
+  <object class="GtkImage" id="library_image">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="stock">gtk-home</property>
+  </object>
   <object class="GtkImage" id="new_dir_image">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
@@ -97,19 +102,19 @@
     </child>
     <child>
       <object class="GtkCheckMenuItem" id="hidden_files_menu_item">
-        <property name="label">hidden files</property>
         <property name="visible">True</property>
         <property name="can_focus">False</property>
         <property name="tooltip_text" translatable="yes">Show hidden files.</property>
+        <property name="label">hidden files</property>
         <property name="use_underline">True</property>
       </object>
     </child>
     <child>
       <object class="GtkCheckMenuItem" id="audio_only_menu_item">
-        <property name="label">audio only</property>
         <property name="visible">True</property>
         <property name="can_focus">False</property>
         <property name="tooltip_text" translatable="yes">Show only audio files.</property>
+        <property name="label">audio only</property>
         <property name="use_underline">True</property>
       </object>
     </child>
@@ -171,6 +176,20 @@
             <property name="expand">False</property>
             <property name="fill">False</property>
             <property name="position">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="library_button">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+            <property name="tooltip_text" translatable="yes">Go to the Library's home directory.</property>
+            <property name="image">library_image</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">3</property>
           </packing>
         </child>
         <child>

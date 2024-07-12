@@ -101,7 +101,8 @@ class FileMgr():
     def __init__(self) -> None:
         self.transmitter = signal_.Signal()
         self._file_mgr_dbi = FileMgrDBI()
-        self._current_path: Path = self._file_mgr_dbi.get_library_path() or self._default_library_path
+        self.library_path: Path  = self._file_mgr_dbi.get_library_path() or self._default_library_path
+        self._current_path: Path = self.library_path
         self._path_back_max_len = 10
         self._path_ahead_max_len = 10
         self._path_back: List[Path] = []

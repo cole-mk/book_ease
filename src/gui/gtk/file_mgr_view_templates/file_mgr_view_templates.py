@@ -139,6 +139,7 @@ class FileManagerViewOuterT(Gtk.Box):
     up_button: Gtk.Button = Gtk.Template.Child('up_button')
     forward_button: Gtk.Button = Gtk.Template.Child('forward_button')
     backward_button: Gtk.Button = Gtk.Template.Child('backward_button')
+    library_button: Gtk.Button = Gtk.Template.Child('library_button')
     path_entry: Gtk.Entry = Gtk.Template.Child('path_entry')
     has_playlist_combo: Gtk.ComboBox = Gtk.Template.Child('has_playlist_combo')
     open_playlist_btn: Gtk.Button = Gtk.Template.Child('open_playlist_btn')
