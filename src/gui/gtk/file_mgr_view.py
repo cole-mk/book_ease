@@ -292,6 +292,9 @@ class NavigationView:
         self.backward_button = self.file_manager_view.backward_button
         self.backward_button.connect('clicked', self.on_button_clicked)
 
+        self.library_button = self.file_manager_view.library_button
+        self.library_button.connect('clicked', self.on_button_clicked)
+
         self._entry_completion: Gtk.EntryCompletion = Gtk.EntryCompletion()
         self._entry_completion.set_model(self.file_mgr_view_m.get_model())
         self._entry_completion.set_match_func(self._completion_match_func)
@@ -361,6 +364,8 @@ class NavigationView:
                 self.file_manager.cd_ahead()
             case self.backward_button:
                 self.file_manager.cd_previous()
+            case self.library_button:
+                self.file_manager.cd(self.file_manager.library_path)
 
     def update_path_entry(self, *_) -> None:
         """
