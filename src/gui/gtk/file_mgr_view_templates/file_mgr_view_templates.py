@@ -141,11 +141,7 @@ class FileManagerViewOuterT(Gtk.Box):
     backward_button: Gtk.Button = Gtk.Template.Child('backward_button')
     library_button: Gtk.Button = Gtk.Template.Child('library_button')
     path_entry: Gtk.Entry = Gtk.Template.Child('path_entry')
-    has_playlist_combo: Gtk.ComboBox = Gtk.Template.Child('has_playlist_combo')
-    open_playlist_btn: Gtk.Button = Gtk.Template.Child('open_playlist_btn')
-    create_playlist_btn: Gtk.Button = Gtk.Template.Child('create_playlist_btn')
-    playlist_opener_box: Gtk.Button = Gtk.Template.Child('playlist_opener_box')
-    open_playlist_box: Gtk.Button = Gtk.Template.Child('open_playlist_box')
+    task_box: Gtk.Box = Gtk.Template.Child('task_box')
 
     ctrl_popup_menu: Gtk.Menu = Gtk.Template.Child('ctrl_popup_menu')
     new_folder_menu_item: Gtk.ImageMenuItem = Gtk.Template.Child('new_folder_menu_item')
@@ -158,6 +154,8 @@ class FileManagerViewOuterT(Gtk.Box):
     hidden_files_menu_item: Gtk.ImageMenuItem = Gtk.Template.Child('hidden_files_menu_item')
     audio_only_menu_item: Gtk.ImageMenuItem = Gtk.Template.Child('audio_only_menu_item')
 
+    library_button_popup_menu: Gtk.Menu = Gtk.Template.Child('library_button_popup_menu')
+    select_library_root_menu_item: Gtk.ImageMenuItem = Gtk.Template.Child('select_library_root_menu_item')
 
 @Gtk.Template(filename='gui/gtk/file_mgr_view_templates/file_properties_dialog.ui')
 class FilePropertiesDialog(Gtk.Dialog):
@@ -185,3 +183,37 @@ class FilePropertiesDialog(Gtk.Dialog):
         self.user.set_text(path.perm_usr)
         self.group.set_text(path.perm_grp)
         self.other.set_text(path.perm_oth)
+
+@Gtk.Template(filename='gui/gtk/file_mgr_view_templates/playlist_opener.ui')
+class PlaylistOpenerBox(Gtk.Box):
+    """View with controls for opening playlists."""
+    # pylint:disable=no-member
+    # pylint erroneously thinks that template members are of type Child.
+    __gtype_name__ = 'PlaylistOpenerBox'
+    create_playlist_btn: Gtk.Button = Gtk.Template.Child('create_playlist_btn')
+    open_playlist_box: Gtk.Box = Gtk.Template.Child('open_playlist_box')
+    open_playlist_btn: Gtk.Label = Gtk.Template.Child('open_playlist_btn')
+    has_playlist_combo: Gtk.ComboBox = Gtk.Template.Child('has_playlist_combo')
+
+
+@Gtk.Template(filename='gui/gtk/file_mgr_view_templates/file_selection.ui')
+class FileSelectionBox(Gtk.Box):
+    """View with controls for selecting files."""
+    # pylint:disable=no-member
+    # pylint erroneously thinks that template members are of type Child.
+    __gtype_name__ = 'FileSelectionBox'
+    ok_button: Gtk.Button = Gtk.Template.Child('ok_button')
+    cancel_button: Gtk.Button = Gtk.Template.Child('cancel_button')
+    selected_files_combo: Gtk.ComboBox = Gtk.Template.Child('selected_files_combo')
+    selected_files_label: Gtk.ComboBox = Gtk.Template.Child('selected_files_label')
+    selected_files_frame: Gtk.ComboBox = Gtk.Template.Child('selected_files_frame')
+    """This frame wraps the selected_files_label to make it visually similar to the combo box."""
+    message_label: Gtk.Label = Gtk.Template.Child('message_label')
+
+    def __init__(self):
+        super().__init__()
+        model = Gtk.ListStore(str)
+        self.selected_files_combo.set_model(model)
+        renderer = Gtk.CellRendererText()
+        self.selected_files_combo.pack_start(renderer, True)
+        self.selected_files_combo.add_attribute(renderer, "text", 0)

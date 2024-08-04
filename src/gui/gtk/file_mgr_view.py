@@ -139,24 +139,26 @@ file_mgr_clipboard = FileMgrClipboard()
 
 
 class PlaylistOpenerView:
+    # pylint: disable=no-member
     """Display playlist opener widgets
 
     class NewBookOpenerV:
     The Gtk view for the ExistingBookOpener
     """
 
-    def __init__(self, file_manager: file_mgr.FileMgr, file_mgr_view_gtk: fmvt.FileManagerViewOuterT):
-        self.file_manager = file_manager
-        self.file_mgr_view_gtk = file_mgr_view_gtk
+    def __init__(self, file_mgr_view: FileView):
+        self.file_manager = file_mgr_view.file_mgr
+        self.file_mgr_view = file_mgr_view
 
-        self.has_playlist_combo = self.file_mgr_view_gtk.has_playlist_combo
-        self.open_playlist_btn = self.file_mgr_view_gtk.open_playlist_btn
+        self.view = fmvt.PlaylistOpenerBox()
+        self.has_playlist_combo = self.view.has_playlist_combo
+        self.open_playlist_btn: Gtk.Button = self.view.open_playlist_btn
         self.open_playlist_btn.connect('button-release-event', self.on_button_release)
 
-        self.create_playlist_btn = self.file_mgr_view_gtk.create_playlist_btn
+        self.create_playlist_btn = self.view.create_playlist_btn
         self.create_playlist_btn.set_no_show_all(True)
 
-        self.open_playlist_box = self.file_mgr_view_gtk.open_playlist_box
+        self.open_playlist_box = self.view.open_playlist_box
         self.open_playlist_box.set_no_show_all(True)
 
         self.playlist_dbi = book.PlaylistDBI()
@@ -271,6 +273,8 @@ class NavigationView:
     """Display the file navigation buttons"""
     logger = logging.getLogger('NavigationView')
     logger.addHandler(logging.NullHandler())
+    library_selection_dialog = None
+    """Message dialog instructing the user to select the library's root directory."""
 
     def __init__(self,
                  file_manager_view: fmvt.FileManagerViewOuterT,
@@ -293,6 +297,7 @@ class NavigationView:
 
         self.library_button = self.file_manager_view.library_button
         self.library_button.connect('clicked', self.on_button_clicked)
+        self.library_button.connect('button-press-event', self._on_button_press)
 
         self._entry_completion: Gtk.EntryCompletion = Gtk.EntryCompletion()
         self._entry_completion.set_model(self.file_mgr_view_m.get_model())
@@ -305,6 +310,36 @@ class NavigationView:
         self.path_entry.connect('activate', self.on_entry_activate)
         self.path_entry.set_completion(self._entry_completion)
         self.update_path_entry()
+
+        self.library_button_popup_menu = self.file_manager_view.library_button_popup_menu
+        self.select_library_root_menu_item = self.file_manager_view.select_library_root_menu_item
+        self.select_library_root_menu_item.connect('button-release-event', self._on_library_menu_released)
+
+    def _on_library_path_selected(self, file_list):
+        """
+        Callback indicating that a library path has been selected.
+        """
+        if file_list:
+            self.file_manager.library_path = file_list[0]
+
+    def _on_library_menu_released(self, menu_item: Gtk.MenuItem, _: Gdk.EventButton, __: any=None) -> None:
+        """Handle the response of the file manager control popup."""
+
+        match menu_item:
+
+            case self.select_library_root_menu_item:
+                file_mgr_task.task_open(
+                    'file_selection',
+                    True,
+                    self._on_library_path_selected,
+                    task_kwargs={
+                        'multiselect':False,
+                        'inc_dirs':True,
+                        'message':"Select the library's root directory"
+                    },
+                )
+
+
 
     def _completion_on_match_selected(self,
                                       _: Gtk.EntryCompletion,
@@ -351,6 +386,28 @@ class NavigationView:
             else:
                 raise e
 
+    def _on_button_press(self, _treeview: Gtk.TreeView, event: Gdk.EventButton) -> None:
+        """
+        Handle callbacks for a button press on the NavigationView by any mouse button.
+
+        Currently its only action is to call a context menu when the NavigationView is right clicked.
+        """
+        if event.get_button()[0] is False:
+            return
+
+        match event.get_button()[1]:
+            case 1:  # Left button
+                pass
+            case 2:  # Middle button
+                pass
+            case 3:  # Right Button
+                self.library_button_popup_menu.popup_at_pointer()
+            case 8:  # Back button
+                pass
+            case 9:  # Forward button
+                pass
+
+
     def on_button_clicked(self, widget: Gtk.Button) -> None:
         """
         Call the file_manager directory change command corresponding
@@ -364,7 +421,20 @@ class NavigationView:
             case self.backward_button:
                 self.file_manager.cd_previous()
             case self.library_button:
-                self.file_manager.cd(self.file_manager.library_path)
+                if not self.file_manager.library_path_is_saved:
+                    glib_utils.g_idle_add_once(self._display_chooser_message)
+                    file_mgr_task.task_open(
+                        'file_selection',
+                        True,
+                        self._on_library_path_selected,
+                        task_kwargs={
+                            'multiselect':False,
+                            'inc_dirs':True,
+                            'message':"Select the library's root directory"
+                        },
+                    )
+                else:
+                    self.file_manager.cd(self.file_manager.library_path)
 
     def update_path_entry(self, *_) -> None:
         """
@@ -372,6 +442,24 @@ class NavigationView:
         """
         pth = os.path.join(self.file_manager.get_cwd(), '')
         self.path_entry.set_text(str(pth))
+
+    def _display_chooser_message(self):
+        """
+        Inform the user how to select a file.
+        """
+        if NavigationView.library_selection_dialog is None:
+            secondary_string = "Use the file view to select a new folder."
+
+            FileSelector.dialog = Gtk.MessageDialog(
+                flags=0,
+                message_type=Gtk.MessageType.INFO,
+                buttons=Gtk.ButtonsType.OK,
+                text="Choose the location of the media library's root directory",
+            )
+            FileSelector.dialog.format_secondary_text(secondary_string)
+            FileSelector.dialog.run()
+            FileSelector.dialog.destroy()
+            FileSelector.dialog = None
 
 
 class FileMgrViewM:
@@ -485,16 +573,16 @@ class FileView:
                  file_mgr_: file_mgr.FileMgr,
                  file_mgr_view_m: FileMgrViewM) -> None:
 
-        self._file_mgr_view_gtk = file_mgr_view_name.file_view_treeview_gtk
-        sel: Gtk.TreeSelection = self._file_mgr_view_gtk.get_selection()
+        self.file_mgr_view_gtk = file_mgr_view_name.file_view_treeview_gtk
+        sel: Gtk.TreeSelection = self.file_mgr_view_gtk.get_selection()
         sel.set_mode(Gtk.SelectionMode.MULTIPLE)
-        self._file_mgr_view_gtk.connect('destroy', self.on_destroy)
+        self.file_mgr_view_gtk.connect('destroy', self.on_destroy)
         self._file_mgr_view_dbi = FileMgrViewDBI()
-        self._file_mgr = file_mgr_
+        self.file_mgr = file_mgr_
 
         # # set up the data model and containers
         self._file_mgr_view_m = file_mgr_view_m
-        self._file_mgr_view_gtk.set_model(self._file_mgr_view_m.get_model())
+        self.file_mgr_view_gtk.set_model(self._file_mgr_view_m.get_model())
 
         # name column
         name_r_icon = Gtk.CellRendererPixbuf()
@@ -509,7 +597,7 @@ class FileView:
         # reset name column width to previous size iff previous size exists.
         if name_width := self._file_mgr_view_dbi.get_name_col_width():
             self._name_col.set_fixed_width(name_width)
-        self._file_mgr_view_gtk.append_column(self._name_col)
+        self.file_mgr_view_gtk.append_column(self._name_col)
 
         # size column
         size_r_val = Gtk.CellRendererText()
@@ -519,14 +607,14 @@ class FileView:
         size_col.pack_start(size_r_units, False)
         size_col.add_attribute(size_r_val, "text", self.size_val['column'])
         size_col.add_attribute(size_r_units, "text", self.size_units['column'])
-        self._file_mgr_view_gtk.append_column(size_col)
+        self.file_mgr_view_gtk.append_column(size_col)
 
         # file creation time column
         c_time_r = Gtk.CellRendererText()
         c_time_col = Gtk.TreeViewColumn("Modified")
         c_time_col.pack_start(c_time_r, True)
         c_time_col.add_attribute(c_time_r, "text", self.c_time['column'])
-        self._file_mgr_view_gtk.append_column(c_time_col)
+        self.file_mgr_view_gtk.append_column(c_time_col)
 
         # right click popup menu widgets
         self._ctrl_popup_menu = file_mgr_view_name.ctrl_popup_menu
@@ -572,19 +660,19 @@ class FileView:
         #signals
         self.name_r_text.connect("edited", self._rename_finished)
         self.name_r_text.connect("editing-canceled", self._rename_cancelled)
-        self._file_mgr_view_gtk.connect('row-activated', self.row_activated)
-        self._file_mgr_view_gtk.connect('button-release-event', self.on_button_release)
-        self._file_mgr_view_gtk.connect('button-press-event', self.on_button_press)
-        self._file_mgr_view_gtk.connect('key-release-event', self.on_key_release)
-        self._file_mgr_view_gtk.connect('key-press-event', self.on_key_press)
-        self._file_mgr.transmitter.connect('cwd_changed', self._file_mgr_view_m.populate_file_list)
+        self.file_mgr_view_gtk.connect('row-activated', self.row_activated)
+        self.file_mgr_view_gtk.connect('button-release-event', self.on_button_release)
+        self.file_mgr_view_gtk.connect('button-press-event', self.on_button_press)
+        self.file_mgr_view_gtk.connect('key-release-event', self.on_key_release)
+        self.file_mgr_view_gtk.connect('key-press-event', self.on_key_press)
+        self.file_mgr.transmitter.connect('cwd_changed', self._file_mgr_view_m.populate_file_list)
         signal_.GLOBAL_TRANSMITTER.connect('dir_contents_updated', self.cb_dir_contents_updated)
 
         self._file_mgr_view_m.populate_file_list()
         # A kludge to prevent the 'Escape' key's 'key-release-event' from unselecting
         # a file when using 'Escape' to cancel file renaming.
         self.mute_escape_key = False
-
+        self.task_box: Gtk.Box = file_mgr_view_name.task_box
 
     def _rename_cancelled(self, *_):
         """
@@ -599,10 +687,10 @@ class FileView:
         upon completion of renaming a file.
         """
         renderer.set_property("editable", False)
-        cwd = self._file_mgr.get_cwd()
+        cwd = self.file_mgr.get_cwd()
 
         # Build absolute paths for the previous and new file names.
-        model: Gtk.ListStore = self._file_mgr_view_gtk.get_model()
+        model: Gtk.ListStore = self.file_mgr_view_gtk.get_model()
         itr = model.get_iter_from_string(path)
         val = model.get_value(itr, self.name_text['column'])
         old_name = Path(cwd, val)
@@ -613,7 +701,7 @@ class FileView:
         if old_name == new_name:
             return
 
-        if error := self._file_mgr.rename(old_name, new_name):
+        if error := self.file_mgr.rename(old_name, new_name):
             fmvt.ErrorDialog(f"Failed to rename the following file:\n{old_name}", [error])
 
     def on_key_press(self, _: Gtk.TreeView, event: Gdk.EventKey):
@@ -680,10 +768,10 @@ class FileView:
         Otherwise This will only act upon the first row returned by
         Gtk.TreeSelection.get_selected_rows().
         """
-        sel: Gtk.TreeSelection = self._file_mgr_view_gtk.get_selection()
+        sel: Gtk.TreeSelection = self.file_mgr_view_gtk.get_selection()
         _, paths = sel.get_selected_rows()
         self.name_r_text.set_property("editable", True)
-        self._file_mgr_view_gtk.set_cursor_on_cell(paths[0],
+        self.file_mgr_view_gtk.set_cursor_on_cell(paths[0],
                                                    self._name_col,
                                                    self.name_r_text,
                                                    True)
@@ -704,11 +792,11 @@ class FileView:
     def _display_properties(self):
         """Collect file information and display it in the FilePropertiesDialog,"""
 
-        sel = self._file_mgr_view_gtk.get_selection()
+        sel = self.file_mgr_view_gtk.get_selection()
         model, paths = sel.get_selected_rows()
         itr = model.get_iter(paths[0])
 
-        cwd = self._file_mgr.get_cwd()
+        cwd = self.file_mgr.get_cwd()
         selected_file = BEPath(cwd, model.get_value(itr, self.name_text['column']))
         fpd = fmvt.FilePropertiesDialog()
         fpd.init_properties(selected_file)
@@ -726,7 +814,7 @@ class FileView:
         """
         Post the cwd to the clipboard as a paste target.
         """
-        file_mgr_clipboard.paste(self._file_mgr.get_cwd())
+        file_mgr_clipboard.paste(self.file_mgr.get_cwd())
 
     def _copy_finished(self, paste_errors: list[file_mgr.FileError]):
         """
@@ -743,7 +831,7 @@ class FileView:
         for src_file in clipboard_data.copy_paths:
             dest_file = Path(clipboard_data.paste_target, src_file.name)
 
-            paster = glib_utils.AsyncWorker(target=self._file_mgr.copy,
+            paster = glib_utils.AsyncWorker(target=self.file_mgr.copy,
                                             args=(src_file, dest_file),
                                             on_finished_cb=self._copy_finished,
                                             pass_ret_val_to_cb=True,
@@ -755,10 +843,10 @@ class FileView:
         Generate Path objects for each selected row in the treeview
         and post it to the clipboard.
         """
-        cwd = self._file_mgr.get_cwd()
+        cwd = self.file_mgr.get_cwd()
         model: Gtk.ListStore
         paths: list[Gtk.TreePath]
-        sel = self._file_mgr_view_gtk.get_selection()
+        sel = self.file_mgr_view_gtk.get_selection()
         model, paths = sel.get_selected_rows()
 
         copied_files = []
@@ -777,11 +865,11 @@ class FileView:
         Registers a callback that will delete the posted file(s) once the
         the data in the clipboard has been posted.
         """
-        cwd = self._file_mgr.get_cwd()
+        cwd = self.file_mgr.get_cwd()
         model: Gtk.ListStore
         paths: list[Gtk.TreePath]
 
-        sel = self._file_mgr_view_gtk.get_selection()
+        sel = self.file_mgr_view_gtk.get_selection()
         model, paths = sel.get_selected_rows()
 
         copied_files = []
@@ -804,7 +892,7 @@ class FileView:
         for src_file in clipboard_data.copy_paths:
             dest_file = Path(clipboard_data.paste_target, src_file.name)
 
-            mover_thread = glib_utils.AsyncWorker(target=self._file_mgr.move,
+            mover_thread = glib_utils.AsyncWorker(target=self.file_mgr.move,
                                             args=(src_file, dest_file),
                                             on_finished_cb=self._cut_finished,
                                             pass_ret_val_to_cb=True,
@@ -863,8 +951,8 @@ class FileView:
         # Clear selected rows if the button press was on an empty area.
         # Select row if button-press was on a row. This second part is neccessary because
         # the row doesn't actually get selected until sometime after this callback exits.
-        path = self._file_mgr_view_gtk.get_path_at_pos(int(event.x), int(event.y))
-        sel: Gtk.TreeSelection = self._file_mgr_view_gtk.get_selection()
+        path = self.file_mgr_view_gtk.get_path_at_pos(int(event.x), int(event.y))
+        sel: Gtk.TreeSelection = self.file_mgr_view_gtk.get_selection()
         if path is None:
             sel.unselect_all()
         elif sel.count_selected_rows() == 0:
@@ -919,11 +1007,27 @@ class FileView:
                 pass
                 #print('right button clicked')
             elif event.get_button()[1] == 8:
-                self._file_mgr.cd_previous()
+                self.file_mgr.cd_previous()
                 #print('back button clicked')
             elif event.get_button()[1] == 9:
-                self._file_mgr.cd_ahead()
+                self.file_mgr.cd_ahead()
                 #print('forward button clicked')
+
+    def get_selected_files(self) -> list[Path]:
+        """
+        Get the absolute paths of the selected files.
+        """
+        file_list = []
+        cwd = self.file_mgr.get_cwd()
+
+        sel = self.file_mgr_view_gtk.get_selection()
+        model, paths = sel.get_selected_rows()
+        for pth in paths:
+            itr = model.get_iter(pth)
+            name = model.get_value(itr, self.name_text['column'])
+            file_list.append(Path(cwd, name))
+        return file_list
+
 
     def row_activated(self,
                       treeview: Gtk.TreeView,
@@ -938,8 +1042,8 @@ class FileView:
         value = model.get_value(tree_iter,1)
         is_dir = model.get_value(tree_iter,2)
         if is_dir:
-            new_path = Path(self._file_mgr.get_cwd(), value)
-            self._file_mgr.cd(new_path)
+            new_path = Path(self.file_mgr.get_cwd(), value)
+            self.file_mgr.cd(new_path)
 
     def on_destroy(self, _: Gtk.TreeView) -> None:
         """save the gui's state"""
@@ -947,16 +1051,16 @@ class FileView:
 
     def cb_dir_contents_updated(self, cwd=None) -> None:
         """Determine if files in path, directory, are suitable to be displayed and add them to the file_list"""
-        if cwd == self._file_mgr.get_cwd():
+        if cwd == self.file_mgr.get_cwd():
             self._file_mgr_view_m.populate_file_list()
 
     def _delete_start(self):
         """Delete or trash selected files"""
         file_list = []
-        cwd = self._file_mgr.get_cwd()
+        cwd = self.file_mgr.get_cwd()
 
         # Get the names of the selected files.
-        sel = self._file_mgr_view_gtk.get_selection()
+        sel = self.file_mgr_view_gtk.get_selection()
         model, paths = sel.get_selected_rows()
         for pth in paths:
             itr = model.get_iter(pth)
@@ -970,7 +1074,7 @@ class FileView:
         verify_dialog.hide_on_delete()
         if response == Gtk.ResponseType.OK:
             sel.unselect_all()
-            deleter = glib_utils.AsyncWorker(target=self._file_mgr.delete,
+            deleter = glib_utils.AsyncWorker(target=self.file_mgr.delete,
                                              args=(*file_list,),
                                              kwargs={'recursive':verify_dialog.recursive},
                                              on_finished_cb=self._delete_finished,
@@ -994,11 +1098,11 @@ class FileView:
 
             if response != Gtk.ResponseType.CANCEL:
                 new_dir_name = new_dir_dialog.get_entry_text()
-                new_dir = Path(self._file_mgr.get_cwd(), new_dir_name)
+                new_dir = Path(self.file_mgr.get_cwd(), new_dir_name)
 
-                if not (error := self._file_mgr.mkdir(new_dir)):
+                if not (error := self.file_mgr.mkdir(new_dir)):
                     if response == new_dir_dialog.ResponseType.AND_OPEN:
-                        self._file_mgr.cd(new_dir)
+                        self.file_mgr.cd(new_dir)
                 else:
                     fmvt.ErrorDialog('Failed to create the following file', [error])
                     continue_dialog = True
@@ -1033,3 +1137,246 @@ class FileMgrViewDBI:
                 self.settings_numeric.update_value_by_id(con, id_, width)
             else:
                 self.settings_numeric.set(con, 'FilesView', 'name_col_width', width)
+
+
+class FileSelector:
+    """
+    FileSelector is a file selection dialog embedded into the file manager.
+    """
+    # Diasbled because pylint doesn't really handle gi.repository very well.
+    # pylint: disable=no-member
+    def __init__(self,
+                 fmv: FileView,
+                 message: str = 'Select files or a directory',
+                 multiselect: bool=False,
+                 inc_dirs: bool=False,
+                 inc_files: bool=False):
+
+        self.transmitter = signal_.Signal()
+        self.transmitter.add_signal('task_complete')
+
+        self._inc_dirs = inc_dirs
+        self._inc_files = inc_files
+        self._fmv = fmv
+        self._fmv.file_mgr.transmitter.connect('cwd_changed', self._on_selection_changed)
+        self.view = fmvt.FileSelectionBox()
+
+        self.view.ok_button.connect('clicked', self._on_button_clicked)
+        self.view.cancel_button.connect('clicked', self._on_button_clicked)
+        self.view.show_all()
+
+        self._selection = self._fmv.file_mgr_view_gtk.get_selection()
+        self._changed_sig_id = self._selection.connect('changed', self._on_selection_changed)
+        self._previous_selection_mode = self._selection.get_mode()
+        if multiselect:
+            self._selection.set_mode(Gtk.SelectionMode.MULTIPLE)
+        else:
+            self._selection.set_mode(Gtk.SelectionMode.SINGLE)
+        # pyGObject does not break out the get_select_function, so it cannot be backed up and restored.
+        # The best that can be done is to reset it to default after we finish with it.
+        self._selection.set_select_function(self._select_function)
+
+        self.view.message_label.set_text(message)
+        if self._inc_dirs:
+            cwd = self._fmv.file_mgr.get_cwd()
+            self.view.selected_files_label.set_text(cwd.name)
+            self.view.selected_files_frame.set_visible(True)
+        else:
+            self.view.selected_files_frame.set_visible(False)
+        self.view.selected_files_combo.set_visible(False)
+
+    def _on_cwd_changed(self):
+        print(f'_on_cwd_changed {self._fmv.file_mgr.get_cwd()}')
+        self._on_selection_changed(None)
+
+    def _select_function(self,
+                         _selection: Gtk.TreeSelection,
+                         model: Gtk.ListStore,
+                         treepath: Gtk.TreePath,
+                         _currently_selected: bool) -> bool:
+        """
+        Callback for a Gtk.Treeview to determine if a row should be selecteable.
+
+        Checks if the file in the row meets the specifications of this
+        particular open file dialog instance.
+
+        Returns: True if the row selection should be toggled, False otherwize.
+        """
+        itr = model.get_iter(treepath)
+        file_name = model.get_value(itr, FileView.name_text['column'])
+        parent_path = self._fmv.file_mgr.get_cwd()
+        full_path = Path(parent_path, file_name)
+
+        if self._inc_dirs and full_path.is_dir():
+            return True
+        if self._inc_files and full_path.is_file():
+            return True
+        return False
+
+    def _on_selection_changed(self, _: Gtk.TreeSelection = None):
+        """
+        TreeSelection callback indicating that a row may have been selected or unselected.
+
+        Update the selection display accordingly.
+
+        Note: This callback gets spuriously called.
+        """
+        model = self.view.selected_files_combo.get_model()
+        model.clear()
+        selected_files = self._fmv.get_selected_files()
+
+        if (length := len(selected_files)) > 1:
+            for file in self._fmv.get_selected_files():
+                model.append((file.name,))
+            self.view.selected_files_combo.set_active(0)
+            self.view.selected_files_combo.set_visible(True)
+            self.view.selected_files_frame.set_visible(False)
+        elif length:
+            self.view.selected_files_label.set_text(selected_files[0].name)
+            self.view.selected_files_frame.set_visible(True)
+            self.view.selected_files_combo.set_visible(False)
+        else:
+            if self._inc_dirs:
+                cwd = self._fmv.file_mgr.get_cwd()
+                self.view.selected_files_label.set_text(cwd.name)
+                self.view.selected_files_frame.set_visible(True)
+            else:
+                self.view.selected_files_frame.set_visible(False)
+            self.view.selected_files_combo.set_visible(False)
+
+    def _on_button_clicked(self, button: Gtk.Button) -> list[Path]:
+        """
+        Callback indicating that one of the file selection control buttons was pressed.
+
+        FileSelector is now closing, so this function restores the Gtk.TreeSelection
+        to its previous state before signalling task_complete.
+        """
+        self._selection.set_mode(self._previous_selection_mode)
+        self._selection.set_select_function(None)
+        # The connection to the signal prevents this object from being garbage collected.
+        self._selection.disconnect(self._changed_sig_id)
+        match button:
+            case self.view.ok_button:
+                selected_files = self._fmv.get_selected_files()
+                if not selected_files and self._inc_dirs:
+                    # Directory selections use the cwd if nothing is selected.
+                    selected_files.append(self._fmv.file_mgr.get_cwd())
+                self.transmitter.send('task_complete', selected_files)
+            case self.view.cancel_button:
+                self.transmitter.send('task_complete', [])
+
+
+class TaskManager:
+    """
+    Manage the loading and running of file manager tasks in the file view.
+    """
+
+    task_classes = {
+        'file_selection': FileSelector,
+        'playlist_opener': PlaylistOpenerView,
+    }
+    logger = logging.getLogger('TaskManager')
+
+    def __init__(self, file_mgr_views: list[FileView]) -> None:
+        self._task_non_modal: Gtk.Widget|None = None
+        self._task_modal: Gtk.Widget|None = None
+        self._fmv_task_wrappers = [
+            TaskManager.FmvTaskWrapper(fmv, None, None) for fmv in file_mgr_views
+        ]
+
+    def task_open(self,
+                  task_type: str,
+                  modal: bool,
+                  callback: Callable[list[Path], None]|None = None,
+                  task_args: tuple[any] = (),
+                  task_kwargs: dict[any]|None = None) -> None:
+        """
+        Add a task to the filemanager view.
+
+        A task is something like a file selection task or
+        a directory watcher that offers actions to the user based
+        on whats in the cwd.
+
+        There can only be at most one modal task and one non-modal task.
+
+        tasks are predefined
+
+        Args:
+            task_type: A string representing a predefined task. Available tasks are
+            enumerated in the dict, TaskManager.task_classes.
+
+            modal: bool that determines whether or not the task_view can
+            be covered up by another task.
+
+            callback: called when the task has been completed.
+
+            task_args: arguments passed to the task completed callback.
+
+            task_kwargs: Keyword arguments passed to the task completed callback.
+        """
+        # Avoid empty dict as default arg, because Python.
+        if task_kwargs is None:
+            task_kwargs = {}
+
+        task_view_list = []
+        for fmv_task in self._fmv_task_wrappers:
+            task_view = self.task_classes[task_type](fmv_task.fmv_instance, *task_args, **task_kwargs)
+            task_view_list.append(task_view)
+
+            # Tasks that never actually complete don't have transmitters.
+            if hasattr(task_view, 'transmitter'):
+                task_view.transmitter.connect_once('task_complete', self.task_close, task_view_list)
+                if callback is not None:
+                    try:
+                        task_view.transmitter.connect_once('task_complete', callback)
+                    except KeyError as e:
+                        name = f'{task_view.__class__.__name__}.{task_view.transmitter.__class__.__name__}'
+                        self.logger.warning('%s signal not found in %s', e, name)
+
+            if modal:
+                if  fmv_task.task_modal is None:
+                    if fmv_task.task_non_modal is not None:
+                        fmv_task.fmv_instance.task_box.remove(fmv_task.task_non_modal.view)
+                    fmv_task.task_modal = task_view
+                else:
+                    raise RuntimeError('FmvTaskWrapper.task_modal is not None')
+
+            elif not modal:
+                if fmv_task.task_non_modal is None:
+                    fmv_task.task_non_modal = task_view
+                else:
+                    raise RuntimeError("FmvTaskWrapper.task_non_modal is not None")
+
+            fmv_task.fmv_instance.task_box.pack_start(task_view.view, True, True, 0)
+
+    def task_close(self, task_view_list: list[Gtk.Widget], *_, **__):
+        """
+        Remove a task from the view.
+
+        Args:
+            task_view_list: uniquely identifies the task.
+            unused args/kwargs: Don't throw errors when there are args meant for other
+                callbacks subscribed to the same task_complete signal.
+        """
+        for task_view, fmv_task in zip(task_view_list, self._fmv_task_wrappers):
+            if task_view is fmv_task.task_modal:
+                fmv_task.task_modal = None
+                if fmv_task.task_non_modal is not None:
+                    fmv_task.fmv_instance.task_box.pack_start(fmv_task.task_non_modal.view, True, True, 0)
+            elif task_view is self._task_non_modal:
+                self._task_non_modal = None
+            else:
+                raise RuntimeError(f"{task_view} not found in tasks.")
+            fmv_task.fmv_instance.task_box.remove(task_view.view)
+
+    @dataclass
+    class FmvTaskWrapper:
+        """
+        Task data that can be passed around the TaskMAnager class.
+        """
+        fmv_instance: FileView|None = None
+        task_modal: Gtk.Widget|None = None
+        task_non_modal: Gtk.Widget|None = None
+
+file_mgr_task: TaskManager|None = None
+"""The global instance of the task manager"""
