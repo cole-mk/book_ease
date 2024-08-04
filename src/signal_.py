@@ -28,10 +28,6 @@ This module provides a global instance of a Signal transmitter.
 To enable the global transmitter, main() should instantiate the instance early in the program.
 signal_.GLOBAL_TRANSMITTER = Signal()
 
-This module provides logging output. It is set to output to the NullHandler.
-To access the output, place the following in the main application file:
-import logging
-logging.getLogger('signal_').addHandler(logging.StreamHandler())
 """
 import weakref
 import logging
@@ -46,7 +42,7 @@ class SignalData:
     """
     Store information about a callback and the parameters to be passed to it.
     """
-    logger = logging.getLogger(f'{__name__}.SignalData')
+    logger = logging.getLogger('SignalData')
     logger.addHandler(logging.NullHandler())
 
     def __init__(self,

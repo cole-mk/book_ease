@@ -53,7 +53,6 @@ if TYPE_CHECKING:
     import file_mgr
     import threading
 
-#logger = logging.getLogger()
 
 @dataclass
 class FileMgrClipData:
@@ -270,7 +269,7 @@ class ExistingPlaylistOpenerM:
 
 class NavigationView:
     """Display the file navigation buttons"""
-    logger = logging.getLogger(f'{__name__}::NavigationView')
+    logger = logging.getLogger('NavigationView')
     logger.addHandler(logging.NullHandler())
 
     def __init__(self,

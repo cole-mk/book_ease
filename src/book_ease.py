@@ -35,9 +35,7 @@ import player
 import file_mgr
 
 logging_stream_handler = logging.StreamHandler()
-logging_stream_handler.setFormatter(logging.Formatter('%(levelname)s - %(name)s - %(message)s'))
-logging.getLogger('signal_').addHandler(logging_stream_handler)
-
+logging_stream_handler.setFormatter(logging.Formatter('%(levelname)s %(module)s:%(name)s:%(funcName)s %(message)s'))
 logging.getLogger().setLevel(logging.WARNING)
 
 

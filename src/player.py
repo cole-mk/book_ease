@@ -259,7 +259,7 @@ class SeekTime(Enum):
 class Player:  # pylint: disable=unused-argument
     """The base class for the media player model."""
 
-    logger = logging.getLogger(f'{__name__}.PlayerState')
+    logger = logging.getLogger('PlayerState')
 
     def __init__(self):
         self.transmitter = signal_.Signal()
@@ -658,7 +658,7 @@ class PlayerC:
     PlayerC routes signals between Player and Book_Reader
     as well as instantiates the player view.
     """
-    logger = logging.getLogger(f'{__name__}.PlayerC')
+    logger = logging.getLogger('PlayerC')
 
     def __init__(self, book_reader: BookReader, builder: Gtk.Builder):
         self.book_reader = book_reader
@@ -772,7 +772,7 @@ class GstPlayerError(Exception):
 
 class GstPlayer:
     """The wrapper for the gstreamer backend"""
-    logger = logging.getLogger(f'{__name__}.GstPlayer')
+    logger = logging.getLogger('GstPlayer')
 
     def __init__(self):
         Gst.init(None)
@@ -1203,7 +1203,7 @@ class GstPlayerA:
     Adapter to go between Player and GstPlayer.
     Provides queuing services, allowing Player to fire and forget commands to GstPlayer.
     """
-    logger = logging.getLogger(f'{__name__}.GstPlayerA')
+    logger = logging.getLogger('GstPlayerA')
 
     def __init__(self):
         self._gst_player = GstPlayer()
@@ -1363,7 +1363,7 @@ class GstStreamInfo:
 
         https://gstreamer.freedesktop.org/documentation/tutorials/basic/media-information-gathering.html
     """
-    logger = logging.getLogger(f'{__name__}.GstStreamInfo')
+    logger = logging.getLogger('GstStreamInfo')
 
     def __init__(self) -> None:
         self.transmitter = signal_.Signal()

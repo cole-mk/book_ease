@@ -46,7 +46,7 @@ class PlayerButtonNextVC:
     """
     Controls the view of a button widgit that skips to the next track in a playlist.
     """
-    logger = logging.getLogger(f'{__name__}.PlayerButtonNextVC')
+    logger = logging.getLogger('PlayerButtonNextVC')
 
     def __init__(self, player_: player.Player, builder: Gtk.Builder):
 
@@ -85,7 +85,7 @@ class PlayerButtonVolumeVC:
     """
     Controls the view of a button widgit that skips to the next track in a playlist.
     """
-    logger = logging.getLogger(f'{__name__}.PlayerButtonVolumeVC')
+    logger = logging.getLogger('PlayerButtonVolumeVC')
 
     def __init__(self, player_: player.Player, builder: Gtk.Builder):
 
@@ -151,7 +151,7 @@ class PlayerButtonPreviousVC:
     """
     Controls the view of a button widgit that skips to the previous track in a playlist.
     """
-    logger = logging.getLogger(f'{__name__}.PlayerButtonPreviousVC')
+    logger = logging.getLogger('PlayerButtonPreviousVC')
 
     def __init__(self, player_: player.Player, builder: Gtk.Builder):
 
@@ -188,7 +188,7 @@ class PlayerButtonForwardVC:
     """
     Controls the view of a button widgit that skips forward in a track.
     """
-    logger = logging.getLogger(f'{__name__}.PlayerButtonForwardVC')
+    logger = logging.getLogger('PlayerButtonForwardVC')
 
     def __init__(self, player_: player.Player, builder: Gtk.Builder):
 
@@ -261,7 +261,7 @@ class PlayerButtonRewindVC:
     """
     Controls the view of a button widgit that skips backward in a track.
     """
-    logger = logging.getLogger(f'{__name__}.PlayerButtonRewindVC')
+    logger = logging.getLogger('PlayerButtonRewindVC')
 
     def __init__(self, player_: player.Player, builder: Gtk.Builder):
 
@@ -334,7 +334,7 @@ class PlayerButtonStopVC:
     """
     Controls the view of a button widgit that stops track playback.
     """
-    logger = logging.getLogger(f'{__name__}.PlayerButtonStopVC')
+    logger = logging.getLogger('PlayerButtonStopVC')
 
     def __init__(self, player_: player.Player, builder: Gtk.Builder):
 
@@ -372,7 +372,7 @@ class PlayerButtonPlayPauseVC:
     """
     Controls the view of a button widgit that toggles play/pause for a track.
     """
-    logger = logging.getLogger(f'{__name__}.PlayerButtonPlayPauseVC')
+    logger = logging.getLogger('PlayerButtonPlayPauseVC')
 
     def __init__(self, player_: player.Player, builder: Gtk.Builder):
 
@@ -428,7 +428,7 @@ class PlayerPositionDisplayVC:
     Controls the view of a display for showing the current track position
     on a scrollbar. It also displays current time and duration numerically.
     """
-    logger = logging.getLogger(f'{__name__}.PlayerPositionDisplayVC')
+    logger = logging.getLogger('PlayerPositionDisplayVC')
 
     def __init__(self, player_: player.Player, builder: Gtk.Builder):
 
@@ -626,7 +626,7 @@ class PlayerButtonInfoVC:
 
     Includes a stream information dialog that displays the stream's tag information.
     """
-    _logger = logging.getLogger(f'{__name__}.PlayerButtonInfoVC')
+    _logger = logging.getLogger('PlayerButtonInfoVC')
 
     def __init__(self, player_: player.Player, builder: Gtk.Builder):
 
