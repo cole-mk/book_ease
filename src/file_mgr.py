@@ -101,8 +101,14 @@ class FileMgr():
     def __init__(self) -> None:
         self.transmitter = signal_.Signal()
         self._file_mgr_dbi = FileMgrDBI()
-        self.library_path: Path  = self._file_mgr_dbi.get_library_path() or self._default_library_path
-        self._current_path: Path = self.library_path
+        tmp_lib_path = self._file_mgr_dbi.get_library_path()
+        if tmp_lib_path is None or not tmp_lib_path.is_dir():
+            self._library_path = self._default_library_path
+            self.library_path_is_saved = False
+        else:
+            self._library_path = tmp_lib_path
+            self.library_path_is_saved = True
+        self._current_path: Path = self._library_path
         self._path_back_max_len = 10
         self._path_ahead_max_len = 10
         self._path_back: List[Path] = []
@@ -112,6 +118,20 @@ class FileMgr():
         # Signals
         # Notify of file changes
         self.transmitter.add_signal('cwd_changed')
+
+    @property
+    def library_path(self):
+        """
+        @property library path
+        """
+        return self._library_path
+
+    @library_path.setter
+    def library_path(self, path: Path):
+        self.library_path_is_saved = True
+        self._library_path = path
+        self._file_mgr_dbi.set_library_path(path)
+
 
     def get_file_list(self) -> FileList:
         """retrieve self.file_list"""
@@ -454,32 +474,48 @@ class FileMgrDBI:
 
     def set_library_path(self, library_path: Path) -> None:
         """
-        Save the path to the root directory of the book library
-        Not yet Implemented.
+        Save the path to the root directory of the book library.
         """
-
+        with book_ease_tables.DB_CONNECTION_MANAGER.query() as con:
+            self.settings_string.clear_attribute(con, 'Files', 'library_path')
+            self.settings_string.set(con, 'Files', 'library_path', str(library_path.absolute()))
 
 class FileMgrC:
     """Instantate the components of the file manager system."""
-    def __init__(self,
-                 file_manager_pane: Gtk.Paned,
-                 file_mgr_view_name: str) -> None:
+    def __init__(self, file_manager_pane: Gtk.Paned) -> None:
 
-        self.file_mgr = FileMgr()
-        self.file_mgr_view_gtk = fmvt.FileManagerViewOuterT()
+        self.file_manager_pane = file_manager_pane
+        self.file_mgr_view_templates = []
+        self.file_mgr_views = []
+        self.file_mgrs = []
+        self.book_marks = []
+        self.navigations = []
+        file_mgr_view_ms = []
 
-        self.file_mgr_view_m = file_mgr_view.FileMgrViewM(self.file_mgr)
-        self.file_view_gtk = file_mgr_view.FileView(self.file_mgr_view_gtk, self.file_mgr, self.file_mgr_view_m)
+        for i, name in enumerate(("files_1", "files_2")):
+            self.file_mgrs.append(FileMgr())
+            self.file_mgr_view_templates.append(fmvt.FileManagerViewOuterT())
+            file_mgr_view_ms.append(file_mgr_view.FileMgrViewM(self.file_mgrs[i]))
+            self.file_mgr_views.append(
+                file_mgr_view.FileView(self.file_mgr_view_templates[i], self.file_mgrs[i], file_mgr_view_ms[i])
+            )
 
-        self.book_mark = book_mark.BookMark(self.file_mgr_view_gtk.book_mark_treeview_gtk, self.file_mgr)
-        self.navigation = file_mgr_view.NavigationView(self.file_mgr_view_gtk, self.file_mgr, self.file_mgr_view_m)
+            if name == 'files_1':
+                self.file_manager_pane.pack1(self.file_mgr_view_templates[i], True, False)
+            elif name == 'files_2':
+                self.file_manager_pane.pack2(self.file_mgr_view_templates[i], True, False)
+            self.file_mgr_view_templates[i].show_all()
 
-        if file_mgr_view_name == 'files_1':
-            file_manager_pane.pack1(self.file_mgr_view_gtk, True, False)
-        elif file_mgr_view_name == 'files_2':
-            file_manager_pane.pack2(self.file_mgr_view_gtk, True, False)
-        else:
-            raise RuntimeError("file_mgr_view didn't didn't match any Gtk object")
-        self.playlist_opener = file_mgr_view.PlaylistOpenerView(self.file_mgr, self.file_mgr_view_gtk)
-        file_manager_pane.show_all()
-        self.file_mgr_view_gtk.show_all()
+        file_mgr_view.file_mgr_task = file_mgr_view.TaskManager(self.file_mgr_views)
+        self.file_manager_pane.show_all()
+        file_mgr_view.file_mgr_task.task_open("playlist_opener", False)
+
+        # Classes that use the file selection have to be initialized after all of the file_mgr_views
+        # have been instantiated.
+        for i in range(2):
+            self.book_marks.append(
+                book_mark.BookMark(self.file_mgr_view_templates[i].book_mark_treeview_gtk, self.file_mgrs[i])
+            )
+            self.navigations.append(
+                file_mgr_view.NavigationView(self.file_mgr_view_templates[i], self.file_mgrs[i], file_mgr_view_ms[i])
+            )

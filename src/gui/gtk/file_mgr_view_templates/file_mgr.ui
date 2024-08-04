@@ -119,6 +119,25 @@
       </object>
     </child>
   </object>
+  <object class="GtkImage" id="select_library_root_image">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="stock">gtk-edit</property>
+  </object>
+  <object class="GtkMenu" id="library_button_popup_menu">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <child>
+      <object class="GtkImageMenuItem" id="select_library_root_menu_item">
+        <property name="label" translatable="yes">Reset</property>
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="tooltip_text" translatable="yes">Reset the media library's root directory.</property>
+        <property name="image">select_library_root_image</property>
+        <property name="use_stock">False</property>
+      </object>
+    </child>
+  </object>
   <object class="GtkImage" id="up">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
@@ -266,60 +285,15 @@
       </packing>
     </child>
     <child>
-      <object class="GtkBox" id="playlist_opener_box">
+      <object class="GtkBox" id="task_box">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
         <property name="baseline_position">top</property>
         <child>
-          <object class="GtkButton" id="create_playlist_btn">
-            <property name="label" translatable="yes">Create</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">True</property>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="padding">2</property>
-            <property name="position">0</property>
-          </packing>
+          <placeholder/>
         </child>
         <child>
-          <object class="GtkBox" id="open_playlist_box">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="no_show_all">True</property>
-            <child>
-              <object class="GtkButton" id="open_playlist_btn">
-                <property name="label" translatable="yes">open</property>
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="receives_default">True</property>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkComboBox" id="has_playlist_combo">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="hexpand">True</property>
-              </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">1</property>
-              </packing>
-            </child>
-          </object>
-          <packing>
-            <property name="expand">True</property>
-            <property name="fill">True</property>
-            <property name="padding">5</property>
-            <property name="position">1</property>
-          </packing>
+          <placeholder/>
         </child>
       </object>
       <packing>

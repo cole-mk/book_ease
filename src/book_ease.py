@@ -35,9 +35,7 @@ import player
 import file_mgr
 
 logging_stream_handler = logging.StreamHandler()
-logging_stream_handler.setFormatter(logging.Formatter('%(levelname)s - %(name)s - %(message)s'))
-logging.getLogger('signal_').addHandler(logging_stream_handler)
-
+logging_stream_handler.setFormatter(logging.Formatter('%(levelname)s %(module)s:%(name)s:%(funcName)s %(message)s'))
 logging.getLogger().setLevel(logging.WARNING)
 
 
@@ -267,11 +265,11 @@ def main(unused_args):
 
     # file manager system
     file_manager_pane = builder.get_object("file_manager_pane")
-    file_mgr_c_0 = file_mgr.FileMgrC(file_manager_pane, file_mgr_view_name="files_1")
-    file_mgr_c_1 = file_mgr.FileMgrC(file_manager_pane, file_mgr_view_name="files_2")
+    file_mgr_c = file_mgr.FileMgrC(file_manager_pane)
 
     # image pane
-    image_view_ref = ImageView(file_mgr_c_0.file_mgr, builder)
+    # This is just a placeholder until the image view is actually developed.
+    # image_view_ref = ImageView(file_mgr_c_0.file_mgr, builder)
 
     # bookreader backend
     book_reader_ref = book_reader.BookReader(builder)
