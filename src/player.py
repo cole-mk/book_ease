@@ -468,6 +468,7 @@ class Player:  # pylint: disable=unused-argument
         new_stream_data.track_number = track.get_number()
 
         self.stream_data = new_stream_data
+        self._save_position()
 
     def _set_track_relative(self, track_delta: Literal[-1, 1]):
         """Implementation for self.set_track_relative"""
@@ -532,6 +533,8 @@ class Player:  # pylint: disable=unused-argument
         """Implementation for self.go_to_position"""
         if(time_ >= StreamTime(0) and time_ < self.stream_data.duration):
             self.player_adapter.set_position(position=time_)
+            self.stream_data.position_data.time = time_
+            self._save_position()
             return True
         else:
             return False
