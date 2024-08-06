@@ -658,17 +658,25 @@ class PlayerButtonInfoVC:
     def _on_info_button_released(self, *_) -> None:
         """
         Callback for when the gtk button is released.
+        Prepare and display the stream info dialog.
         """
         self._logger.debug('on_button_released')
+        try:
+            buffer_text = self._player.player_adapter.query_stream_info()
+        except player.GstPlayerError:
+            buffer_text = 'Failed to query stream info'
+            self._logger.error(buffer_text)
+            buffer_text += '\nTry again or perhaps try pressing play first'
+
+        self._info_dialog_text_buffer.set_text(buffer_text)
         self._info_dialog.show_all()
         self._info_dialog.run()
 
-    def _activate(self, stream_data: player.StreamData) -> None:
+    def _activate(self, _stream_data: player.StreamData) -> None:
         """
         Set the button to active state
         """
         self._logger.debug('activate')
-        self._info_dialog_text_buffer.set_text(stream_data.stream_info)
         self._view.set_sensitive(True)
 
     def _deactivate(self) -> None:
