@@ -510,7 +510,6 @@ class Player:  # pylint: disable=unused-argument
         """
         self.logger.debug('_on_stream_loaded')
         self.stream_data.duration = self.player_adapter.query_duration()
-        self.stream_data.stream_info = self.player_adapter.query_stream_info()
         self.stream_data.volume = self.player_adapter.query_volume()
         self.transmitter.send('stream_updated', self.stream_data)
 
